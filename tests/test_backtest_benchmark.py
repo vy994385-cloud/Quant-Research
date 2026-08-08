@@ -113,12 +113,12 @@ def test_benchmark_drawdown_is_calculated():
 
     benchmark = calculate_benchmark_result(
         result,
-        make_bars(["100", "120", "90", "110"]),
+        make_bars(["100", "90", "110"]),
     )
 
-    assert benchmark.benchmark_max_drawdown == Decimal("300")
+    assert benchmark.benchmark_max_drawdown == Decimal("100")
     assert benchmark.benchmark_max_drawdown_percent == Decimal(
-        "25"
+        "10"
     )
 
 
@@ -180,9 +180,121 @@ def test_multiple_benchmark_symbols_are_rejected():
             trading_date=date(2026, 1, 2),
             close=Decimal("110"),
         ),
+        BacktestBar(
+            symbol="BENCH",
+            trading_date=date(2026, 1, 3),
+            close=Decimal("120"),
+        ),
     ]
 
     with pytest.raises(ValueError):
+        calculate_benchmark_result(
+            result,
+            bars,
+        )
+
+
+def test_benchmark_starting_before_strategy_period_is_rejected():
+    result = make_strategy_result()
+
+    bars = [
+        BacktestBar(
+            symbol="BENCH",
+            trading_date=date(2025, 12, 31),
+            close=Decimal("95"),
+        ),
+        BacktestBar(
+            symbol="BENCH",
+            trading_date=date(2026, 1, 1),
+            close=Decimal("100"),
+        ),
+        BacktestBar(
+            symbol="BENCH",
+            trading_date=date(2026, 1, 3),
+            close=Decimal("120"),
+        ),
+    ]
+
+    with pytest.raises(ValueError, match="start"):
+        calculate_benchmark_result(
+            result,
+            bars,
+        )
+
+
+def test_benchmark_starting_after_strategy_period_is_rejected():
+    result = make_strategy_result()
+
+    bars = [
+        BacktestBar(
+            symbol="BENCH",
+            trading_date=date(2026, 1, 2),
+            close=Decimal("100"),
+        ),
+        BacktestBar(
+            symbol="BENCH",
+            trading_date=date(2026, 1, 3),
+            close=Decimal("120"),
+        ),
+    ]
+
+    with pytest.raises(ValueError, match="start"):
+        calculate_benchmark_result(
+            result,
+            bars,
+        )
+
+
+def test_benchmark_ending_after_strategy_period_is_rejected():
+    result = make_strategy_result()
+
+    bars = [
+        BacktestBar(
+            symbol="BENCH",
+            trading_date=date(2026, 1, 1),
+            close=Decimal("100"),
+        ),
+        BacktestBar(
+            symbol="BENCH",
+            trading_date=date(2026, 1, 2),
+            close=Decimal("110"),
+        ),
+        BacktestBar(
+            symbol="BENCH",
+            trading_date=date(2026, 1, 3),
+            close=Decimal("120"),
+        ),
+        BacktestBar(
+            symbol="BENCH",
+            trading_date=date(2026, 1, 4),
+            close=Decimal("125"),
+        ),
+    ]
+
+    with pytest.raises(ValueError, match="end"):
+        calculate_benchmark_result(
+            result,
+            bars,
+        )
+
+
+def test_benchmark_ending_before_strategy_period_is_rejected():
+    result = make_strategy_result()
+
+    bars = [
+        BacktestBar(
+            symbol="BENCH",
+            trading_date=date(2026, 1, 1),
+            close=Decimal("100"),
+        ),
+        BacktestBar(
+            symbol="BENCH",
+            trading_date=date(2026, 1, 2),
+            close=Decimal("110"),
+        ),
+    ]
+
+    with pytest.raises(ValueError, match="end"):
         calculate_benchmark_result(
             result,
             bars,

@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Sequence
 
+from src.backtest.metrics import calculate_max_drawdown
 from src.backtest.models import BacktestBar, BacktestResult
 
 
@@ -12,8 +13,8 @@ class BenchmarkResult:
     """
     Historical buy-and-hold benchmark comparison.
 
-    The benchmark uses the first and last available closing prices
-    from the supplied historical bars.
+    The benchmark is evaluated over exactly the same historical
+    period as the strategy backtest.
 
     This is a research comparison only. It does not generate
     trading or investment instructions.
@@ -43,7 +44,8 @@ def _validate_bars(
     """
     Validate benchmark observations.
 
-    Bars must be non-empty and strictly ordered by date.
+    Bars must be non-empty, strictly ordered, and contain
+    exactly one benchmark symbol.
     """
 
     if not bars:
@@ -72,6 +74,46 @@ def _validate_bars(
         )
 
     return ordered
+
+
+def _validate_benchmark_period(
+    result: BacktestResult,
+    benchmark_bars: Sequence[BacktestBar],
+) -> None:
+    """
+    Ensure benchmark observations cover exactly the strategy
+    backtest period.
+
+    A relative-performance comparison is only meaningful when
+    both series start and end on the same historical dates.
+    """
+
+    if not result.equity_curve:
+        raise ValueError(
+            "strategy backtest must contain an equity curve"
+        )
+
+    strategy_start = (
+        result.equity_curve[0].trading_date
+    )
+    strategy_end = (
+        result.equity_curve[-1].trading_date
+    )
+
+    benchmark_start = benchmark_bars[0].trading_date
+    benchmark_end = benchmark_bars[-1].trading_date
+
+    if benchmark_start != strategy_start:
+        raise ValueError(
+            "benchmark period must start on the same trading "
+            "date as the strategy backtest"
+        )
+
+    if benchmark_end != strategy_end:
+        raise ValueError(
+            "benchmark period must end on the same trading "
+            "date as the strategy backtest"
+        )
 
 
 def _calculate_benchmark_drawdown(
@@ -133,7 +175,7 @@ def calculate_benchmark_result(
 ) -> BenchmarkResult:
     """
     Compare a completed strategy backtest against a
-    buy-and-hold benchmark over the same historical observations.
+    buy-and-hold benchmark over the exact same historical period.
 
     The benchmark receives the same initial capital as the strategy.
 
@@ -152,6 +194,11 @@ def calculate_benchmark_result(
         )
 
     ordered = _validate_bars(benchmark_bars)
+
+    _validate_benchmark_period(
+        result,
+        ordered,
+    )
 
     benchmark_symbol = ordered[0].symbol
 
@@ -197,8 +244,6 @@ def calculate_benchmark_result(
         * benchmark_max_drawdown_normalized
     )
 
-    from src.backtest.metrics import calculate_max_drawdown
-
     (
         strategy_max_drawdown,
         strategy_max_drawdown_percent,
@@ -219,5 +264,7 @@ def calculate_benchmark_result(
         strategy_max_drawdown_percent=(
             strategy_max_drawdown_percent
         ),
-        outperforming=excess_return > Decimal("0"),
+        outperforming=(
+            excess_return > Decimal("0")
+        ),
     )
