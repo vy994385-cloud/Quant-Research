@@ -110,23 +110,21 @@ def _trend_persistence(
     if len(closes) < 2:
         return None
 
-    changes = [
-        current - previous
-        for previous, current in zip(
-            closes[-20:],
-            closes[-19:],
-        )
-    ]
-
-    if not changes:
-        return None
-
-    # The changes were calculated from the latest window.
-    # Determine the corresponding starting close safely.
     window_start = max(0, len(closes) - 20)
     window_closes = closes[window_start:]
 
     if len(window_closes) < 2:
+        return None
+
+    changes = [
+        current - previous
+        for previous, current in zip(
+            window_closes,
+            window_closes[1:],
+        )
+    ]
+
+    if not changes:
         return None
 
     overall_change = (
@@ -243,7 +241,7 @@ def calculate_market_structure(
 
     momentum_acceleration = None
 
-    if len(closes) >= 21:
+    if len(closes) >= 22:
         current_20d = _percentage_difference(
             closes[-1],
             closes[-21],
