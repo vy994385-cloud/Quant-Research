@@ -5,13 +5,23 @@ from decimal import Decimal
 from typing import Sequence
 
 from src.backtest.engine import BacktestEngine
-from src.backtest.metrics import BacktestMetrics, calculate_backtest_metrics
+from src.backtest.metrics import (
+    BacktestMetrics,
+    calculate_backtest_metrics,
+)
 from src.backtest.models import (
     BacktestBar,
     BacktestResult,
     BacktestSignal,
 )
-from src.backtest.report import BacktestReport, build_backtest_report
+from src.backtest.report import (
+    BacktestReport,
+    build_backtest_report,
+)
+from src.backtest.strategy import (
+    BacktestStrategy,
+    generate_strategy_signals,
+)
 from src.backtest.validation import (
     BacktestValidation,
     validate_backtest_inputs,
@@ -51,8 +61,26 @@ class BacktestRunner:
     """
     Orchestrates the complete historical backtest pipeline.
 
-    Pipeline:
+    Manual signal pipeline:
 
+        signals
+            ↓
+        validation
+            ↓
+        execution
+            ↓
+        metrics
+            ↓
+        report
+
+    Strategy pipeline:
+
+        bars
+            ↓
+        strategy
+            ↓
+        signals
+            ↓
         validation
             ↓
         execution
@@ -89,7 +117,8 @@ class BacktestRunner:
         signals: Sequence[BacktestSignal],
     ) -> BacktestRun:
         """
-        Run one complete historical experiment.
+        Run one complete historical experiment using
+        precomputed signals.
 
         REJECT:
             Validation errors stop execution.
@@ -119,6 +148,46 @@ class BacktestRunner:
             bars,
             signals,
         )
+
+        return self._build_run(
+            result,
+            validation,
+        )
+
+    def run_strategy(
+        self,
+        bars: Sequence[BacktestBar],
+        strategy: BacktestStrategy,
+    ) -> BacktestRun:
+        """
+        Run a complete historical experiment from a strategy.
+
+        The strategy receives only the supplied historical bars.
+        It generates historical signals, which are then passed
+        through the same validation and execution pipeline used
+        by the manual-signal API.
+
+        This keeps strategy generation separate from execution.
+        """
+
+        signals = generate_strategy_signals(
+            strategy,
+            bars,
+        )
+
+        return self.run(
+            bars,
+            signals,
+        )
+
+    def _build_run(
+        self,
+        result: BacktestResult,
+        validation: BacktestValidation,
+    ) -> BacktestRun:
+        """
+        Build the common metrics/report output for both runner paths.
+        """
 
         metrics = calculate_backtest_metrics(
             result

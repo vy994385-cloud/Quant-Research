@@ -32,8 +32,7 @@ class ThresholdStrategy:
     """
     Transparent score-threshold baseline strategy.
 
-    The strategy expects each BacktestBar.close to represent a
-    normalized score between 0 and 100.
+    The strategy operates on BacktestBar.score.
 
     Rules:
 
@@ -41,9 +40,10 @@ class ThresholdStrategy:
         score <= sell_threshold -> SELL
         otherwise                -> HOLD
 
-    This is intentionally simple. It exists as a baseline for
-    validating the backtesting infrastructure, not as a claimed
-    profitable trading strategy.
+    For backward compatibility with older research fixtures,
+    bars without an explicit score use close as the score.
+
+    New experiments should always provide score explicitly.
     """
 
     buy_threshold: Decimal = Decimal("70")
@@ -86,7 +86,11 @@ class ThresholdStrategy:
         signals: list[BacktestSignal] = []
 
         for bar in ordered:
-            score = bar.close
+            score = (
+                bar.score
+                if bar.score is not None
+                else bar.close
+            )
 
             if score >= self.buy_threshold:
                 action = "BUY"
@@ -112,8 +116,8 @@ class SignalSequenceStrategy:
     """
     Deterministic strategy backed by a precomputed signal sequence.
 
-    Useful for testing and later for plugging research-generated
-    signals into the backtest engine.
+    Useful for testing and for plugging research-generated signals
+    into the backtest engine.
 
     The strategy validates that signals are ordered and correspond
     exactly to the supplied bars.
