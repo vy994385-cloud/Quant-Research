@@ -4,6 +4,10 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Sequence
 
+from src.backtest.benchmark import (
+    BenchmarkResult,
+    calculate_benchmark_result,
+)
 from src.backtest.engine import BacktestEngine
 from src.backtest.metrics import (
     BacktestMetrics,
@@ -33,16 +37,17 @@ class BacktestRun:
     """
     Complete output of one validated historical backtest.
 
-    This object combines validation, execution, metrics, and
-    research reporting into one deterministic result.
+    The benchmark comparison is optional and describes historical
+    relative performance only.
 
-    It does not make live trading decisions.
+    It does not make a live trading decision.
     """
 
     result: BacktestResult
     metrics: BacktestMetrics
     report: BacktestReport
     validation: BacktestValidation
+    benchmark: BenchmarkResult | None = None
 
     @property
     def is_valid(self) -> bool:
@@ -72,6 +77,8 @@ class BacktestRunner:
         metrics
             ↓
         report
+            ↓
+        optional benchmark
 
     Strategy pipeline:
 
@@ -88,6 +95,8 @@ class BacktestRunner:
         metrics
             ↓
         report
+            ↓
+        optional benchmark
 
     The runner never converts a historical result into a live
     execution instruction.
@@ -115,10 +124,15 @@ class BacktestRunner:
         self,
         bars: Sequence[BacktestBar],
         signals: Sequence[BacktestSignal],
+        *,
+        benchmark_bars: Sequence[BacktestBar] | None = None,
     ) -> BacktestRun:
         """
         Run one complete historical experiment using
         precomputed signals.
+
+        If benchmark_bars are supplied, the benchmark is calculated
+        against the same initial capital as the strategy.
 
         REJECT:
             Validation errors stop execution.
@@ -152,12 +166,15 @@ class BacktestRunner:
         return self._build_run(
             result,
             validation,
+            benchmark_bars=benchmark_bars,
         )
 
     def run_strategy(
         self,
         bars: Sequence[BacktestBar],
         strategy: BacktestStrategy,
+        *,
+        benchmark_bars: Sequence[BacktestBar] | None = None,
     ) -> BacktestRun:
         """
         Run a complete historical experiment from a strategy.
@@ -167,7 +184,8 @@ class BacktestRunner:
         through the same validation and execution pipeline used
         by the manual-signal API.
 
-        This keeps strategy generation separate from execution.
+        Benchmark evaluation is optional and remains separate from
+        strategy signal generation.
         """
 
         signals = generate_strategy_signals(
@@ -178,12 +196,15 @@ class BacktestRunner:
         return self.run(
             bars,
             signals,
+            benchmark_bars=benchmark_bars,
         )
 
     def _build_run(
         self,
         result: BacktestResult,
         validation: BacktestValidation,
+        *,
+        benchmark_bars: Sequence[BacktestBar] | None = None,
     ) -> BacktestRun:
         """
         Build the common metrics/report output for both runner paths.
@@ -197,9 +218,18 @@ class BacktestRunner:
             result
         )
 
+        benchmark: BenchmarkResult | None = None
+
+        if benchmark_bars is not None:
+            benchmark = calculate_benchmark_result(
+                result,
+                benchmark_bars,
+            )
+
         return BacktestRun(
             result=result,
             metrics=metrics,
             report=report,
             validation=validation,
+            benchmark=benchmark,
         )

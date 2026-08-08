@@ -183,3 +183,104 @@ def test_strategy_runner_does_not_create_trade_signal():
 
     assert run.is_trade_signal is False
     assert run.report.is_trade_signal is False
+
+
+def test_run_strategy_can_include_benchmark():
+    runner = BacktestRunner(
+        Decimal("1000"),
+        minimum_bars=3,
+        minimum_trades=1,
+    )
+
+    strategy = ThresholdStrategy()
+
+    strategy_bars = make_bars(
+        ["80", "60", "30"]
+    )
+
+    benchmark_bars = [
+        BacktestBar(
+            symbol="BENCH",
+            trading_date=date(2026, 1, 1),
+            close=Decimal("100"),
+        ),
+        BacktestBar(
+            symbol="BENCH",
+            trading_date=date(2026, 1, 2),
+            close=Decimal("110"),
+        ),
+        BacktestBar(
+            symbol="BENCH",
+            trading_date=date(2026, 1, 3),
+            close=Decimal("120"),
+        ),
+    ]
+
+    run = runner.run_strategy(
+        strategy_bars,
+        strategy,
+        benchmark_bars=benchmark_bars,
+    )
+
+    assert run.benchmark is not None
+    assert run.benchmark.initial_value == Decimal("1000")
+    assert run.benchmark.final_value == Decimal("1200")
+    assert run.benchmark.benchmark_return == Decimal("20")
+
+
+def test_run_strategy_without_benchmark_remains_compatible():
+    runner = BacktestRunner(
+        Decimal("1000"),
+        minimum_bars=3,
+        minimum_trades=1,
+    )
+
+    run = runner.run_strategy(
+        make_bars(["80", "60", "30"]),
+        ThresholdStrategy(),
+    )
+
+    assert run.benchmark is None
+
+
+def test_manual_signal_api_can_include_benchmark():
+    runner = BacktestRunner(
+        Decimal("1000"),
+        minimum_bars=3,
+        minimum_trades=1,
+    )
+
+    bars = make_bars(
+        ["80", "60", "30"]
+    )
+
+    signals = ThresholdStrategy().generate_signals(
+        bars
+    )
+
+    benchmark_bars = [
+        BacktestBar(
+            symbol="BENCH",
+            trading_date=date(2026, 1, 1),
+            close=Decimal("100"),
+        ),
+        BacktestBar(
+            symbol="BENCH",
+            trading_date=date(2026, 1, 2),
+            close=Decimal("105"),
+        ),
+        BacktestBar(
+            symbol="BENCH",
+            trading_date=date(2026, 1, 3),
+            close=Decimal("110"),
+        ),
+    ]
+
+    run = runner.run(
+        bars,
+        signals,
+        benchmark_bars=benchmark_bars,
+    )
+
+    assert run.benchmark is not None
+    assert run.benchmark.final_value == Decimal("1100")
