@@ -140,3 +140,54 @@ def test_negative_historical_result_is_classified_descriptively():
     assert report.profit_loss < Decimal("0")
     assert report.research_signal == "HISTORICALLY_NEGATIVE"
     assert report.is_trade_signal is False
+
+
+def test_report_can_include_benchmark_comparison():
+    result = run_profitable_backtest()
+
+
+    from src.backtest.benchmark import calculate_benchmark_result
+
+    benchmark = calculate_benchmark_result(
+        result,
+        [
+            BacktestBar(
+                symbol="BENCH",
+                trading_date=date(2026, 1, 1),
+                close=Decimal("100"),
+            ),
+            BacktestBar(
+                symbol="BENCH",
+                trading_date=date(2026, 1, 2),
+                close=Decimal("105"),
+            ),
+            BacktestBar(
+                symbol="BENCH",
+                trading_date=date(2026, 1, 3),
+                close=Decimal("110"),
+            ),
+        ],
+    )
+
+    report = build_backtest_report(
+        result,
+        benchmark=benchmark,
+    )
+
+    assert report.has_benchmark
+    assert report.benchmark is not None
+    assert report.benchmark.benchmark_symbol == "BENCH"
+    assert report.benchmark.benchmark_return == Decimal("10")
+    assert report.benchmark.strategy_return == Decimal("20")
+    assert report.benchmark.excess_return == Decimal("10")
+    assert report.outperformed_benchmark is True
+
+
+def test_report_without_benchmark_remains_backward_compatible():
+    result = run_profitable_backtest()
+
+    report = build_backtest_report(result)
+
+    assert report.benchmark is None
+    assert report.has_benchmark is False
+    assert report.outperformed_benchmark is None

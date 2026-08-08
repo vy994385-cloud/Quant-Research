@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from decimal import Decimal
 
+from src.backtest.benchmark import BenchmarkResult
 from src.backtest.metrics import (
     BacktestMetrics,
     calculate_backtest_metrics,
@@ -19,6 +20,9 @@ class BacktestReport:
 
     It does not predict future returns and does not produce
     a live BUY/SELL instruction.
+
+    Benchmark information is optional and, when present,
+    describes historical relative performance.
     """
 
     initial_capital: Decimal
@@ -46,6 +50,8 @@ class BacktestReport:
     research_signal: str
     limitations: tuple[str, ...]
 
+    benchmark: BenchmarkResult | None = None
+
     @property
     def is_profitable(self) -> bool:
         return self.profit_loss > Decimal("0")
@@ -65,6 +71,22 @@ class BacktestReport:
         as an execution instruction.
         """
         return False
+
+    @property
+    def has_benchmark(self) -> bool:
+        return self.benchmark is not None
+
+    @property
+    def outperformed_benchmark(self) -> bool | None:
+        """
+        Return historical benchmark-relative performance.
+
+        None means no benchmark was supplied.
+        """
+        if self.benchmark is None:
+            return None
+
+        return self.benchmark.outperforming
 
 
 def _sample_warning(
@@ -117,11 +139,16 @@ def _research_signal(
 
 def build_backtest_report(
     result: BacktestResult,
+    benchmark: BenchmarkResult | None = None,
 ) -> BacktestReport:
     """
     Build a structured research report from a completed backtest.
 
-    All calculations are delegated to the existing metrics layer.
+    All strategy calculations are delegated to the existing
+    metrics layer.
+
+    Benchmark calculations are performed by the benchmark layer
+    and only attached here for reporting.
     """
 
     metrics = calculate_backtest_metrics(result)
@@ -153,4 +180,5 @@ def build_backtest_report(
         sample_size_warning=_sample_warning(metrics),
         research_signal=_research_signal(metrics),
         limitations=limitations,
+        benchmark=benchmark,
     )

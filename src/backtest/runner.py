@@ -214,10 +214,6 @@ class BacktestRunner:
             result
         )
 
-        report = build_backtest_report(
-            result
-        )
-
         benchmark: BenchmarkResult | None = None
 
         if benchmark_bars is not None:
@@ -225,6 +221,11 @@ class BacktestRunner:
                 result,
                 benchmark_bars,
             )
+
+        report = build_backtest_report(
+            result,
+            benchmark=benchmark,
+        )
 
         return BacktestRun(
             result=result,
