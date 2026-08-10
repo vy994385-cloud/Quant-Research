@@ -144,12 +144,17 @@ def review_ingestion(
 
     records_received = len(bars)
 
-    records_rejected = 1 if errors else 0
-
+    # validation_errors represent batch-level validation failures.
+    # The review layer must never invent a record count from the
+    # number of error messages. Structural record-level rejection
+    # accounting belongs to the validator and should be supplied
+    # explicitly in a future review-contract extension.
+    #
+    # Until that contract exists, validation errors conservatively
+    # prevent the batch from being reported as fully accepted.
+    records_rejected = records_received if errors else 0
     records_accepted = (
-        records_received
-        if not errors
-        else max(0, records_received - records_rejected)
+        0 if errors else records_received
     )
 
     return IngestionReview(

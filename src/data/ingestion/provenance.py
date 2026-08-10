@@ -1,7 +1,7 @@
 from datetime import date, datetime, timezone
 from enum import Enum
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class SourceType(str, Enum):
@@ -47,6 +47,20 @@ class DataProvenance(BaseModel):
     review_status: ReviewStatus = ReviewStatus.NEEDS_REVIEW
 
     notes: str | None = None
+
+    @model_validator(mode="after")
+    def validate_temporal_integrity(self):
+        if self.retrieved_at.tzinfo is None:
+            raise ValueError(
+                "retrieved_at must be timezone-aware"
+            )
+
+        if self.period_start > self.period_end:
+            raise ValueError(
+                "period_start must not be after period_end"
+            )
+
+        return self
 
     @property
     def is_high_quality(self) -> bool:

@@ -78,19 +78,20 @@ def test_low_reliability_source_is_not_high_quality():
     assert not provenance.is_high_quality
 
 
-def test_naive_datetime_is_rejected_by_review_check():
-
-    provenance = DataProvenance(
-        provider_name="Example Source",
-        source_type=SourceType.VENDOR,
-        retrieved_at=datetime(2026, 8, 8, 10, 0),
-        period_start=date(2026, 8, 1),
-        period_end=date(2026, 8, 7),
-        reliability_tier=2,
-        review_status=ReviewStatus.ACCEPT,
-    )
-
-    assert not provenance.retrieval_is_timezone_aware
+def test_naive_datetime_is_rejected_at_model_boundary():
+    with pytest.raises(
+        ValueError,
+        match="timezone-aware",
+    ):
+        DataProvenance(
+            provider_name="Example Source",
+            source_type=SourceType.VENDOR,
+            retrieved_at=datetime(2026, 8, 8, 10, 0),
+            period_start=date(2026, 8, 1),
+            period_end=date(2026, 8, 7),
+            reliability_tier=2,
+            review_status=ReviewStatus.ACCEPT,
+        )
 
 
 def test_reliability_tier_must_be_between_one_and_five():
@@ -149,4 +150,28 @@ def test_extra_fields_are_rejected():
             period_end=date(2026, 8, 7),
             reliability_tier=2,
             unexpected_field="bad",
+        )
+
+
+def test_period_start_must_not_be_after_period_end():
+    with pytest.raises(ValueError, match="period_start"):
+        DataProvenance(
+            provider_name="Example",
+            source_type=SourceType.VENDOR,
+            retrieved_at=datetime.now(timezone.utc),
+            period_start=date(2026, 8, 8),
+            period_end=date(2026, 8, 7),
+            reliability_tier=2,
+        )
+
+
+def test_naive_retrieved_at_is_rejected_at_model_boundary():
+    with pytest.raises(ValueError, match="timezone-aware"):
+        DataProvenance(
+            provider_name="Example",
+            source_type=SourceType.VENDOR,
+            retrieved_at=datetime(2026, 8, 8, 10),
+            period_start=date(2026, 8, 1),
+            period_end=date(2026, 8, 7),
+            reliability_tier=2,
         )

@@ -179,3 +179,21 @@ def test_review_result_is_not_a_trade_signal():
     )
 
     assert result.is_trade_signal is False
+
+
+def test_validation_errors_do_not_invent_partial_record_counts():
+    result = review_ingestion(
+        symbol="TEST",
+        bars=[make_bar(), make_bar(close="101"), make_bar(close="102")],
+        provenance=make_provenance(),
+        anomalies=[],
+        validation_errors=[
+            "Duplicate trading date detected.",
+            "Invalid OHLC relationship.",
+        ],
+    )
+
+    assert result.decision == ReviewDecision.REJECT
+    assert result.records_received == 3
+    assert result.records_rejected == 3
+    assert result.records_accepted == 0
