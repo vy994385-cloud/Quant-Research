@@ -8,8 +8,8 @@ class MarketDataProvider(ABC):
     """
     Provider-independent interface for market price data.
 
-    The quant engine should depend on this interface,
-    not on a particular exchange, broker, or vendor.
+    The research engine depends on this interface rather than
+    on a particular exchange, broker, or vendor.
     """
 
     @abstractmethod
@@ -23,9 +23,13 @@ class MarketDataProvider(ABC):
         Return daily OHLCV data for a symbol.
 
         Implementations must:
+
+        - validate the requested date range
+        - normalize the requested symbol
         - return only data within the requested range
-        - preserve the source timestamps/dates
+        - preserve source trading dates
         - never silently invent missing values
-        - return validated PriceBar objects
+        - return PriceBar objects
+        - return records in chronological order
         """
         raise NotImplementedError

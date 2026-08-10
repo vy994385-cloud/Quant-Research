@@ -10,13 +10,13 @@ class NSEMarketDataProvider:
     """
     Indian-market provider boundary.
 
-    The provider intentionally does not scrape NSE.
+    This provider intentionally does NOT scrape NSE.
 
-    For now it can consume an authorized/exported NSE-compatible
-    CSV dataset through the existing CSV adapter.
+    For now it consumes an authorized/exported NSE-compatible
+    CSV dataset through the CSV adapter.
 
-    This keeps the research engine independent from the eventual
-    licensed/approved production data source.
+    A future approved/licensed production provider can replace
+    this implementation without changing the research engine.
     """
 
     def __init__(
@@ -24,6 +24,7 @@ class NSEMarketDataProvider:
         data_file: str | Path | None = None,
     ):
         self.source_name = "NSE"
+
         self.data_file = (
             Path(data_file)
             if data_file is not None
@@ -44,6 +45,11 @@ class NSEMarketDataProvider:
         end_date: date,
     ) -> list[PriceBar]:
 
+        if start_date > end_date:
+            raise ValueError(
+                "start_date must not be after end_date."
+            )
+
         if self.data_file is None:
             raise RuntimeError(
                 "NSE provider is not configured. "
@@ -56,7 +62,9 @@ class NSEMarketDataProvider:
                 f"{self.data_file}"
             )
 
-        provider = CSVMarketDataProvider(self.data_file)
+        provider = CSVMarketDataProvider(
+            self.data_file
+        )
 
         return provider.get_daily_prices(
             symbol=symbol,

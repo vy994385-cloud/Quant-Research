@@ -3,21 +3,52 @@ from datetime import date
 from decimal import Decimal
 from pathlib import Path
 
-from .base import MarketDataProvider
 from src.data.models import PriceBar
+
+from .base import MarketDataProvider
 
 
 class CSVMarketDataProvider(MarketDataProvider):
     """
-    Simple CSV provider used for development and testing.
+    CSV market-data provider used for development, testing,
+    and authorized/exported datasets.
 
     Expected columns:
 
     symbol,date,open,high,low,close,volume
     """
 
+    REQUIRED_COLUMNS = {
+        "symbol",
+        "date",
+        "open",
+        "high",
+        "low",
+        "close",
+        "volume",
+    }
+
     def __init__(self, file_path: str | Path):
         self.file_path = Path(file_path)
+
+    @staticmethod
+    def _normalize_symbol(symbol: str) -> str:
+        normalized = symbol.strip().upper()
+
+        if not normalized:
+            raise ValueError("symbol must not be empty.")
+
+        return normalized
+
+    @staticmethod
+    def _validate_date_range(
+        start_date: date,
+        end_date: date,
+    ) -> None:
+        if start_date > end_date:
+            raise ValueError(
+                "start_date must not be after end_date."
+            )
 
     def get_daily_prices(
         self,
@@ -25,6 +56,13 @@ class CSVMarketDataProvider(MarketDataProvider):
         start_date: date,
         end_date: date,
     ) -> list[PriceBar]:
+
+        self._validate_date_range(
+            start_date,
+            end_date,
+        )
+
+        normalized_symbol = self._normalize_symbol(symbol)
 
         if not self.file_path.exists():
             raise FileNotFoundError(
@@ -41,27 +79,26 @@ class CSVMarketDataProvider(MarketDataProvider):
 
             reader = csv.DictReader(file)
 
-            required_columns = {
-                "symbol",
-                "date",
-                "open",
-                "high",
-                "low",
-                "close",
-                "volume",
-            }
-
-            if not required_columns.issubset(reader.fieldnames or set()):
+            if not self.REQUIRED_COLUMNS.issubset(
+                reader.fieldnames or set()
+            ):
                 raise ValueError(
                     "CSV is missing required columns: "
-                    f"{sorted(required_columns)}"
+                    f"{sorted(self.REQUIRED_COLUMNS)}"
                 )
 
             for row in reader:
-                if row["symbol"] != symbol:
+
+                row_symbol = (
+                    row["symbol"].strip().upper()
+                )
+
+                if row_symbol != normalized_symbol:
                     continue
 
-                trading_date = date.fromisoformat(row["date"])
+                trading_date = date.fromisoformat(
+                    row["date"]
+                )
 
                 if trading_date < start_date:
                     continue
@@ -70,7 +107,7 @@ class CSVMarketDataProvider(MarketDataProvider):
                     continue
 
                 bar = PriceBar(
-                    symbol=row["symbol"],
+                    symbol=row_symbol,
                     trading_date=trading_date,
                     open=Decimal(row["open"]),
                     high=Decimal(row["high"]),

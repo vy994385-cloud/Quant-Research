@@ -62,3 +62,36 @@ def test_nse_provider_reads_authorized_csv(tmp_path):
     assert len(bars) == 2
     assert bars[0].symbol == "RELIANCE"
     assert bars[1].close == 112
+def test_nse_provider_rejects_invalid_date_range():
+
+    provider = NSEMarketDataProvider()
+
+    with pytest.raises(ValueError):
+
+        provider.get_daily_prices(
+            symbol="RELIANCE",
+            start_date=date(2026, 8, 10),
+            end_date=date(2026, 8, 1),
+        )
+
+
+def test_nse_provider_normalizes_symbol(tmp_path):
+
+    csv_file = tmp_path / "nse_prices.csv"
+
+    csv_file.write_text(
+        "symbol,date,open,high,low,close,volume\n"
+        "RELIANCE,2026-08-03,100,110,95,105,100000\n",
+        encoding="utf-8",
+    )
+
+    provider = NSEMarketDataProvider(csv_file)
+
+    bars = provider.get_daily_prices(
+        symbol=" reliance ",
+        start_date=date(2026, 8, 3),
+        end_date=date(2026, 8, 3),
+    )
+
+    assert len(bars) == 1
+    assert bars[0].symbol == "RELIANCE"
