@@ -43,6 +43,8 @@ def test_valid_bars_are_accepted():
     )
 
     assert result.status == ValidationStatus.ACCEPT
+    assert result.is_clean
+    assert not result.requires_review
     assert len(result.accepted) == 2
     assert result.rejected == []
 
@@ -138,7 +140,7 @@ def test_invalid_date_range_is_rejected():
     )
 
 
-def test_duplicate_trading_date_is_rejected():
+def test_duplicate_symbol_date_rejects_all_duplicates():
 
     bars = [
         make_bar(
@@ -160,8 +162,9 @@ def test_duplicate_trading_date_is_rejected():
 
     assert result.accepted == []
     assert len(result.rejected) == 2
-    assert any(
-        issue.code == "DUPLICATE_DATE"
+    assert result.status == ValidationStatus.REJECT
+    assert all(
+        issue.code == "DUPLICATE_SYMBOL_DATE"
         for issue in result.issues
     )
 
@@ -189,3 +192,157 @@ def test_accepted_bars_are_sorted():
         date(2026, 8, 4),
         date(2026, 8, 5),
     ]
+
+    assert result.status == ValidationStatus.NEEDS_REVIEW
+
+
+def test_large_price_move_requires_review():
+
+    bars = [
+        make_bar(
+            date(2026, 8, 3),
+            close="100",
+        ),
+        make_bar(
+            date(2026, 8, 4),
+            open_price="110",
+            high="115",
+            low="109",
+            close="112",
+        ),
+    ]
+
+    result = validate_price_bars(
+        bars,
+        symbol="TEST",
+        start_date=date(2026, 8, 1),
+        end_date=date(2026, 8, 5),
+    )
+
+    assert result.status == ValidationStatus.NEEDS_REVIEW
+    assert any(
+        issue.code == "LARGE_PRICE_MOVE"
+        for issue in result.issues
+    )
+
+
+def test_extreme_price_move_requires_review():
+
+    bars = [
+        make_bar(
+            date(2026, 8, 3),
+            close="100",
+        ),
+        make_bar(
+            date(2026, 8, 4),
+            open_price="125",
+            high="130",
+            low="124",
+            close="125",
+        ),
+    ]
+
+    result = validate_price_bars(
+        bars,
+        symbol="TEST",
+        start_date=date(2026, 8, 1),
+        end_date=date(2026, 8, 5),
+    )
+
+    assert result.status == ValidationStatus.NEEDS_REVIEW
+    assert any(
+        issue.code == "EXTREME_PRICE_MOVE"
+        for issue in result.issues
+    )
+
+
+def test_volume_spike_requires_review():
+
+    bars = [
+        make_bar(
+            date(2026, 8, 3),
+            volume=1000,
+        ),
+        make_bar(
+            date(2026, 8, 4),
+            volume=1000,
+        ),
+        make_bar(
+            date(2026, 8, 5),
+            volume=6000,
+        ),
+    ]
+
+    result = validate_price_bars(
+        bars,
+        symbol="TEST",
+        start_date=date(2026, 8, 1),
+        end_date=date(2026, 8, 5),
+    )
+
+    assert result.status == ValidationStatus.NEEDS_REVIEW
+    assert any(
+        issue.code == "VOLUME_SPIKE"
+        for issue in result.issues
+    )
+
+
+def test_invalid_ohlc_is_not_used_for_anomaly_analysis():
+
+    bars = [
+        make_bar(
+            date(2026, 8, 3),
+            high="90",
+        ),
+        make_bar(
+            date(2026, 8, 4),
+            close="200",
+        ),
+    ]
+
+    result = validate_price_bars(
+        bars,
+        symbol="TEST",
+        start_date=date(2026, 8, 1),
+        end_date=date(2026, 8, 5),
+    )
+
+    assert any(
+        issue.code == "INVALID_OHLC"
+        for issue in result.issues
+    )
+
+    assert not any(
+        issue.code == "EXTREME_PRICE_MOVE"
+        for issue in result.issues
+    )
+
+
+def test_empty_input_is_accepted():
+
+    result = validate_price_bars(
+        [],
+        symbol="TEST",
+        start_date=date(2026, 8, 1),
+        end_date=date(2026, 8, 5),
+    )
+
+    assert result.status == ValidationStatus.ACCEPT
+    assert result.accepted == []
+    assert result.rejected == []
+
+
+def test_blank_symbol_is_rejected():
+
+    result = validate_price_bars(
+        [],
+        symbol="   ",
+        start_date=date(2026, 8, 1),
+        end_date=date(2026, 8, 5),
+    )
+
+    assert result.status == ValidationStatus.REJECT
+    assert any(
+        issue.code == "INVALID_SYMBOL"
+        for issue in result.issues
+    )
