@@ -6,6 +6,9 @@ from src.analysis.company_intelligence import (
     IntelligenceSignal,
     build_company_research_snapshot,
 )
+from src.analysis.future_intelligence import (
+    FutureTechnologyProfile,
+)
 from src.analysis.signal_extraction import (
     event_signal,
     financial_signals,
@@ -32,6 +35,7 @@ def _deduplicate_signals(
     """
 
     result: list[IntelligenceSignal] = []
+
     seen: set[tuple[str, str]] = set()
 
     for signal in signals:
@@ -62,6 +66,9 @@ def assemble_company_intelligence(
     ] | None = None,
     company_events: list[CompanyEvent] | None = None,
     evidence: list[EvidenceReference] | None = None,
+    future_technology_profile: (
+        FutureTechnologyProfile | None
+    ) = None,
 ) -> CompanyResearchSnapshot:
     """
     Assemble all currently supported company-intelligence
@@ -74,6 +81,10 @@ def assemble_company_intelligence(
     - predict returns
     - label a company fraudulent
     - invent missing information
+    - alter stock-ranking weights
+
+    Future technology intelligence is carried as an independent
+    research layer for later validation.
     """
 
     signals: list[IntelligenceSignal] = []
@@ -86,6 +97,7 @@ def assemble_company_intelligence(
 
     for snapshot in financial_snapshots or []:
         extracted = financial_signals(snapshot)
+
         signals.extend(extracted)
 
         if snapshot.revenue is not None:
@@ -106,6 +118,7 @@ def assemble_company_intelligence(
 
     for change in management_changes or []:
         extracted = management_signals(change)
+
         signals.extend(extracted)
 
         management_observations.append(
@@ -115,6 +128,7 @@ def assemble_company_intelligence(
 
     for ownership in ownership_snapshots or []:
         extracted = ownership_signals(ownership)
+
         signals.extend(extracted)
 
         if ownership.promoter_percentage is not None:
@@ -137,6 +151,7 @@ def assemble_company_intelligence(
 
     for transaction in related_party_transactions or []:
         extracted = related_party_signals(transaction)
+
         signals.extend(extracted)
 
         related_party_observations.append(
@@ -147,6 +162,7 @@ def assemble_company_intelligence(
 
     for event in company_events or []:
         signal = event_signal(event)
+
         signals.append(signal)
 
         event_observations.append(
@@ -166,4 +182,7 @@ def assemble_company_intelligence(
         related_party_observations=related_party_observations,
         event_observations=event_observations,
         evidence=evidence,
+        future_technology_profile=(
+            future_technology_profile
+        ),
     )

@@ -12,6 +12,8 @@ class TechnicalFeatures:
     """
     Deterministic technical features calculated only from historical
     OHLCV observations available up to the current bar.
+
+    No future observations are accessed.
     """
 
     symbol: str
@@ -31,6 +33,11 @@ class TechnicalFeatures:
     volume_ratio: Decimal | None
 
     drawdown_20d: Decimal | None
+
+    # Added as an optional field for backwards compatibility.
+    # Existing tests and callers can construct TechnicalFeatures
+    # without supplying it.
+    latest_close: Decimal | None = None
 
 
 def _validate_bars(
@@ -120,8 +127,6 @@ def _sample_std(
         for value in values
     ) / Decimal(len(values) - 1)
 
-    # Decimal does not expose sqrt in every Python version through
-    # the same convenient interface, so use the Decimal sqrt method.
     return variance.sqrt()
 
 
@@ -219,4 +224,5 @@ def calculate_technical_features(
         average_volume_20d=average_volume_20d,
         volume_ratio=volume_ratio,
         drawdown_20d=drawdown_20d,
+        latest_close=latest.close,
     )
