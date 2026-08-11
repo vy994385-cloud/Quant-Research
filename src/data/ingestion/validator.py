@@ -65,6 +65,24 @@ def _make_issue(
     )
 
 
+def _decimal_threshold(
+    value: Decimal | float | None,
+    *,
+    default: Decimal,
+) -> Decimal:
+    if value is None:
+        return default
+
+    threshold = Decimal(str(value))
+
+    if threshold <= 0:
+        raise ValueError(
+            "Validation thresholds must be greater than zero."
+        )
+
+    return threshold
+
+
 def _validate_ohlc(
     bar: PriceBar,
 ) -> list[ValidationIssue]:
@@ -209,6 +227,9 @@ def _validate_duplicates(
 def _large_price_move_issue(
     previous: PriceBar,
     current: PriceBar,
+    *,
+    warning_pct: Decimal,
+    critical_pct: Decimal,
 ) -> ValidationIssue | None:
     if previous.close <= 0:
         return None
@@ -221,7 +242,7 @@ def _large_price_move_issue(
         * Decimal("100")
     )
 
-    if move_pct >= Decimal("20"):
+    if move_pct >= critical_pct:
         return _make_issue(
             "EXTREME_PRICE_MOVE",
             (
@@ -231,7 +252,7 @@ def _large_price_move_issue(
             ValidationStatus.NEEDS_REVIEW,
         )
 
-    if move_pct >= Decimal("10"):
+    if move_pct >= warning_pct:
         return _make_issue(
             "LARGE_PRICE_MOVE",
             (
@@ -247,6 +268,8 @@ def _large_price_move_issue(
 def _volume_spike_issue(
     previous: PriceBar,
     current: PriceBar,
+    *,
+    spike_multiple: Decimal,
 ) -> ValidationIssue | None:
     if previous.volume <= 0:
         return None
@@ -256,7 +279,7 @@ def _volume_spike_issue(
         / Decimal(previous.volume)
     )
 
-    if multiple >= Decimal("5"):
+    if multiple >= spike_multiple:
         return _make_issue(
             "VOLUME_SPIKE",
             (
@@ -272,6 +295,10 @@ def _volume_spike_issue(
 
 def _run_anomaly_checks(
     accepted: list[PriceBar],
+    *,
+    price_jump_warning_pct: Decimal,
+    price_jump_critical_pct: Decimal,
+    volume_spike_multiple: Decimal,
 ) -> list[ValidationIssue]:
     issues: list[ValidationIssue] = []
 
@@ -287,6 +314,8 @@ def _run_anomaly_checks(
         price_issue = _large_price_move_issue(
             previous,
             current,
+            warning_pct=price_jump_warning_pct,
+            critical_pct=price_jump_critical_pct,
         )
 
         if price_issue is not None:
@@ -295,6 +324,7 @@ def _run_anomaly_checks(
         volume_issue = _volume_spike_issue(
             previous,
             current,
+            spike_multiple=volume_spike_multiple,
         )
 
         if volume_issue is not None:
@@ -355,10 +385,29 @@ def validate_price_bars(
         result.rejected.extend(list(bars))
         return result
 
+    warning_pct = _decimal_threshold(
+        price_jump_warning_pct,
+        default=Decimal("10"),
+    )
+
+    critical_pct = _decimal_threshold(
+        price_jump_critical_pct,
+        default=Decimal("20"),
+    )
+
+    volume_multiple = _decimal_threshold(
+        volume_spike_multiple,
+        default=Decimal("5"),
+    )
+
+    if critical_pct < warning_pct:
+        raise ValueError(
+            "price_jump_critical_pct must be greater than "
+            "or equal to price_jump_warning_pct."
+        )
+
     records = list(bars)
 
-    # Preserve provider ordering for ingestion-quality checks.
-    # The accepted result is still normalized chronologically below.
     input_dates = [
         bar.trading_date
         for bar in records
@@ -422,14 +471,19 @@ def validate_price_bars(
         else:
             valid_records.append(bar)
 
-    result.accepted = sorted(
-        valid_records,
-        key=lambda bar: bar.trading_date,
+    result.accepted.extend(
+        sorted(
+            valid_records,
+            key=lambda bar: bar.trading_date,
+        )
     )
 
     result.issues.extend(
         _run_anomaly_checks(
-            result.accepted
+            result.accepted,
+            price_jump_warning_pct=warning_pct,
+            price_jump_critical_pct=critical_pct,
+            volume_spike_multiple=volume_multiple,
         )
     )
 

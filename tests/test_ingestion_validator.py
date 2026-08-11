@@ -346,3 +346,135 @@ def test_blank_symbol_is_rejected():
         issue.code == "INVALID_SYMBOL"
         for issue in result.issues
     )
+
+
+def test_custom_price_warning_threshold_is_used():
+
+    bars = [
+        make_bar(
+            date(2026, 8, 3),
+            close="100",
+        ),
+        make_bar(
+            date(2026, 8, 4),
+            open_price="107",
+            high="110",
+            low="106",
+            close="107",
+        ),
+    ]
+
+    result = validate_price_bars(
+        bars,
+        symbol="TEST",
+        start_date=date(2026, 8, 1),
+        end_date=date(2026, 8, 5),
+        price_jump_warning_pct=Decimal("5"),
+        price_jump_critical_pct=Decimal("15"),
+    )
+
+    assert any(
+        issue.code == "LARGE_PRICE_MOVE"
+        for issue in result.issues
+    )
+
+
+def test_custom_critical_price_threshold_is_used():
+
+    bars = [
+        make_bar(
+            date(2026, 8, 3),
+            close="100",
+        ),
+        make_bar(
+            date(2026, 8, 4),
+            open_price="115",
+            high="120",
+            low="114",
+            close="115",
+        ),
+    ]
+
+    result = validate_price_bars(
+        bars,
+        symbol="TEST",
+        start_date=date(2026, 8, 1),
+        end_date=date(2026, 8, 5),
+        price_jump_warning_pct=Decimal("5"),
+        price_jump_critical_pct=Decimal("10"),
+    )
+
+    assert any(
+        issue.code == "EXTREME_PRICE_MOVE"
+        for issue in result.issues
+    )
+
+
+def test_custom_volume_threshold_is_used():
+
+    bars = [
+        make_bar(
+            date(2026, 8, 3),
+            volume=1000,
+        ),
+        make_bar(
+            date(2026, 8, 4),
+            volume=3000,
+        ),
+    ]
+
+    result = validate_price_bars(
+        bars,
+        symbol="TEST",
+        start_date=date(2026, 8, 1),
+        end_date=date(2026, 8, 5),
+        volume_spike_multiple=Decimal("2"),
+    )
+
+    assert any(
+        issue.code == "VOLUME_SPIKE"
+        for issue in result.issues
+    )
+
+
+def test_invalid_thresholds_are_rejected():
+
+    bars = [
+        make_bar(date(2026, 8, 3)),
+    ]
+
+    import pytest
+
+    with pytest.raises(
+        ValueError,
+        match="greater than zero",
+    ):
+        validate_price_bars(
+            bars,
+            symbol="TEST",
+            start_date=date(2026, 8, 1),
+            end_date=date(2026, 8, 5),
+            price_jump_warning_pct=0,
+        )
+
+
+def test_critical_threshold_cannot_be_below_warning():
+
+    bars = [
+        make_bar(date(2026, 8, 3)),
+    ]
+
+    import pytest
+
+    with pytest.raises(
+        ValueError,
+        match="greater than or equal",
+    ):
+        validate_price_bars(
+            bars,
+            symbol="TEST",
+            start_date=date(2026, 8, 1),
+            end_date=date(2026, 8, 5),
+            price_jump_warning_pct=20,
+            price_jump_critical_pct=10,
+        )
