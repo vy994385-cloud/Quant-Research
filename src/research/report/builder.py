@@ -33,9 +33,7 @@ _SEVERITY_WEIGHT = {
 
 def _validate_as_of(as_of: datetime) -> None:
     if as_of.tzinfo is None:
-        raise ValueError(
-            "as_of must be timezone-aware"
-        )
+        raise ValueError("as_of must be timezone-aware")
 
 
 def _usable_features(
@@ -64,6 +62,69 @@ def _usable_features(
         usable.append(feature)
 
     return usable
+
+
+def _trend_signals(
+    summaries: list[FinancialTrendSummary],
+    *,
+    symbol: str,
+    as_of: datetime,
+) -> list[ResearchSignal]:
+    signals: list[ResearchSignal] = []
+
+    for summary in summaries:
+        metric = summary.metric
+        direction = summary.direction
+
+        if direction == "INCREASING":
+            if metric == "total_debt":
+                signals.append(
+                    ResearchSignal(
+                        signal_id="TREND_RISK_TOTAL_DEBT",
+                        category="FINANCIAL_TREND",
+                        direction=SignalDirection.NEGATIVE,
+                        severity=SignalSeverity.MEDIUM,
+                        confidence=Decimal("0.80"),
+                        title="Rising debt trend",
+                        explanation=summary.explanation,
+                        symbol=symbol,
+                        observation_at=as_of,
+                        supporting_features=(metric,),
+                    )
+                )
+            else:
+                signals.append(
+                    ResearchSignal(
+                        signal_id=f"TREND_{metric.upper()}",
+                        category="FINANCIAL_TREND",
+                        direction=SignalDirection.POSITIVE,
+                        severity=SignalSeverity.INFO,
+                        confidence=Decimal("0.80"),
+                        title=f"Increasing {metric}",
+                        explanation=summary.explanation,
+                        symbol=symbol,
+                        observation_at=as_of,
+                        supporting_features=(metric,),
+                    )
+                )
+
+        elif direction == "DECREASING":
+            signals.append(
+                ResearchSignal(
+                    signal_id=f"TREND_RISK_{metric.upper()}",
+                    category="FINANCIAL_TREND",
+                    direction=SignalDirection.NEGATIVE,
+                    severity=SignalSeverity.MEDIUM,
+                    confidence=Decimal("0.80"),
+                    title=f"Deteriorating {metric}",
+                    explanation=summary.explanation,
+                    symbol=symbol,
+                    observation_at=as_of,
+                    supporting_features=(metric,),
+                )
+            )
+
+    return signals
 
 
 def _confidence(
@@ -98,13 +159,13 @@ def _conclusion(
     negative = Decimal("0")
 
     for signal in signals:
-        weight = Decimal(
-            _SEVERITY_WEIGHT[signal.severity]
-        ) * signal.confidence
+        weight = (
+            Decimal(_SEVERITY_WEIGHT[signal.severity])
+            * signal.confidence
+        )
 
         if signal.direction == SignalDirection.POSITIVE:
             positive += weight
-
         elif signal.direction == SignalDirection.NEGATIVE:
             negative += weight
 
@@ -124,7 +185,6 @@ def _thesis(
     *,
     symbol: str,
     conclusion: ResearchConclusion,
-    features: list[FeatureValue],
     signals: list[ResearchSignal],
 ) -> str:
     if not signals:
@@ -134,12 +194,14 @@ def _thesis(
         )
 
     positive = [
-        signal for signal in signals
+        signal
+        for signal in signals
         if signal.direction == SignalDirection.POSITIVE
     ]
 
     negative = [
-        signal for signal in signals
+        signal
+        for signal in signals
         if signal.direction == SignalDirection.NEGATIVE
     ]
 
@@ -181,9 +243,7 @@ def _feature_evidence(
     for feature in features:
         evidence.append(
             ResearchEvidence(
-                evidence_id=(
-                    f"FEATURE_{feature.feature_id.upper()}"
-                ),
+                evidence_id=f"FEATURE_{feature.feature_id.upper()}",
                 title=feature.feature_id.replace("_", " ").title(),
                 explanation=(
                     f"{feature.feature_id} was measured at "
@@ -193,9 +253,7 @@ def _feature_evidence(
                 observation_at=feature.observation_at,
                 source_ids=feature.source_ids,
                 provenance_ids=feature.provenance_ids,
-                confidence=Decimal(
-                    str(feature.confidence)
-                ),
+                confidence=Decimal(str(feature.confidence)),
             )
         )
 
@@ -219,6 +277,8 @@ def _signal_evidence(
             symbol=signal.symbol,
             observation_at=signal.observation_at,
             confidence=signal.confidence,
+            source_ids=(),
+            provenance_ids=(),
         )
 
         if signal.direction == SignalDirection.POSITIVE:
@@ -241,8 +301,9 @@ def build_company_report(
     """
     Build a deterministic point-in-time company research report.
 
-    Signals supplied to this function are filtered so future
-    observations/calculations cannot enter the report.
+    Features, supplied signals, and financial trend summaries are
+    filtered/converted into one unified research signal set before
+    conclusion and confidence are calculated.
     """
 
     _validate_as_of(as_of)
@@ -268,6 +329,17 @@ def build_company_report(
 
         filtered_signals.append(signal)
 
+    trend_signals = _trend_signals(
+        trend_summaries or [],
+        symbol=symbol,
+        as_of=as_of,
+    )
+
+    all_signals = [
+        *filtered_signals,
+        *trend_signals,
+    ]
+
     feature_ids = tuple(
         sorted(
             {
@@ -278,44 +350,14 @@ def build_company_report(
     )
 
     positive_evidence = _feature_evidence(usable)
+
     signal_positive, signal_negative = _signal_evidence(
-        filtered_signals
+        all_signals
     )
 
     positive_evidence.extend(signal_positive)
 
-    trend_summaries = trend_summaries or []
-
-    for summary in trend_summaries:
-        if summary.direction == "INCREASING":
-            positive_evidence.append(
-                ResearchEvidence(
-                    evidence_id=(
-                        f"TREND_{summary.metric.upper()}"
-                    ),
-                    title=f"Increasing {summary.metric}",
-                    explanation=summary.explanation,
-                    symbol=symbol,
-                    observation_at=as_of,
-                    confidence=Decimal("0.80"),
-                )
-            )
-
-        elif summary.direction == "DECREASING":
-            signal_negative.append(
-                ResearchEvidence(
-                    evidence_id=(
-                        f"TREND_RISK_{summary.metric.upper()}"
-                    ),
-                    title=f"Deteriorating {summary.metric}",
-                    explanation=summary.explanation,
-                    symbol=symbol,
-                    observation_at=as_of,
-                    confidence=Decimal("0.80"),
-                )
-            )
-
-    conclusion = _conclusion(filtered_signals)
+    conclusion = _conclusion(all_signals)
 
     return ResearchReport(
         symbol=symbol,
@@ -323,16 +365,15 @@ def build_company_report(
         conclusion=conclusion,
         confidence=_confidence(
             usable,
-            filtered_signals,
+            all_signals,
         ),
         thesis=_thesis(
             symbol=symbol,
             conclusion=conclusion,
-            features=usable,
-            signals=filtered_signals,
+            signals=all_signals,
         ),
         features=feature_ids,
-        signals=tuple(filtered_signals),
+        signals=tuple(all_signals),
         positive_evidence=tuple(positive_evidence),
         negative_evidence=tuple(signal_negative),
         data_quality_notes=(
@@ -341,5 +382,15 @@ def build_company_report(
                 "calculation timestamps are on or before the "
                 "report as-of timestamp were included."
             ),
+            (
+                "Financial trend summaries are converted into "
+                "point-in-time research signals before conclusion "
+                "and confidence calculations."
+            ),
         ),
     )
+
+
+__all__ = [
+    "build_company_report",
+]

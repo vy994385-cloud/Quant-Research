@@ -1,15 +1,12 @@
 from datetime import datetime, timezone
 from decimal import Decimal
 
-from src.research.features.models import (
-    FeatureValue,
+from src.research.features.financial_trends import (
+    FinancialTrendSummary,
 )
-from src.research.report.builder import (
-    build_company_report,
-)
-from src.research.report.models import (
-    ResearchConclusion,
-)
+from src.research.features.models import FeatureValue
+from src.research.report.builder import build_company_report
+from src.research.report.models import ResearchConclusion
 from src.research.signals.models import (
     ResearchSignal,
     SignalDirection,
@@ -59,6 +56,24 @@ def signal(
         explanation="Research evidence.",
         symbol="TEST",
         observation_at=AS_OF,
+    )
+
+
+def trend(
+    metric: str,
+    direction: str,
+    explanation: str,
+) -> FinancialTrendSummary:
+    return FinancialTrendSummary(
+        metric=metric,
+        direction=direction,
+        observations=4,
+        average_change=Decimal("10"),
+        positive_periods=3,
+        negative_periods=1,
+        stable_periods=0,
+        consistency=Decimal("0.75"),
+        explanation=explanation,
     )
 
 
@@ -211,4 +226,114 @@ def test_other_symbol_is_excluded():
     assert report.signals == ()
     assert report.conclusion == (
         ResearchConclusion.INSUFFICIENT_EVIDENCE
+    )
+
+
+def test_increasing_debt_trend_is_negative():
+    report = build_company_report(
+        symbol="TEST",
+        as_of=AS_OF,
+        features=[],
+        trend_summaries=[
+            trend(
+                "total_debt",
+                "INCREASING",
+                "Total debt increased across the observed periods.",
+            ),
+        ],
+    )
+
+    assert len(report.signals) == 1
+    assert report.signals[0].signal_id == (
+        "TREND_RISK_TOTAL_DEBT"
+    )
+    assert report.signals[0].direction == (
+        SignalDirection.NEGATIVE
+    )
+    assert report.conclusion == ResearchConclusion.NEGATIVE
+    assert len(report.negative_evidence) == 1
+
+
+def test_increasing_non_debt_trend_is_positive():
+    report = build_company_report(
+        symbol="TEST",
+        as_of=AS_OF,
+        features=[],
+        trend_summaries=[
+            trend(
+                "revenue",
+                "INCREASING",
+                "Revenue increased across the observed periods.",
+            ),
+        ],
+    )
+
+    assert len(report.signals) == 1
+    assert report.signals[0].signal_id == (
+        "TREND_REVENUE"
+    )
+    assert report.signals[0].direction == (
+        SignalDirection.POSITIVE
+    )
+    assert report.conclusion == ResearchConclusion.POSITIVE
+    assert len(report.positive_evidence) == 1
+
+
+def test_positive_and_negative_trends_are_mixed():
+    report = build_company_report(
+        symbol="TEST",
+        as_of=AS_OF,
+        features=[],
+        trend_summaries=[
+            trend(
+                "revenue",
+                "INCREASING",
+                "Revenue increased.",
+            ),
+            trend(
+                "total_debt",
+                "INCREASING",
+                "Debt increased.",
+            ),
+        ],
+    )
+
+    assert len(report.signals) == 2
+    assert report.conclusion == ResearchConclusion.NEGATIVE
+
+
+def test_trend_signals_contribute_to_confidence():
+    report = build_company_report(
+        symbol="TEST",
+        as_of=AS_OF,
+        features=[],
+        trend_summaries=[
+            trend(
+                "revenue",
+                "INCREASING",
+                "Revenue increased.",
+            ),
+        ],
+    )
+
+    assert report.confidence == Decimal("0.80")
+
+
+def test_trend_signals_are_exposed_in_report():
+    report = build_company_report(
+        symbol="TEST",
+        as_of=AS_OF,
+        features=[],
+        trend_summaries=[
+            trend(
+                "total_debt",
+                "INCREASING",
+                "Debt increased.",
+            ),
+        ],
+    )
+
+    assert len(report.signals) == 1
+    assert report.signals[0].category == (
+        "FINANCIAL_TREND"
     )
