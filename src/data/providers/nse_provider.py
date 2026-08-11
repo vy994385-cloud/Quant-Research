@@ -3,10 +3,11 @@ from pathlib import Path
 
 from src.data.models import PriceBar
 
+from .base import MarketDataProvider
 from .csv_provider import CSVMarketDataProvider
 
 
-class NSEMarketDataProvider:
+class NSEMarketDataProvider(MarketDataProvider):
     """
     Indian-market provider boundary.
 

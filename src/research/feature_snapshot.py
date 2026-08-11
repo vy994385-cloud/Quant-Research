@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from math import isfinite
-from typing import Any, Mapping
+from typing import Mapping
 
 from src.research.context import ResearchContext
 
@@ -11,10 +11,14 @@ from src.research.context import ResearchContext
 @dataclass(frozen=True)
 class FeatureValue:
     """
-    One deterministic, point-in-time feature.
+    Compatibility feature value.
 
-    Every feature records the source observations that produced it,
-    making downstream ranking and backtesting auditable.
+    This is the original lightweight feature model used by the
+    public FeatureSnapshot API.
+
+    The newer, richer PIT feature model lives separately in:
+
+        src.research.features.models.FeatureValue
     """
 
     name: str
@@ -40,21 +44,29 @@ class FeatureValue:
         object.__setattr__(
             self,
             "source_ids",
-            tuple(sorted({
-                source.strip().lower()
-                for source in self.source_ids
-                if source.strip()
-            })),
+            tuple(
+                sorted(
+                    {
+                        source.strip().lower()
+                        for source in self.source_ids
+                        if source.strip()
+                    }
+                )
+            ),
         )
 
         object.__setattr__(
             self,
             "observation_ids",
-            tuple(sorted({
-                observation.strip()
-                for observation in self.observation_ids
-                if observation.strip()
-            })),
+            tuple(
+                sorted(
+                    {
+                        observation.strip()
+                        for observation in self.observation_ids
+                        if observation.strip()
+                    }
+                )
+            ),
         )
 
 
@@ -63,8 +75,8 @@ class FeatureSnapshot:
     """
     Immutable point-in-time feature snapshot.
 
-    Downstream ranking, ML and backtesting should consume this object
-    instead of directly accessing raw observations.
+    This compatibility model intentionally remains independent from
+    the richer PIT FeatureValue model used by the feature engine.
     """
 
     symbol: str
@@ -87,7 +99,10 @@ class FeatureSnapshot:
             )
         )
 
-        names = [feature.name for feature in ordered]
+        names = [
+            feature.name
+            for feature in ordered
+        ]
 
         if len(names) != len(set(names)):
             raise ValueError(
@@ -99,6 +114,7 @@ class FeatureSnapshot:
             "symbol",
             self.symbol.strip(),
         )
+
         object.__setattr__(
             self,
             "features",
@@ -129,24 +145,10 @@ class FeatureSnapshot:
 
 class PITFeatureBuilder:
     """
-    Build an immutable feature snapshot from an already validated
+    Build a compatibility FeatureSnapshot from an already validated
     ResearchContext.
 
     This layer intentionally does not fetch external data.
-
-    Architecture:
-
-        external data
-            ↓
-        provenance
-            ↓
-        ResearchContext
-            ↓
-        PITFeatureBuilder
-            ↓
-        FeatureSnapshot
-            ↓
-        ranking / ML / backtest
     """
 
     def build(
@@ -168,8 +170,15 @@ class PITFeatureBuilder:
         built: list[FeatureValue] = []
 
         for name, value in features.items():
+            normalized_name = name.strip().lower()
+
+            if not normalized_name:
+                raise ValueError(
+                    "feature name cannot be empty"
+                )
+
             if isinstance(value, FeatureValue):
-                if value.name != name.strip().lower():
+                if value.name != normalized_name:
                     raise ValueError(
                         "feature key does not match "
                         "FeatureValue.name"
@@ -187,7 +196,7 @@ class PITFeatureBuilder:
 
             built.append(
                 FeatureValue(
-                    name=name,
+                    name=normalized_name,
                     value=numeric_value,
                     source_ids=context.source_ids,
                 )
@@ -215,3 +224,11 @@ def build_feature_snapshot(
         context,
         features,
     )
+
+
+__all__ = [
+    "FeatureValue",
+    "FeatureSnapshot",
+    "PITFeatureBuilder",
+    "build_feature_snapshot",
+]

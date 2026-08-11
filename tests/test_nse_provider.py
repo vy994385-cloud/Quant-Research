@@ -95,3 +95,10 @@ def test_nse_provider_normalizes_symbol(tmp_path):
 
     assert len(bars) == 1
     assert bars[0].symbol == "RELIANCE"
+
+def test_nse_provider_implements_market_data_provider():
+    from src.data.providers.base import MarketDataProvider
+
+    provider = NSEMarketDataProvider()
+
+    assert isinstance(provider, MarketDataProvider)
