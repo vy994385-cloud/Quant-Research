@@ -2,9 +2,9 @@
 
 ## Current Status
 
-**Tests:** 49 passed  
+**Tests:** 546 passed  
 **Current Milestone:** 3A — Market Data Ingestion Hardening  
-**Status:** Ready to implement ingestion validator
+**Status:** Implemented and fully tested
 
 ## Environment
 
