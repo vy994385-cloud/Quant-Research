@@ -43,7 +43,7 @@ def test_intraday_ranking_is_created():
 
     assert result.symbol == "TEST"
     assert result.horizon == "INTRADAY"
-    assert result.score == Decimal("80")
+    assert result.score == Decimal("80.00")
     assert result.rank_signal == "HIGH_PRIORITY"
 
 
@@ -53,7 +53,13 @@ def test_swing_ranking_is_created():
         "SWING",
     )
 
-    assert result.score == Decimal("70")
+    assert result.symbol == "TEST"
+    assert result.horizon == "SWING"
+
+    # Future-aware ranking includes additional normalized
+    # intelligence components, so the final score is not
+    # necessarily identical to the base component value.
+    assert result.score == Decimal("69.00")
     assert result.rank_signal == "WATCH"
 
 
@@ -63,17 +69,63 @@ def test_long_term_ranking_is_created():
         "LONG_TERM",
     )
 
-    assert result.score == Decimal("90")
+    assert result.symbol == "TEST"
+    assert result.horizon == "LONG_TERM"
+
+    # Long-term ranking gives greater influence to
+    # future-oriented research dimensions.
+    assert result.score == Decimal(
+        "80.82568807339449541284403672"
+    )
     assert result.rank_signal == "HIGH_PRIORITY"
 
 
 def test_different_horizons_use_different_weights():
     stock = make_stock()
 
-    intraday = rank_stock(stock, "INTRADAY")
-    long_term = rank_stock(stock, "LONG_TERM")
+    intraday = rank_stock(
+        stock,
+        "INTRADAY",
+    )
 
-    assert intraday.score == long_term.score
+    long_term = rank_stock(
+        stock,
+        "LONG_TERM",
+    )
+
+    # Horizon-specific weighting must actually affect the result.
+    assert intraday.score != long_term.score
+
+
+def test_future_aware_components_are_present():
+    result = rank_stock(
+        make_stock(),
+        "LONG_TERM",
+    )
+
+    assert "ai_participation" in result.components
+    assert "future_readiness" in result.components
+    assert "innovation_execution" in result.components
+    assert "technology_diversification" in result.components
+    assert "sector_fit" in result.components
+
+
+def test_future_aware_components_are_normalized():
+    result = rank_stock(
+        make_stock(),
+        "LONG_TERM",
+    )
+
+    for name in (
+        "ai_participation",
+        "future_readiness",
+        "innovation_execution",
+        "technology_diversification",
+        "sector_fit",
+    ):
+        value = result.components[name]
+
+        assert Decimal("0") <= value <= Decimal("100")
 
 
 def test_stocks_are_ranked_highest_first():
