@@ -1,13 +1,11 @@
-from collections import Counter
+from __future__ import annotations
+
+from dataclasses import dataclass, field
 from datetime import date
+from decimal import Decimal
 from enum import Enum
+from typing import Iterable
 
-from pydantic import BaseModel, ConfigDict
-
-from src.data.ingestion.anomalies import (
-    AnomalySeverity,
-    detect_market_anomalies,
-)
 from src.data.models import PriceBar
 
 
@@ -17,20 +15,18 @@ class ValidationStatus(str, Enum):
     NEEDS_REVIEW = "NEEDS_REVIEW"
 
 
-class ValidationIssue(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
+@dataclass(frozen=True)
+class ValidationIssue:
     code: str
     message: str
     status: ValidationStatus
 
 
-class IngestionResult(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    accepted: list[PriceBar]
-    rejected: list[PriceBar]
-    issues: list[ValidationIssue]
+@dataclass
+class IngestionResult:
+    accepted: list[PriceBar] = field(default_factory=list)
+    rejected: list[PriceBar] = field(default_factory=list)
+    issues: list[ValidationIssue] = field(default_factory=list)
 
     @property
     def status(self) -> ValidationStatus:
@@ -57,7 +53,7 @@ class IngestionResult(BaseModel):
         return self.status == ValidationStatus.NEEDS_REVIEW
 
 
-def _issue(
+def _make_issue(
     code: str,
     message: str,
     status: ValidationStatus,
@@ -69,225 +65,372 @@ def _issue(
     )
 
 
-def validate_price_bars(
+def _validate_ohlc(
+    bar: PriceBar,
+) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+
+    valid = True
+
+    if bar.open <= 0:
+        valid = False
+
+    if bar.high <= 0:
+        valid = False
+
+    if bar.low <= 0:
+        valid = False
+
+    if bar.close <= 0:
+        valid = False
+
+    if bar.volume < 0:
+        valid = False
+
+    if bar.high < bar.low:
+        valid = False
+
+    if bar.high < bar.open:
+        valid = False
+
+    if bar.high < bar.close:
+        valid = False
+
+    if bar.low > bar.open:
+        valid = False
+
+    if bar.low > bar.close:
+        valid = False
+
+    if not valid:
+        issues.append(
+            _make_issue(
+                "INVALID_OHLC",
+                (
+                    f"Invalid OHLC/volume relationship for "
+                    f"{bar.symbol} on {bar.trading_date}."
+                ),
+                ValidationStatus.REJECT,
+            )
+        )
+
+    return issues
+
+
+def _validate_identity(
+    bar: PriceBar,
+    symbol: str,
+    start_date: date,
+    end_date: date,
+) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+
+    if not bar.symbol.strip():
+        issues.append(
+            _make_issue(
+                "INVALID_SYMBOL",
+                "PriceBar contains a blank symbol.",
+                ValidationStatus.REJECT,
+            )
+        )
+        return issues
+
+    if bar.symbol.strip().upper() != symbol:
+        issues.append(
+            _make_issue(
+                "SYMBOL_MISMATCH",
+                (
+                    f"Expected symbol {symbol}, "
+                    f"received {bar.symbol}."
+                ),
+                ValidationStatus.REJECT,
+            )
+        )
+
+    if (
+        bar.trading_date < start_date
+        or bar.trading_date > end_date
+    ):
+        issues.append(
+            _make_issue(
+                "DATE_OUT_OF_RANGE",
+                (
+                    f"{bar.symbol} on {bar.trading_date} "
+                    f"is outside requested range "
+                    f"{start_date} to {end_date}."
+                ),
+                ValidationStatus.REJECT,
+            )
+        )
+
+    return issues
+
+
+def _duplicate_keys(
     bars: list[PriceBar],
+) -> set[tuple[str, date]]:
+    counts: dict[tuple[str, date], int] = {}
+
+    for bar in bars:
+        key = (
+            bar.symbol.strip().upper(),
+            bar.trading_date,
+        )
+
+        counts[key] = counts.get(key, 0) + 1
+
+    return {
+        key
+        for key, count in counts.items()
+        if count > 1
+    }
+
+
+def _validate_duplicates(
+    duplicate_keys: set[tuple[str, date]],
+) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+
+    for symbol, trading_date in sorted(duplicate_keys):
+        issues.append(
+            _make_issue(
+                "DUPLICATE_SYMBOL_DATE",
+                (
+                    f"Duplicate symbol/date record for "
+                    f"{symbol} on {trading_date}."
+                ),
+                ValidationStatus.REJECT,
+            )
+        )
+
+    return issues
+
+
+def _large_price_move_issue(
+    previous: PriceBar,
+    current: PriceBar,
+) -> ValidationIssue | None:
+    if previous.close <= 0:
+        return None
+
+    move_pct = (
+        abs(
+            (current.close - previous.close)
+            / previous.close
+        )
+        * Decimal("100")
+    )
+
+    if move_pct >= Decimal("20"):
+        return _make_issue(
+            "EXTREME_PRICE_MOVE",
+            (
+                f"{current.symbol} on {current.trading_date} "
+                f"moved {move_pct:.2f}% from the previous close."
+            ),
+            ValidationStatus.NEEDS_REVIEW,
+        )
+
+    if move_pct >= Decimal("10"):
+        return _make_issue(
+            "LARGE_PRICE_MOVE",
+            (
+                f"{current.symbol} on {current.trading_date} "
+                f"moved {move_pct:.2f}% from the previous close."
+            ),
+            ValidationStatus.NEEDS_REVIEW,
+        )
+
+    return None
+
+
+def _volume_spike_issue(
+    previous: PriceBar,
+    current: PriceBar,
+) -> ValidationIssue | None:
+    if previous.volume <= 0:
+        return None
+
+    multiple = (
+        Decimal(current.volume)
+        / Decimal(previous.volume)
+    )
+
+    if multiple >= Decimal("5"):
+        return _make_issue(
+            "VOLUME_SPIKE",
+            (
+                f"{current.symbol} on {current.trading_date} "
+                f"volume is {multiple:.2f}x the previous "
+                f"observation."
+            ),
+            ValidationStatus.NEEDS_REVIEW,
+        )
+
+    return None
+
+
+def _run_anomaly_checks(
+    accepted: list[PriceBar],
+) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+
+    ordered = sorted(
+        accepted,
+        key=lambda bar: bar.trading_date,
+    )
+
+    for previous, current in zip(
+        ordered,
+        ordered[1:],
+    ):
+        price_issue = _large_price_move_issue(
+            previous,
+            current,
+        )
+
+        if price_issue is not None:
+            issues.append(price_issue)
+
+        volume_issue = _volume_spike_issue(
+            previous,
+            current,
+        )
+
+        if volume_issue is not None:
+            issues.append(volume_issue)
+
+    return issues
+
+
+def validate_price_bars(
+    bars: Iterable[PriceBar],
     symbol: str,
     start_date: date,
     end_date: date,
     *,
-    price_jump_warning_pct=None,
-    price_jump_critical_pct=None,
-    volume_spike_multiple=None,
+    price_jump_warning_pct: Decimal | float | None = None,
+    price_jump_critical_pct: Decimal | float | None = None,
+    volume_spike_multiple: Decimal | float | None = None,
 ) -> IngestionResult:
     """
-    Validate normalized daily OHLCV market data before it enters
-    the research pipeline.
+    Validate normalized daily market-price observations.
 
-    Responsibilities:
+    Structural/data-integrity problems are rejected.
 
-    1. Validate requested date range.
-    2. Enforce the requested symbol.
-    3. Enforce requested date boundaries.
-    4. Reject duplicate symbol/date records.
-    5. Detect non-chronological input.
-    6. Validate OHLC relationships.
-    7. Detect suspicious price movements.
-    8. Detect abnormal volume.
-    9. Return explainable ACCEPT / REJECT / NEEDS_REVIEW status.
+    Potentially legitimate market behaviour such as large price
+    movements and unusual volume is marked NEEDS_REVIEW.
 
-    The validator never silently repairs or modifies PriceBar records.
-
-    Suspicious market observations are not automatically considered
-    bad data. They produce NEEDS_REVIEW so legitimate events such as
-    earnings, corporate actions, acquisitions, or major news can be
-    investigated separately.
+    Invalid records are excluded from anomaly analysis.
     """
+
+    result = IngestionResult()
+
+    if start_date > end_date:
+        result.issues.append(
+            _make_issue(
+                "INVALID_DATE_RANGE",
+                (
+                    f"start_date {start_date} is after "
+                    f"end_date {end_date}."
+                ),
+                ValidationStatus.REJECT,
+            )
+        )
+
+        result.rejected.extend(list(bars))
+        return result
 
     normalized_symbol = symbol.strip().upper()
 
-    if start_date > end_date:
-        issue = _issue(
-            code="INVALID_DATE_RANGE",
-            message="start_date must not be after end_date.",
-            status=ValidationStatus.REJECT,
-        )
-
-        return IngestionResult(
-            accepted=[],
-            rejected=list(bars),
-            issues=[issue],
-        )
-
     if not normalized_symbol:
-        issue = _issue(
-            code="INVALID_SYMBOL",
-            message="symbol must not be empty.",
-            status=ValidationStatus.REJECT,
+        result.issues.append(
+            _make_issue(
+                "INVALID_SYMBOL",
+                "Requested symbol cannot be blank.",
+                ValidationStatus.REJECT,
+            )
         )
 
-        return IngestionResult(
-            accepted=[],
-            rejected=list(bars),
-            issues=[issue],
-        )
+        result.rejected.extend(list(bars))
+        return result
 
-    issues: list[ValidationIssue] = []
-    accepted: list[PriceBar] = []
-    rejected: list[PriceBar] = []
+    records = list(bars)
 
-    expected_symbol_bars = [
-        bar
-        for bar in bars
-        if bar.symbol.strip().upper() == normalized_symbol
-    ]
-
-    date_counts = Counter(
-        bar.trading_date
-        for bar in expected_symbol_bars
-    )
-
-    # Input order is part of ingestion quality. We still return
-    # accepted records chronologically so downstream consumers receive
-    # deterministic ordering.
+    # Preserve provider ordering for ingestion-quality checks.
+    # The accepted result is still normalized chronologically below.
     input_dates = [
         bar.trading_date
-        for bar in expected_symbol_bars
+        for bar in records
     ]
 
     if input_dates != sorted(input_dates):
-        issues.append(
-            _issue(
-                code="NON_CHRONOLOGICAL_INPUT",
-                message=(
-                    "Input records are not in chronological "
-                    "trading-date order."
-                ),
-                status=ValidationStatus.NEEDS_REVIEW,
+        result.issues.append(
+            _make_issue(
+                "OUT_OF_ORDER",
+                "Input price bars are not in chronological order.",
+                ValidationStatus.NEEDS_REVIEW,
             )
         )
 
-    duplicate_dates = {
-        trading_date
-        for trading_date, count in date_counts.items()
-        if count > 1
-    }
+    duplicate_keys = _duplicate_keys(records)
 
-    for bar in bars:
-        bar_symbol = bar.symbol.strip().upper()
+    result.issues.extend(
+        _validate_duplicates(duplicate_keys)
+    )
 
-        if bar_symbol != normalized_symbol:
-            rejected.append(bar)
+    valid_records: list[PriceBar] = []
 
-            issues.append(
-                _issue(
-                    code="SYMBOL_MISMATCH",
-                    message=(
-                        f"Expected symbol {normalized_symbol}, "
-                        f"received {bar.symbol}."
-                    ),
-                    status=ValidationStatus.REJECT,
-                )
-            )
-            continue
+    for bar in records:
+        bar_issues = _validate_identity(
+            bar=bar,
+            symbol=normalized_symbol,
+            start_date=start_date,
+            end_date=end_date,
+        )
 
-        if not (
-            start_date
-            <= bar.trading_date
-            <= end_date
-        ):
-            rejected.append(bar)
+        bar_issues.extend(
+            _validate_ohlc(bar)
+        )
 
-            issues.append(
-                _issue(
-                    code="DATE_OUT_OF_RANGE",
-                    message=(
-                        f"{bar.trading_date} is outside "
-                        f"requested range "
-                        f"{start_date} to {end_date}."
-                    ),
-                    status=ValidationStatus.REJECT,
-                )
-            )
-            continue
+        key = (
+            bar.symbol.strip().upper(),
+            bar.trading_date,
+        )
 
-        if bar.trading_date in duplicate_dates:
-            rejected.append(bar)
-
-            issues.append(
-                _issue(
-                    code="DUPLICATE_SYMBOL_DATE",
-                    message=(
-                        f"Multiple records exist for "
-                        f"{normalized_symbol} on "
-                        f"{bar.trading_date}."
-                    ),
-                    status=ValidationStatus.REJECT,
-                )
-            )
-            continue
-
-        if not bar.is_valid_ohlc:
-            rejected.append(bar)
-
-            issues.append(
-                _issue(
-                    code="INVALID_OHLC",
-                    message=(
-                        f"Invalid OHLC relationship for "
+        if key in duplicate_keys:
+            bar_issues.append(
+                _make_issue(
+                    "DUPLICATE_SYMBOL_DATE",
+                    (
+                        f"Duplicate symbol/date record for "
                         f"{bar.symbol} on {bar.trading_date}."
                     ),
-                    status=ValidationStatus.REJECT,
+                    ValidationStatus.REJECT,
                 )
             )
-            continue
 
-        accepted.append(bar)
+        result.issues.extend(bar_issues)
 
-    accepted.sort(
-        key=lambda item: item.trading_date
-    )
-
-    # Only run market anomaly detection against structurally valid
-    # records. Invalid records must not contaminate the anomaly baseline.
-    if accepted:
-        anomaly_kwargs = {}
-
-        if price_jump_warning_pct is not None:
-            anomaly_kwargs["price_jump_warning_pct"] = (
-                price_jump_warning_pct
-            )
-
-        if price_jump_critical_pct is not None:
-            anomaly_kwargs["price_jump_critical_pct"] = (
-                price_jump_critical_pct
-            )
-
-        if volume_spike_multiple is not None:
-            anomaly_kwargs["volume_spike_multiple"] = (
-                volume_spike_multiple
-            )
-
-        anomalies = detect_market_anomalies(
-            accepted,
-            **anomaly_kwargs,
+        has_rejection = any(
+            issue.status == ValidationStatus.REJECT
+            for issue in bar_issues
         )
 
-        for anomaly in anomalies:
-            if anomaly.severity == AnomalySeverity.CRITICAL:
-                status = ValidationStatus.NEEDS_REVIEW
-            else:
-                status = ValidationStatus.NEEDS_REVIEW
+        if has_rejection:
+            result.rejected.append(bar)
+        else:
+            valid_records.append(bar)
 
-            issues.append(
-                _issue(
-                    code=anomaly.code,
-                    message=anomaly.message,
-                    status=status,
-                )
-            )
-
-    return IngestionResult(
-        accepted=accepted,
-        rejected=rejected,
-        issues=issues,
+    result.accepted = sorted(
+        valid_records,
+        key=lambda bar: bar.trading_date,
     )
+
+    result.issues.extend(
+        _run_anomaly_checks(
+            result.accepted
+        )
+    )
+
+    return result
