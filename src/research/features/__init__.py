@@ -57,3 +57,13 @@ __all__ += [
     "FeatureSnapshotValidator",
     "FeatureValidationResult",
 ]
+
+from src.research.features.research_set import (
+    ResearchFeatureSet,
+    ResearchFeatureSetBuilder,
+)
+
+__all__ += [
+    "ResearchFeatureSet",
+    "ResearchFeatureSetBuilder",
+]
