@@ -17,3 +17,17 @@ __all__ = [
     "FeatureStatus",
     "FeatureValue",
 ]
+
+from src.research.features.registry import (
+    ALL_FEATURE_DEFINITIONS,
+    feature_definitions,
+    feature_ids,
+    get_feature_definition,
+)
+
+__all__ += [
+    "ALL_FEATURE_DEFINITIONS",
+    "feature_definitions",
+    "feature_ids",
+    "get_feature_definition",
+]
