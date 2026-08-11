@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from enum import Enum
 from math import isfinite
+from enum import Enum
 from typing import Any
 
 
@@ -71,7 +71,9 @@ class FeatureValue:
                 "confidence must be between 0 and 1"
             )
 
-        if self.value is not None and not isfinite(self.value):
+        if self.value is not None and not isfinite(
+            self.value
+        ):
             raise ValueError(
                 "feature value must be finite"
             )
@@ -109,6 +111,30 @@ class FeatureValue:
                 self.metadata,
                 key=lambda item: item[0],
             )
+        )
+
+        object.__setattr__(
+            self,
+            "feature_id",
+            self.feature_id.strip().lower(),
+        )
+
+        object.__setattr__(
+            self,
+            "feature_version",
+            self.feature_version.strip(),
+        )
+
+        object.__setattr__(
+            self,
+            "symbol",
+            self.symbol.strip().upper(),
+        )
+
+        object.__setattr__(
+            self,
+            "unit",
+            self.unit.strip(),
         )
 
         object.__setattr__(
