@@ -2,15 +2,15 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import Callable, Sequence
+from typing import Any, Callable, Sequence
 
 from src.backtest.models import BacktestBar
 from src.backtest.runner import BacktestRun, BacktestRunner
-
 from src.backtest.strategy import (
     BacktestStrategy,
     TrainableBacktestStrategy,
 )
+
 
 @dataclass(frozen=True)
 class WalkForwardWindow:
@@ -22,8 +22,7 @@ class WalkForwardWindow:
 
     index: int
     train_bars: tuple[BacktestBar, ...]
-    test_bars: tuple[BacktestBar,
-     ...]
+    test_bars: tuple[BacktestBar, ...]
 
     @property
     def train_start(self):
@@ -41,6 +40,41 @@ class WalkForwardWindow:
     def test_end(self):
         return self.test_bars[-1].trading_date
 
+    @property
+    def train_count(self) -> int:
+        return len(self.train_bars)
+
+    @property
+    def test_count(self) -> int:
+        return len(self.test_bars)
+
+
+@dataclass(frozen=True)
+class WalkForwardWindowMetadata:
+    """
+    Research metadata for one walk-forward window.
+
+    This describes the information boundary around the experiment.
+    It does not represent a trading instruction.
+    """
+
+    index: int
+
+    train_start: Any
+    train_end: Any
+    test_start: Any
+    test_end: Any
+
+    train_observations: int
+    test_observations: int
+
+    parameters: Any = None
+    combinations_tested: int | None = None
+
+    @property
+    def has_parameters(self) -> bool:
+        return self.parameters is not None
+
 
 @dataclass(frozen=True)
 class WalkForwardResult:
@@ -55,6 +89,11 @@ class WalkForwardResult:
 
     windows: tuple[BacktestRun, ...]
     initial_capital: Decimal
+
+    window_metadata: tuple[
+        WalkForwardWindowMetadata,
+        ...
+    ] = ()
 
     @property
     def window_count(self) -> int:
@@ -71,6 +110,13 @@ class WalkForwardResult:
     def losing_windows(self) -> int:
         return sum(
             run.result.profit_loss < Decimal("0")
+            for run in self.windows
+        )
+
+    @property
+    def flat_windows(self) -> int:
+        return sum(
+            run.result.profit_loss == Decimal("0")
             for run in self.windows
         )
 
@@ -100,6 +146,46 @@ class WalkForwardResult:
         return total / Decimal(len(self.windows))
 
     @property
+    def median_window_return(self) -> Decimal:
+        if not self.windows:
+            return Decimal("0")
+
+        values = sorted(
+            run.result.return_percent
+            for run in self.windows
+        )
+
+        middle = len(values) // 2
+
+        if len(values) % 2:
+            return values[middle]
+
+        return (
+            values[middle - 1]
+            + values[middle]
+        ) / Decimal("2")
+
+    @property
+    def best_window_return(self) -> Decimal:
+        if not self.windows:
+            return Decimal("0")
+
+        return max(
+            run.result.return_percent
+            for run in self.windows
+        )
+
+    @property
+    def worst_window_return(self) -> Decimal:
+        if not self.windows:
+            return Decimal("0")
+
+        return min(
+            run.result.return_percent
+            for run in self.windows
+        )
+
+    @property
     def consistency_percent(self) -> Decimal:
         if not self.windows:
             return Decimal("0")
@@ -122,6 +208,77 @@ class WalkForwardResult:
             run.requires_review
             for run in self.windows
         )
+
+    @property
+    def total_test_observations(self) -> int:
+        return sum(
+            metadata.test_observations
+            for metadata in self.window_metadata
+        )
+
+    @property
+    def total_train_observations(self) -> int:
+        return sum(
+            metadata.train_observations
+            for metadata in self.window_metadata
+        )
+
+    @property
+    def profitable_window_ratio(self) -> Decimal:
+        if not self.windows:
+            return Decimal("0")
+
+        return (
+            Decimal(self.profitable_windows)
+            / Decimal(self.window_count)
+        )
+
+    @property
+    def parameterized_window_count(self) -> int:
+        return sum(
+            metadata.has_parameters
+            for metadata in self.window_metadata
+        )
+
+    @property
+    def parameter_stability_percent(self) -> Decimal:
+        """
+        Percentage of adjacent parameterized windows that selected
+        exactly the same parameter set.
+
+        A high value indicates parameter stability.
+
+        A low value is a research warning, not automatically a failure.
+        """
+
+        parameterized = [
+            metadata
+            for metadata in self.window_metadata
+            if metadata.has_parameters
+        ]
+
+        if len(parameterized) < 2:
+            return Decimal("0")
+
+        stable = 0
+        comparisons = 0
+
+        for previous, current in zip(
+            parameterized,
+            parameterized[1:],
+        ):
+            comparisons += 1
+
+            if previous.parameters == current.parameters:
+                stable += 1
+
+        if comparisons == 0:
+            return Decimal("0")
+
+        return (
+            Decimal(stable)
+            / Decimal(comparisons)
+        ) * Decimal("100")
 
 
 def build_walk_forward_windows(
@@ -224,6 +381,29 @@ def build_walk_forward_windows(
     return tuple(windows)
 
 
+def _metadata_for_window(
+    window: WalkForwardWindow,
+    *,
+    parameters: Any = None,
+    combinations_tested: int | None = None,
+) -> WalkForwardWindowMetadata:
+    """
+    Build immutable research metadata for a window.
+    """
+
+    return WalkForwardWindowMetadata(
+        index=window.index,
+        train_start=window.train_start,
+        train_end=window.train_end,
+        test_start=window.test_start,
+        test_end=window.test_end,
+        train_observations=window.train_count,
+        test_observations=window.test_count,
+        parameters=parameters,
+        combinations_tested=combinations_tested,
+    )
+
+
 def run_walk_forward(
     bars: Sequence[BacktestBar],
     strategy_factory: Callable[[], BacktestStrategy],
@@ -242,13 +422,10 @@ def run_walk_forward(
 
     A fresh strategy instance is created for every window.
 
-    The current strategy interface is deterministic rather than
-    trainable, so the train window is intentionally kept separate
-    from the test window. This prevents test observations from being
-    passed to signal generation.
+    The deterministic strategy is evaluated only on test_bars.
 
-    A future trainable strategy interface can later use the same
-    window structure for fitting parameters exclusively on train_bars.
+    train_bars remain isolated so that future observations cannot
+    accidentally enter signal generation.
     """
 
     windows = build_walk_forward_windows(
@@ -259,6 +436,7 @@ def run_walk_forward(
     )
 
     runs: list[BacktestRun] = []
+    metadata: list[WalkForwardWindowMetadata] = []
 
     for window in windows:
         strategy = strategy_factory()
@@ -272,10 +450,10 @@ def run_walk_forward(
         )
 
         # IMPORTANT:
-        # The strategy is evaluated only against the test window.
+        # Only the test observations enter the strategy.
         #
-        # The train window remains isolated and is not supplied to
-        # generate_signals. This prevents accidental look-ahead.
+        # The train observations are retained solely as the
+        # chronological research boundary.
         run = runner.run_strategy(
             window.test_bars,
             strategy,
@@ -283,14 +461,23 @@ def run_walk_forward(
 
         runs.append(run)
 
+        metadata.append(
+            _metadata_for_window(window)
+        )
+
     return WalkForwardResult(
         windows=tuple(runs),
         initial_capital=initial_capital,
+        window_metadata=tuple(metadata),
     )
+
 
 def run_trainable_walk_forward(
     bars: Sequence[BacktestBar],
-    strategy_factory: Callable[[], TrainableBacktestStrategy],
+    strategy_factory: Callable[
+        [],
+        TrainableBacktestStrategy,
+    ],
     *,
     initial_capital: Decimal,
     train_size: int,
@@ -308,12 +495,15 @@ def run_trainable_walk_forward(
 
         1. Create a fresh strategy.
         2. Fit only on train_bars.
-        3. Freeze the fitted strategy.
-        4. Generate signals only from test_bars.
-        5. Execute the test signals.
-        6. Store only the out-of-sample result.
+        3. Generate signals only from test_bars.
+        4. Execute the test signals.
+        5. Store only the out-of-sample result.
 
     Test observations are never supplied to fit().
+
+    The fitted parameter state is captured in window_metadata when
+    the strategy exposes a parameter-like state through the common
+    buy_threshold/sell_threshold attributes.
     """
 
     windows = build_walk_forward_windows(
@@ -324,97 +514,14 @@ def run_trainable_walk_forward(
     )
 
     runs: list[BacktestRun] = []
+    metadata: list[WalkForwardWindowMetadata] = []
 
     for window in windows:
         strategy = strategy_factory()
 
-        strategy.fit(
-            window.train_bars
-        )
-
-        runner = BacktestRunner(
-            initial_capital,
-            allocation=allocation,
-            transaction_cost_rate=(
-                transaction_cost_rate
-            ),
-            minimum_bars=minimum_bars,
-            minimum_trades=minimum_trades,
-        )
-
-        run = runner.run_strategy(
-            window.test_bars,
-            strategy,
-        )
-
-        runs.append(run)
-
-    return WalkForwardResult(
-        windows=tuple(runs),
-        initial_capital=initial_capital,
-    )
-
-def run_optimized_walk_forward(
-    bars: Sequence[BacktestBar],
-    parameter_ranges,
-    strategy_factory,
-    *,
-    initial_capital: Decimal,
-    train_size: int,
-    test_size: int,
-    step_size: int | None = None,
-    allocation: Decimal = Decimal("1"),
-    transaction_cost_rate: Decimal = Decimal("0"),
-    minimum_bars: int = 1,
-    minimum_trades: int = 0,
-) -> WalkForwardResult:
-    """
-    Perform genuine walk-forward optimization.
-
-    For each chronological window:
-
-        TRAIN
-          ↓
-        optimize parameters
-          ↓
-        construct fresh strategy using best parameters
-          ↓
-        TEST
-          ↓
-        record only out-of-sample result
-
-    Test observations never participate in optimization.
-    """
-
-    from src.backtest.training import StrategyTrainer
-
-    windows = build_walk_forward_windows(
-        bars,
-        train_size=train_size,
-        test_size=test_size,
-        step_size=step_size,
-    )
-
-    runs: list[BacktestRun] = []
-
-    for window in windows:
-        trainer = StrategyTrainer(
-            parameter_ranges,
-            strategy_factory,
-            initial_capital=initial_capital,
-            allocation=allocation,
-            transaction_cost_rate=transaction_cost_rate,
-            minimum_bars=minimum_bars,
-            minimum_trades=minimum_trades,
-        )
-
-        training_result = trainer.fit(
-            window.train_bars
-        )
-
-        strategy = strategy_factory(
-            training_result.parameters
-        )
+        # HARD INFORMATION BOUNDARY:
+        # fit() receives train_bars and nothing else.
+        strategy.fit(window.train_bars)
 
         runner = BacktestRunner(
             initial_capital,
@@ -424,6 +531,8 @@ def run_optimized_walk_forward(
             minimum_trades=minimum_trades,
         )
 
+        # HARD INFORMATION BOUNDARY:
+        # test_bars are supplied only after fitting is complete.
         run = runner.run_strategy(
             window.test_bars,
             strategy,
@@ -431,7 +540,26 @@ def run_optimized_walk_forward(
 
         runs.append(run)
 
+        parameters = None
+
+        if hasattr(strategy, "buy_threshold") and hasattr(
+            strategy,
+            "sell_threshold",
+        ):
+            parameters = {
+                "buy_threshold": strategy.buy_threshold,
+                "sell_threshold": strategy.sell_threshold,
+            }
+
+        metadata.append(
+            _metadata_for_window(
+                window,
+                parameters=parameters,
+            )
+        )
+
     return WalkForwardResult(
         windows=tuple(runs),
         initial_capital=initial_capital,
+        window_metadata=tuple(metadata),
     )
