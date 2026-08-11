@@ -31,3 +31,17 @@ __all__ += [
     "feature_ids",
     "get_feature_definition",
 ]
+
+from src.research.features.registry_engine import (
+    ResearchFeatureEngine,
+)
+from src.research.features.snapshot import (
+    FeatureSnapshot,
+    FeatureSnapshotBuilder,
+)
+
+__all__ += [
+    "ResearchFeatureEngine",
+    "FeatureSnapshot",
+    "FeatureSnapshotBuilder",
+]
