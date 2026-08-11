@@ -45,3 +45,15 @@ __all__ += [
     "FeatureSnapshot",
     "FeatureSnapshotBuilder",
 ]
+
+from src.research.features.validation import (
+    FeatureSnapshotValidation,
+    FeatureSnapshotValidator,
+    FeatureValidationResult,
+)
+
+__all__ += [
+    "FeatureSnapshotValidation",
+    "FeatureSnapshotValidator",
+    "FeatureValidationResult",
+]
