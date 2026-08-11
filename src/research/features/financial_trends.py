@@ -2,8 +2,29 @@ from __future__ import annotations
 
 from typing import Mapping
 
+from dataclasses import dataclass
+from decimal import Decimal
+
 from src.research.features.snapshot_engine import FeatureDefinition
 
+@dataclass(frozen=True)
+class FinancialTrendSummary:
+    """
+    Multi-period summary of one financial metric.
+
+    This is descriptive research evidence only.
+    It does not predict future returns.
+    """
+
+    metric: str
+    direction: str
+    observations: int
+    average_change: Decimal
+    positive_periods: int
+    negative_periods: int
+    stable_periods: int
+    consistency: Decimal
+    explanation: str
 
 def _number_or_none(value: object) -> float | None:
     if value is None:
@@ -261,3 +282,25 @@ FINANCIAL_TREND_FEATURE_DEFINITIONS = (
         ),
     ),
 )
+
+from dataclasses import dataclass
+from decimal import Decimal
+
+
+@dataclass(frozen=True)
+class FinancialTrendSummary:
+    """
+    Multi-period summary of one financial metric.
+
+    Descriptive research evidence only.
+    """
+
+    metric: str
+    direction: str
+    observations: int
+    average_change: Decimal
+    positive_periods: int
+    negative_periods: int
+    stable_periods: int
+    consistency: Decimal
+    explanation: str
