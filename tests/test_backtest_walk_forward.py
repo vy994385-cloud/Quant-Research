@@ -278,3 +278,89 @@ def test_walk_forward_is_not_a_trade_signal():
     for run in result.windows:
         assert run.is_trade_signal is False
         assert run.report.is_trade_signal is False
+
+
+def test_trainable_walk_forward_fits_only_on_train_data():
+    from src.backtest.strategy import TrainableThresholdStrategy
+    from src.backtest.walk_forward import run_trainable_walk_forward
+
+    bars = make_bars(12)
+
+    result = run_trainable_walk_forward(
+        bars,
+        TrainableThresholdStrategy,
+        initial_capital=Decimal("1000"),
+        train_size=4,
+        test_size=2,
+        minimum_bars=2,
+        minimum_trades=0,
+    )
+
+    assert result.window_count == 4
+    assert result.all_windows_valid
+
+    assert result.parameterized_window_count == 4
+
+    for metadata in result.window_metadata:
+        assert metadata.train_observations == 4
+        assert metadata.test_observations == 2
+        assert metadata.has_parameters
+        assert metadata.parameters is not None
+
+
+def test_trainable_walk_forward_keeps_train_and_test_boundaries():
+    from src.backtest.strategy import TrainableThresholdStrategy
+    from src.backtest.walk_forward import run_trainable_walk_forward
+
+    result = run_trainable_walk_forward(
+        make_bars(10),
+        TrainableThresholdStrategy,
+        initial_capital=Decimal("1000"),
+        train_size=4,
+        test_size=2,
+        minimum_bars=2,
+        minimum_trades=0,
+    )
+
+    for metadata in result.window_metadata:
+        assert metadata.train_end < metadata.test_start
+
+
+def test_trainable_walk_forward_reports_parameter_stability():
+    from src.backtest.strategy import TrainableThresholdStrategy
+    from src.backtest.walk_forward import run_trainable_walk_forward
+
+    result = run_trainable_walk_forward(
+        make_bars(12),
+        TrainableThresholdStrategy,
+        initial_capital=Decimal("1000"),
+        train_size=4,
+        test_size=2,
+        minimum_bars=2,
+        minimum_trades=0,
+    )
+
+    assert (
+        Decimal("0")
+        <= result.parameter_stability_percent
+        <= Decimal("100")
+    )
+
+
+def test_trainable_walk_forward_is_not_a_trade_signal():
+    from src.backtest.strategy import TrainableThresholdStrategy
+    from src.backtest.walk_forward import run_trainable_walk_forward
+
+    result = run_trainable_walk_forward(
+        make_bars(10),
+        TrainableThresholdStrategy,
+        initial_capital=Decimal("1000"),
+        train_size=4,
+        test_size=2,
+        minimum_bars=2,
+        minimum_trades=0,
+    )
+
+    for run in result.windows:
+        assert run.is_trade_signal is False
+        assert run.report.is_trade_signal is False
