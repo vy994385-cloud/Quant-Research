@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from typing import Mapping
-
 from dataclasses import dataclass
 from decimal import Decimal
+from typing import Mapping
 
 from src.research.features.snapshot_engine import FeatureDefinition
+
 
 @dataclass(frozen=True)
 class FinancialTrendSummary:
@@ -26,6 +26,7 @@ class FinancialTrendSummary:
     consistency: Decimal
     explanation: str
 
+
 def _number_or_none(value: object) -> float | None:
     if value is None:
         return None
@@ -42,12 +43,8 @@ def absolute_change(
     current_key: str,
     previous_key: str,
 ) -> float | None:
-    current = _number_or_none(
-        observations.get(current_key)
-    )
-    previous = _number_or_none(
-        observations.get(previous_key)
-    )
+    current = _number_or_none(observations.get(current_key))
+    previous = _number_or_none(observations.get(previous_key))
 
     if current is None or previous is None:
         return None
@@ -61,12 +58,8 @@ def percentage_change(
     current_key: str,
     previous_key: str,
 ) -> float | None:
-    current = _number_or_none(
-        observations.get(current_key)
-    )
-    previous = _number_or_none(
-        observations.get(previous_key)
-    )
+    current = _number_or_none(observations.get(current_key))
+    previous = _number_or_none(observations.get(previous_key))
 
     if current is None or previous is None:
         return None
@@ -74,10 +67,7 @@ def percentage_change(
     if previous == 0:
         return None
 
-    return (
-        (current - previous)
-        / abs(previous)
-    ) * 100.0
+    return ((current - previous) / abs(previous)) * 100.0
 
 
 def revenue_change(
@@ -186,20 +176,14 @@ FINANCIAL_TREND_FEATURE_DEFINITIONS = (
         feature_version="1.0",
         unit="absolute",
         calculator=revenue_change,
-        required_inputs=(
-            "revenue",
-            "previous_revenue",
-        ),
+        required_inputs=("revenue", "previous_revenue"),
     ),
     FeatureDefinition(
         feature_id="revenue_growth_change",
         feature_version="1.0",
         unit="percent",
         calculator=revenue_growth_change,
-        required_inputs=(
-            "revenue",
-            "previous_revenue",
-        ),
+        required_inputs=("revenue", "previous_revenue"),
     ),
     FeatureDefinition(
         feature_id="operating_profit_change",
@@ -216,10 +200,7 @@ FINANCIAL_TREND_FEATURE_DEFINITIONS = (
         feature_version="1.0",
         unit="absolute",
         calculator=net_profit_change,
-        required_inputs=(
-            "net_profit",
-            "previous_net_profit",
-        ),
+        required_inputs=("net_profit", "previous_net_profit"),
     ),
     FeatureDefinition(
         feature_id="operating_cash_flow_change",
@@ -246,10 +227,7 @@ FINANCIAL_TREND_FEATURE_DEFINITIONS = (
         feature_version="1.0",
         unit="absolute",
         calculator=total_debt_change,
-        required_inputs=(
-            "total_debt",
-            "previous_total_debt",
-        ),
+        required_inputs=("total_debt", "previous_total_debt"),
     ),
     FeatureDefinition(
         feature_id="cash_change",
@@ -266,41 +244,13 @@ FINANCIAL_TREND_FEATURE_DEFINITIONS = (
         feature_version="1.0",
         unit="absolute",
         calculator=receivables_change,
-        required_inputs=(
-            "receivables",
-            "previous_receivables",
-        ),
+        required_inputs=("receivables", "previous_receivables"),
     ),
     FeatureDefinition(
         feature_id="payables_change",
         feature_version="1.0",
         unit="absolute",
         calculator=payables_change,
-        required_inputs=(
-            "payables",
-            "previous_payables",
-        ),
+        required_inputs=("payables", "previous_payables"),
     ),
 )
-
-from dataclasses import dataclass
-from decimal import Decimal
-
-
-@dataclass(frozen=True)
-class FinancialTrendSummary:
-    """
-    Multi-period summary of one financial metric.
-
-    Descriptive research evidence only.
-    """
-
-    metric: str
-    direction: str
-    observations: int
-    average_change: Decimal
-    positive_periods: int
-    negative_periods: int
-    stable_periods: int
-    consistency: Decimal
-    explanation: str
