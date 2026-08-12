@@ -23,6 +23,12 @@ from src.analysis.stock_analysis import (
 )
 from src.data.company.financials import FinancialSnapshot
 from src.data.providers.base import MarketDataProvider
+from src.data.providers.company import (
+    CompanyEventsDataProvider,
+    ManagementDataProvider,
+    OwnershipDataProvider,
+    RelatedPartyDataProvider,
+)
 from src.data.universe import load_symbols
 from src.features.market_adapter import (
     build_market_feature_snapshot_from_provider,
@@ -192,6 +198,10 @@ def run_market_research(
     start_date: date,
     end_date: date,
     financial_provider=None,
+    management_provider: ManagementDataProvider | None = None,
+    ownership_provider: OwnershipDataProvider | None = None,
+    related_party_provider: RelatedPartyDataProvider | None = None,
+    company_events_provider: CompanyEventsDataProvider | None = None,
 ) -> MarketResearchResult:
     """
     Run the provider -> financial -> market-feature ->
@@ -244,6 +254,62 @@ def run_market_research(
             financial_snapshots
         )
 
+        management_changes = []
+
+        if management_provider is not None:
+            try:
+                management_changes = (
+                    management_provider.get_management_changes(
+                        symbol=symbol,
+                        start_date=start_date,
+                        end_date=end_date,
+                    )
+                )
+            except (RuntimeError, ValueError):
+                management_changes = []
+
+        ownership_snapshots = []
+
+        if ownership_provider is not None:
+            try:
+                ownership_snapshots = (
+                    ownership_provider.get_ownership_snapshots(
+                        symbol=symbol,
+                        start_date=start_date,
+                        end_date=end_date,
+                    )
+                )
+            except (RuntimeError, ValueError):
+                ownership_snapshots = []
+
+        related_party_transactions = []
+
+        if related_party_provider is not None:
+            try:
+                related_party_transactions = (
+                    related_party_provider.get_related_party_transactions(
+                        symbol=symbol,
+                        start_date=start_date,
+                        end_date=end_date,
+                    )
+                )
+            except (RuntimeError, ValueError):
+                related_party_transactions = []
+
+        company_events = []
+
+        if company_events_provider is not None:
+            try:
+                company_events = (
+                    company_events_provider.get_company_events(
+                        symbol=symbol,
+                        start_date=start_date,
+                        end_date=end_date,
+                    )
+                )
+            except (RuntimeError, ValueError):
+                company_events = []
+
         risk_score = financial_risk_score(
             financial_snapshots
         )
@@ -255,6 +321,10 @@ def run_market_research(
                 symbol=symbol,
                 as_of_date=snapshot.trading_date,
                 financial_snapshots=financial_snapshots,
+                management_changes=management_changes,
+                ownership_snapshots=ownership_snapshots,
+                related_party_transactions=related_party_transactions,
+                company_events=company_events,
             )
         )
 
