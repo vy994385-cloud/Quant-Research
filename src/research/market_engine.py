@@ -8,8 +8,8 @@ from src.analysis.company_intelligence import (
     CompanyResearchSnapshot,
 )
 
-from src.analysis.company_financial_intelligence import (
-    build_financial_company_intelligence,
+from src.analysis.company_assembly import (
+    assemble_company_intelligence,
 )
 from src.analysis.financial_scoring import (
     score_financial_snapshot,
@@ -251,10 +251,10 @@ def run_market_research(
         market_scores = _market_scores(snapshot)
 
         company_snapshot = (
-            build_financial_company_intelligence(
+            assemble_company_intelligence(
                 symbol=symbol,
                 as_of_date=snapshot.trading_date,
-                snapshots=financial_snapshots,
+                financial_snapshots=financial_snapshots,
             )
         )
 
