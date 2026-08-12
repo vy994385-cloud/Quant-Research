@@ -8,10 +8,14 @@ from src.analysis.company_intelligence import (
     CompanyResearchSnapshot,
     build_company_research_snapshot,
 )
+from src.analysis.financial_scoring import (
+    score_financial_snapshot,
+)
 from src.analysis.stock_analysis import (
     StockAnalysisReport,
     build_stock_analysis,
 )
+from src.data.company.financials import FinancialSnapshot
 from src.data.providers.base import MarketDataProvider
 from src.data.universe import load_symbols
 from src.features.market_adapter import (
@@ -23,9 +27,6 @@ from src.features.market_adapter import (
 class MarketResearchResult:
     """
     Complete market research result for a universe.
-
-    Each successful security contains the real market-feature
-    snapshot and the deterministic stock-analysis report.
     """
 
     as_of: date
@@ -47,11 +48,7 @@ def _build_neutral_company_snapshot(
     """
     Explicit placeholder for company-intelligence data.
 
-    Market-only research must not invent fundamentals, management,
-    AI participation, or other company-quality evidence.
-
-    Neutral values are supplied only until the company-data provider
-    is connected.
+    Market-quality and company-intelligence layers remain separate.
     """
 
     return build_company_research_snapshot(
@@ -64,16 +61,14 @@ def _market_scores(
     report_snapshot,
 ) -> dict[str, Decimal]:
     """
-    Convert available market observations into provisional
+    Convert available market observations into normalized
     research inputs.
-
-    Company-quality fields remain neutral until their actual
-    data providers are connected.
     """
 
     technical = report_snapshot.technical
 
     momentum = technical.momentum
+
     if momentum is None:
         momentum_score = Decimal("50")
     elif momentum <= Decimal("-20"):
@@ -86,17 +81,19 @@ def _market_scores(
             / Decimal("40")
         ) * Decimal("100")
 
-    if technical.volatility_20d is None:
+    volatility = technical.volatility_20d
+
+    if volatility is None:
         volatility_score = Decimal("50")
-    elif technical.volatility_20d <= Decimal("1"):
+    elif volatility <= Decimal("1"):
         volatility_score = Decimal("90")
-    elif technical.volatility_20d <= Decimal("2"):
+    elif volatility <= Decimal("2"):
         volatility_score = Decimal("80")
-    elif technical.volatility_20d <= Decimal("3"):
+    elif volatility <= Decimal("3"):
         volatility_score = Decimal("70")
-    elif technical.volatility_20d <= Decimal("5"):
+    elif volatility <= Decimal("5"):
         volatility_score = Decimal("55")
-    elif technical.volatility_20d <= Decimal("8"):
+    elif volatility <= Decimal("8"):
         volatility_score = Decimal("40")
     else:
         volatility_score = Decimal("25")
@@ -132,7 +129,11 @@ def _market_scores(
             min(Decimal("100"), trend_strength),
         )
 
-    relative = report_snapshot.relative_strength.relative_return_20d
+    relative = (
+        report_snapshot
+        .relative_strength
+        .relative_return_20d
+    )
 
     if relative is None:
         relative_strength = Decimal("50")
@@ -154,6 +155,45 @@ def _market_scores(
     }
 
 
+def _financial_scores(
+    snapshots: list[FinancialSnapshot],
+) -> dict[str, Decimal]:
+    """
+    Convert the latest available annual financial statements
+    into normalized research inputs.
+
+    The previous annual period is used for growth/trend analysis.
+
+    No missing financial information is fabricated.
+    """
+
+    if not snapshots:
+        return {
+            "fundamentals": Decimal("50"),
+            "financial_trends": Decimal("50"),
+            "cash_flow": Decimal("50"),
+            "balance_sheet": Decimal("50"),
+        }
+
+    ordered = sorted(
+        snapshots,
+        key=lambda snapshot: snapshot.period_end,
+    )
+
+    current = ordered[-1]
+
+    previous = (
+        ordered[-2]
+        if len(ordered) >= 2
+        else None
+    )
+
+    return score_financial_snapshot(
+        previous=previous,
+        current=current,
+    )
+
+
 def run_market_research(
     *,
     provider: MarketDataProvider,
@@ -161,20 +201,14 @@ def run_market_research(
     benchmark_symbol: str,
     start_date: date,
     end_date: date,
+    financial_provider=None,
 ) -> MarketResearchResult:
     """
-    Run the real provider -> feature -> analysis pipeline.
+    Run the provider -> financial -> market-feature ->
+    analysis pipeline.
 
-    Pipeline:
-
-        universe
-          -> provider
-          -> market feature snapshot
-          -> stock analysis
-          -> horizon rankings
-
-    Company-quality inputs remain explicitly neutral until their
-    dedicated data providers are connected.
+    Company-quality fields that do not yet have real providers
+    remain explicitly neutral.
     """
 
     if start_date > end_date:
@@ -188,21 +222,43 @@ def run_market_research(
 
     for symbol in symbols:
         try:
-            snapshot = build_market_feature_snapshot_from_provider(
-                provider=provider,
-                symbol=symbol,
-                benchmark_symbol=benchmark_symbol,
-                start_date=start_date,
-                end_date=end_date,
+            snapshot = (
+                build_market_feature_snapshot_from_provider(
+                    provider=provider,
+                    symbol=symbol,
+                    benchmark_symbol=benchmark_symbol,
+                    start_date=start_date,
+                    end_date=end_date,
+                )
             )
         except ValueError:
             continue
 
+        financial_snapshots: list[FinancialSnapshot] = []
+
+        if financial_provider is not None:
+            try:
+                financial_snapshots = (
+                    financial_provider.get_annual_financials(
+                        symbol=symbol,
+                        start_date=start_date,
+                        end_date=end_date,
+                    )
+                )
+            except (RuntimeError, ValueError):
+                financial_snapshots = []
+
+        financial_scores = _financial_scores(
+            financial_snapshots
+        )
+
         market_scores = _market_scores(snapshot)
 
-        company_snapshot = _build_neutral_company_snapshot(
-            symbol=symbol,
-            as_of_date=snapshot.trading_date,
+        company_snapshot = (
+            _build_neutral_company_snapshot(
+                symbol=symbol,
+                as_of_date=snapshot.trading_date,
+            )
         )
 
         report = build_stock_analysis(
@@ -211,17 +267,28 @@ def run_market_research(
             company_intelligence=company_snapshot,
             market_snapshot=snapshot,
 
-            fundamentals=Decimal("50"),
-            financial_trends=Decimal("50"),
-            cash_flow=Decimal("50"),
-            balance_sheet=Decimal("50"),
+            fundamentals=financial_scores[
+                "fundamentals"
+            ],
+            financial_trends=financial_scores[
+                "financial_trends"
+            ],
+            cash_flow=financial_scores[
+                "cash_flow"
+            ],
+            balance_sheet=financial_scores[
+                "balance_sheet"
+            ],
+
             risk=Decimal("50"),
             management=Decimal("50"),
             market_behavior=Decimal("50"),
             evidence_quality=Decimal("50"),
 
             liquidity=Decimal("50"),
-            relative_strength=market_scores["relative_strength"],
+            relative_strength=market_scores[
+                "relative_strength"
+            ],
             catalyst_strength=Decimal("50"),
             valuation=Decimal("50"),
         )
