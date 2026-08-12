@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import json
-from datetime import date
+import ssl
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote
 from urllib.request import Request, urlopen
+
+import certifi
 
 from src.data.company.financials import FinancialSnapshot
 
@@ -13,9 +16,6 @@ from src.data.company.financials import FinancialSnapshot
 class YahooFinanceFinancialProvider:
     """
     Real Yahoo Finance annual financial-data provider.
-
-    Converts Yahoo Finance fundamentals-timeseries data into
-    normalized FinancialSnapshot objects.
     """
 
     BASE_URL = (
@@ -34,6 +34,9 @@ class YahooFinanceFinancialProvider:
 
     def __init__(self, timeout: int = 20):
         self.timeout = timeout
+        self.ssl_context = ssl.create_default_context(
+            cafile=certifi.where()
+        )
 
     @staticmethod
     def _normalize_symbol(symbol: str) -> str:
@@ -63,20 +66,20 @@ class YahooFinanceFinancialProvider:
         yahoo_symbol = self._normalize_symbol(symbol)
 
         period1 = int(
-            __import__("datetime").datetime(
+            datetime(
                 start_date.year,
                 start_date.month,
                 start_date.day,
-                tzinfo=__import__("datetime").timezone.utc,
+                tzinfo=timezone.utc,
             ).timestamp()
         )
 
         period2 = int(
-            __import__("datetime").datetime(
+            datetime(
                 end_date.year,
                 end_date.month,
                 end_date.day,
-                tzinfo=__import__("datetime").timezone.utc,
+                tzinfo=timezone.utc,
             ).timestamp()
         )
 
@@ -104,6 +107,7 @@ class YahooFinanceFinancialProvider:
             with urlopen(
                 request,
                 timeout=self.timeout,
+                context=self.ssl_context,
             ) as response:
                 payload = json.loads(
                     response.read().decode("utf-8")
@@ -127,7 +131,10 @@ class YahooFinanceFinancialProvider:
             .get("result", [])
         )
 
-        by_date: dict[date, dict[str, Decimal]] = {}
+        by_date: dict[
+            date,
+            dict[str, Decimal]
+        ] = {}
 
         for metric_block in result:
             meta = metric_block.get("meta", {})
