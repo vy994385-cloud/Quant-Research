@@ -60,11 +60,14 @@ class RankingValidationResult:
 
     horizon: str
     observation_count: int
+
     average_forward_return: Decimal
     median_forward_return: Decimal
     positive_return_rate: Decimal
+
     average_excess_return: Decimal | None
     positive_excess_return_rate: Decimal | None
+
     score_return_correlation: Decimal | None
 
 
@@ -72,6 +75,14 @@ def _pearson_correlation(
     scores: list[Decimal],
     returns: list[Decimal],
 ) -> Decimal | None:
+    """
+    Calculate Pearson correlation between ranking scores
+    and realized forward returns.
+
+    Returns None when fewer than two observations exist or
+    either variable has zero variance.
+    """
+
     if len(scores) != len(returns):
         raise ValueError(
             "scores and returns must have equal length"
@@ -80,8 +91,15 @@ def _pearson_correlation(
     if len(scores) < 2:
         return None
 
-    mean_score = sum(scores, Decimal("0")) / Decimal(len(scores))
-    mean_return = sum(returns, Decimal("0")) / Decimal(len(returns))
+    mean_score = (
+        sum(scores, Decimal("0"))
+        / Decimal(len(scores))
+    )
+
+    mean_return = (
+        sum(returns, Decimal("0"))
+        / Decimal(len(returns))
+    )
 
     numerator = sum(
         (score - mean_score) * (value - mean_return)
@@ -116,6 +134,13 @@ def validate_rankings(
 
     This function does not modify scores or optimize weights.
     It only measures what happened after each ranking observation.
+
+    Forward-return success is defined as a strictly positive return.
+
+    Benchmark-relative success is defined as a non-negative excess
+    return. A zero excess return means the ranking matched the
+    benchmark rather than underperforming it, so it counts toward
+    positive_excess_return_rate.
     """
 
     if not observations:
@@ -134,7 +159,10 @@ def validate_rankings(
         )
 
     for observation in observations:
-        if observation.outcome.outcome_date <= observation.ranking_date:
+        if (
+            observation.outcome.outcome_date
+            <= observation.ranking_date
+        ):
             raise ValueError(
                 "outcome must occur after ranking date"
             )
@@ -177,10 +205,13 @@ def validate_rankings(
             / Decimal(len(excess_returns))
         )
 
+        # Non-negative excess return means the ranking did not
+        # underperform its benchmark. Zero therefore counts as
+        # successful benchmark-relative performance.
         positive_excess_return_rate = (
             Decimal(
                 sum(
-                    value > Decimal("0")
+                    value >= Decimal("0")
                     for value in excess_returns
                 )
             )
@@ -205,8 +236,12 @@ def validate_rankings(
         median_forward_return=median_forward_return,
         positive_return_rate=positive_return_rate,
         average_excess_return=average_excess_return,
-        positive_excess_return_rate=positive_excess_return_rate,
-        score_return_correlation=score_return_correlation,
+        positive_excess_return_rate=(
+            positive_excess_return_rate
+        ),
+        score_return_correlation=(
+            score_return_correlation
+        ),
     )
 
 
