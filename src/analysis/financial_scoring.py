@@ -13,10 +13,15 @@ from src.analysis.financial_ratios import (
 from src.data.company.financials import FinancialSnapshot
 
 
+ZERO = Decimal("0")
+HUNDRED = Decimal("100")
+NEUTRAL = Decimal("50")
+
+
 def _clamp(value: Decimal) -> Decimal:
     return max(
-        Decimal("0"),
-        min(Decimal("100"), value),
+        ZERO,
+        min(HUNDRED, value),
     )
 
 
@@ -25,18 +30,25 @@ def _score_range(
     low: Decimal,
     high: Decimal,
 ) -> Decimal:
+    """
+    Higher value receives a higher score.
+
+    Thresholds are provisional research heuristics and should
+    eventually be calibrated by sector and historical data.
+    """
+
     if value is None:
-        return Decimal("50")
+        return NEUTRAL
 
     if value <= low:
-        return Decimal("0")
+        return ZERO
 
     if value >= high:
-        return Decimal("100")
+        return HUNDRED
 
     return _clamp(
         ((value - low) / (high - low))
-        * Decimal("100")
+        * HUNDRED
     )
 
 
@@ -45,58 +57,69 @@ def _score_lower_is_better(
     good: Decimal,
     bad: Decimal,
 ) -> Decimal:
+    """
+    Lower value receives a higher score.
+    """
+
     if value is None:
-        return Decimal("50")
+        return NEUTRAL
 
     if value <= good:
-        return Decimal("100")
+        return HUNDRED
 
     if value >= bad:
-        return Decimal("0")
+        return ZERO
 
     return _clamp(
         ((bad - value) / (bad - good))
-        * Decimal("100")
+        * HUNDRED
     )
 
 
-def score_fundamentals(
+def score_profitability(
     snapshot: FinancialSnapshot,
 ) -> Decimal:
     """
-    Score profitability and cash generation.
+    Evaluate earnings quality using:
 
-    Uses:
     - net profit margin
     - free cash flow margin
     """
 
-    npm = _score_range(
+    npm_score = _score_range(
         net_profit_margin(snapshot),
         Decimal("5"),
         Decimal("25"),
     )
 
-    fcf_margin = _score_range(
+    fcf_score = _score_range(
         free_cash_flow_margin(snapshot),
         Decimal("3"),
         Decimal("20"),
     )
 
-    return (npm + fcf_margin) / Decimal("2")
+    return (
+        npm_score + fcf_score
+    ) / Decimal("2")
 
 
-def score_balance_sheet(
-    snapshot: FinancialSnapshot,
+def score_growth(
+    previous: FinancialSnapshot | None,
+    current: FinancialSnapshot,
 ) -> Decimal:
     """
-    Lower debt relative to revenue receives a higher score.
+    Evaluate year-over-year revenue growth.
+
+    No previous period means neutral rather than fabricated growth.
     """
 
-    return _score_lower_is_better(
-        debt_to_revenue(snapshot),
-        Decimal("0.05"),
-        Decimal("0.50"),
+    if previous is None:
+        return NEUTRAL
+
+    return _score_range(
+        revenue_growth(previous, current),
+        Decimal("0"),
+        Decimal("20"),
     )
 
 
@@ -104,7 +127,10 @@ def score_cash_flow(
     snapshot: FinancialSnapshot,
 ) -> Decimal:
     """
-    Operating cash conversion relative to accounting profit.
+    Evaluate operating cash flow relative to accounting profit.
+
+    A ratio around 100% indicates strong conversion of reported
+    earnings into operating cash.
     """
 
     return _score_range(
@@ -114,36 +140,37 @@ def score_cash_flow(
     )
 
 
-def score_receivables_quality(
+def score_balance_sheet(
     snapshot: FinancialSnapshot,
 ) -> Decimal:
     """
-    Lower receivables relative to revenue receives a higher
-    descriptive score.
+    Evaluate leverage relative to revenue.
 
-    This is a provisional cross-sector heuristic and must
-    eventually be calibrated by sector.
+    Lower debt/revenue receives a higher score.
+    """
+
+    return _score_lower_is_better(
+        debt_to_revenue(snapshot),
+        Decimal("0.05"),
+        Decimal("0.50"),
+    )
+
+
+def score_working_capital(
+    snapshot: FinancialSnapshot,
+) -> Decimal:
+    """
+    Evaluate receivables relative to revenue.
+
+    This is deliberately only one working-capital signal.
+    A high receivables ratio is not automatically evidence
+    of misconduct or poor business quality.
     """
 
     return _score_lower_is_better(
         receivables_to_revenue(snapshot),
         Decimal("10"),
         Decimal("35"),
-    )
-
-
-def score_growth(
-    previous: FinancialSnapshot,
-    current: FinancialSnapshot,
-) -> Decimal:
-    """
-    Score year-over-year revenue growth.
-    """
-
-    return _score_range(
-        revenue_growth(previous, current),
-        Decimal("0"),
-        Decimal("20"),
     )
 
 
@@ -155,31 +182,88 @@ def score_financial_snapshot(
     """
     Produce normalized financial research components.
 
-    Missing previous-period data does not get fabricated.
-    Growth receives a neutral score when unavailable.
+    Component architecture:
+
+        fundamentals
+            = profitability
+
+        financial_trends
+            = revenue growth + working-capital quality
+
+        cash_flow
+            = cash conversion
+
+        balance_sheet
+            = leverage
+
+    Every returned component is normalized to 0-100.
+
+    Missing observations receive a neutral score rather than
+    being treated as either good or bad.
     """
 
-    growth = (
-        score_growth(previous, current)
-        if previous is not None
-        else Decimal("50")
+    profitability = score_profitability(
+        current
     )
 
-    fundamentals = score_fundamentals(current)
+    growth = score_growth(
+        previous,
+        current,
+    )
 
-    cash_flow = score_cash_flow(current)
+    working_capital = score_working_capital(
+        current
+    )
 
-    balance_sheet = score_balance_sheet(current)
+    cash_flow = score_cash_flow(
+        current
+    )
 
-    receivables_quality = score_receivables_quality(current)
+    balance_sheet = score_balance_sheet(
+        current
+    )
 
     financial_trends = (
-        growth + receivables_quality
+        growth + working_capital
     ) / Decimal("2")
 
     return {
-        "fundamentals": _clamp(fundamentals),
-        "financial_trends": _clamp(financial_trends),
-        "cash_flow": _clamp(cash_flow),
-        "balance_sheet": _clamp(balance_sheet),
+        "fundamentals": _clamp(
+            profitability
+        ),
+        "financial_trends": _clamp(
+            financial_trends
+        ),
+        "cash_flow": _clamp(
+            cash_flow
+        ),
+        "balance_sheet": _clamp(
+            balance_sheet
+        ),
     }
+
+
+def financial_quality_score(
+    scores: dict[str, Decimal],
+) -> Decimal:
+    """
+    Combine normalized financial components into one
+    descriptive financial-quality score.
+
+    The weights are explicit and provisional.
+    They must eventually be validated out-of-sample.
+    """
+
+    weights = {
+        "fundamentals": Decimal("0.30"),
+        "financial_trends": Decimal("0.25"),
+        "cash_flow": Decimal("0.25"),
+        "balance_sheet": Decimal("0.20"),
+    }
+
+    total = sum(
+        scores[name] * weight
+        for name, weight in weights.items()
+    )
+
+    return _clamp(total)
