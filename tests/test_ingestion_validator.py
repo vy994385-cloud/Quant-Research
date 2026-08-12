@@ -478,3 +478,148 @@ def test_critical_threshold_cannot_be_below_warning():
             price_jump_warning_pct=20,
             price_jump_critical_pct=10,
         )
+
+
+def test_multiple_invalid_records_are_all_rejected():
+    bars = [
+        make_bar(
+            date(2026, 8, 3),
+            high="90",
+        ),
+        make_bar(
+            date(2026, 8, 4),
+            symbol="OTHER",
+        ),
+        make_bar(
+            date(2026, 8, 5),
+            low="120",
+        ),
+    ]
+
+    result = validate_price_bars(
+        bars,
+        symbol="TEST",
+        start_date=date(2026, 8, 1),
+        end_date=date(2026, 8, 5),
+    )
+
+    assert len(result.accepted) == 0
+    assert len(result.rejected) == 3
+    assert result.status == ValidationStatus.REJECT
+
+
+def test_valid_and_invalid_records_are_separated():
+    bars = [
+        make_bar(date(2026, 8, 3)),
+        make_bar(
+            date(2026, 8, 4),
+            high="90",
+        ),
+        make_bar(date(2026, 8, 5)),
+    ]
+
+    result = validate_price_bars(
+        bars,
+        symbol="TEST",
+        start_date=date(2026, 8, 1),
+        end_date=date(2026, 8, 5),
+    )
+
+    assert len(result.accepted) == 2
+    assert len(result.rejected) == 1
+
+    assert [
+        bar.trading_date
+        for bar in result.accepted
+    ] == [
+        date(2026, 8, 3),
+        date(2026, 8, 5),
+    ]
+
+
+def test_duplicate_records_are_not_used_for_anomaly_analysis():
+    bars = [
+        make_bar(
+            date(2026, 8, 3),
+            close="100",
+        ),
+        make_bar(
+            date(2026, 8, 3),
+            close="200",
+        ),
+        make_bar(
+            date(2026, 8, 4),
+            close="105",
+        ),
+    ]
+
+    result = validate_price_bars(
+        bars,
+        symbol="TEST",
+        start_date=date(2026, 8, 1),
+        end_date=date(2026, 8, 5),
+    )
+
+    assert len(result.accepted) == 1
+    assert len(result.rejected) == 2
+
+    assert any(
+        issue.code == "DUPLICATE_SYMBOL_DATE"
+        for issue in result.issues
+    )
+
+    assert not any(
+        issue.code == "EXTREME_PRICE_MOVE"
+        for issue in result.issues
+    )
+
+
+def test_out_of_order_is_review_not_rejection():
+    bars = [
+        make_bar(date(2026, 8, 5)),
+        make_bar(date(2026, 8, 3)),
+    ]
+
+    result = validate_price_bars(
+        bars,
+        symbol="TEST",
+        start_date=date(2026, 8, 1),
+        end_date=date(2026, 8, 5),
+    )
+
+    assert result.status == ValidationStatus.NEEDS_REVIEW
+    assert result.accepted
+    assert result.rejected == []
+
+    assert any(
+        issue.code == "OUT_OF_ORDER"
+        and issue.status == ValidationStatus.NEEDS_REVIEW
+        for issue in result.issues
+    )
+
+
+def test_needs_review_does_not_reject_valid_records():
+    bars = [
+        make_bar(
+            date(2026, 8, 3),
+            close="100",
+        ),
+        make_bar(
+            date(2026, 8, 4),
+            open_price="112",
+            high="115",
+            low="111",
+            close="112",
+        ),
+    ]
+
+    result = validate_price_bars(
+        bars,
+        symbol="TEST",
+        start_date=date(2026, 8, 1),
+        end_date=date(2026, 8, 5),
+    )
+
+    assert result.status == ValidationStatus.NEEDS_REVIEW
+    assert len(result.accepted) == 2
+    assert len(result.rejected) == 0
