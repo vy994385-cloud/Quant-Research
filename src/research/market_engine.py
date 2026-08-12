@@ -6,7 +6,10 @@ from decimal import Decimal
 
 from src.analysis.company_intelligence import (
     CompanyResearchSnapshot,
-    build_company_research_snapshot,
+)
+
+from src.analysis.company_financial_intelligence import (
+    build_financial_company_intelligence,
 )
 from src.analysis.financial_scoring import (
     score_financial_snapshot,
@@ -42,22 +45,6 @@ class MarketResearchResult:
     @property
     def successful_count(self) -> int:
         return len(self.results)
-
-
-def _build_neutral_company_snapshot(
-    symbol: str,
-    as_of_date: date,
-) -> CompanyResearchSnapshot:
-    """
-    Explicit placeholder for company-intelligence data.
-
-    Market-quality and company-intelligence layers remain separate.
-    """
-
-    return build_company_research_snapshot(
-        symbol=symbol,
-        as_of_date=as_of_date,
-    )
 
 
 def _market_scores(
@@ -210,8 +197,10 @@ def run_market_research(
     Run the provider -> financial -> market-feature ->
     analysis pipeline.
 
-    Company-quality fields that do not yet have real providers
-    remain explicitly neutral.
+    Financial company-intelligence is populated from available
+    normalized financial history. Other company-intelligence
+    domains remain explicitly neutral until their providers
+    are connected.
     """
 
     if start_date > end_date:
@@ -262,9 +251,10 @@ def run_market_research(
         market_scores = _market_scores(snapshot)
 
         company_snapshot = (
-            _build_neutral_company_snapshot(
+            build_financial_company_intelligence(
                 symbol=symbol,
                 as_of_date=snapshot.trading_date,
+                snapshots=financial_snapshots,
             )
         )
 
