@@ -11,6 +11,9 @@ from src.analysis.company_intelligence import (
 from src.analysis.financial_scoring import (
     score_financial_snapshot,
 )
+from src.analysis.financial_risk_scoring import (
+    financial_risk_score,
+)
 from src.analysis.stock_analysis import (
     StockAnalysisReport,
     build_stock_analysis,
@@ -252,6 +255,10 @@ def run_market_research(
             financial_snapshots
         )
 
+        risk_score = financial_risk_score(
+            financial_snapshots
+        )
+
         market_scores = _market_scores(snapshot)
 
         company_snapshot = (
@@ -280,7 +287,7 @@ def run_market_research(
                 "balance_sheet"
             ],
 
-            risk=Decimal("50"),
+            risk=risk_score,
             management=Decimal("50"),
             market_behavior=Decimal("50"),
             evidence_quality=Decimal("50"),
