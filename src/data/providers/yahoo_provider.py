@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import certifi
 import json
+import ssl
 from datetime import date, datetime, timezone
 from decimal import Decimal
 from urllib.error import HTTPError, URLError
@@ -27,7 +29,9 @@ class YahooFinanceMarketDataProvider(MarketDataProvider):
         ^NSEI
     """
 
-    BASE_URL = "https://query1.finance.yahoo.com/v8/finance/chart"
+    BASE_URL = (
+        "https://query1.finance.yahoo.com/v8/finance/chart"
+    )
 
     def __init__(self, timeout: int = 15):
         self.timeout = timeout
@@ -58,6 +62,19 @@ class YahooFinanceMarketDataProvider(MarketDataProvider):
             raise ValueError(
                 "start_date must not be after end_date."
             )
+
+    @staticmethod
+    def _ssl_context() -> ssl.SSLContext:
+        """
+        Build an explicit certificate context.
+
+        Python installations on macOS can occasionally fail to
+        locate the system CA bundle correctly. certifi provides
+        a maintained CA bundle for HTTPS verification.
+        """
+        return ssl.create_default_context(
+            cafile=certifi.where()
+        )
 
     def get_daily_prices(
         self,
@@ -96,7 +113,7 @@ class YahooFinanceMarketDataProvider(MarketDataProvider):
                 end_date.year,
                 end_date.month,
                 end_date.day,
-                tzinfo=timezone.utc
+                tzinfo=timezone.utc,
             ).timestamp()
         ) + 86400
 
@@ -119,19 +136,24 @@ class YahooFinanceMarketDataProvider(MarketDataProvider):
             },
         )
 
+        ssl_context = self._ssl_context()
+
         try:
             with urlopen(
                 request,
                 timeout=self.timeout,
+                context=ssl_context,
             ) as response:
                 payload = json.loads(
                     response.read().decode("utf-8")
                 )
+
         except HTTPError as exc:
             raise RuntimeError(
                 f"Yahoo Finance request failed for "
                 f"{requested_symbol}: HTTP {exc.code}"
             ) from exc
+
         except URLError as exc:
             raise RuntimeError(
                 f"Yahoo Finance request failed for "
@@ -147,6 +169,7 @@ class YahooFinanceMarketDataProvider(MarketDataProvider):
                 or error.get("code")
                 or "unknown Yahoo Finance error"
             )
+
             raise RuntimeError(
                 f"Yahoo Finance returned an error for "
                 f"{requested_symbol}: {description}"
@@ -160,6 +183,7 @@ class YahooFinanceMarketDataProvider(MarketDataProvider):
         result = results[0]
 
         timestamps = result.get("timestamp") or []
+
         quote_data = (
             result.get("indicators", {})
             .get("quote", [{}])[0]
@@ -174,14 +198,19 @@ class YahooFinanceMarketDataProvider(MarketDataProvider):
         bars: list[PriceBar] = []
 
         for index, timestamp in enumerate(timestamps):
+
             if index >= len(opens):
                 continue
+
             if index >= len(highs):
                 continue
+
             if index >= len(lows):
                 continue
+
             if index >= len(closes):
                 continue
+
             if index >= len(volumes):
                 continue
 

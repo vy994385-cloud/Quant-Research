@@ -76,13 +76,55 @@ class StockAnalysisReport:
         )
 
 
+def _future_intelligence_scores(
+    company_intelligence: CompanyResearchSnapshot,
+) -> dict[str, Decimal]:
+    """
+    Extract future-oriented company intelligence from the
+    normalized company research snapshot.
+
+    Missing future intelligence remains explicitly neutral.
+
+    The individual dimensions are kept separate so that the
+    ranking layer can learn different weights for:
+    - future readiness
+    - AI participation
+    - innovation execution
+    - technology diversification
+
+    No missing information is fabricated.
+    """
+
+    return {
+        "future_readiness": (
+            company_intelligence.future_readiness
+            if company_intelligence.future_readiness is not None
+            else Decimal("50")
+        ),
+        "ai_participation": (
+            company_intelligence.ai_participation
+            if company_intelligence.ai_participation is not None
+            else Decimal("50")
+        ),
+        "innovation_execution": (
+            company_intelligence.innovation_execution
+            if company_intelligence.innovation_execution is not None
+            else Decimal("50")
+        ),
+        "technology_diversification": (
+            company_intelligence.technology_diversification
+            if company_intelligence.technology_diversification is not None
+            else Decimal("50")
+        ),
+    }
+
+
 def build_stock_analysis(
     *,
     symbol: str,
     as_of_date: date,
     company_intelligence: CompanyResearchSnapshot,
     market_snapshot: MarketFeatureSnapshot,
-
     fundamentals: Decimal,
     financial_trends: Decimal,
     cash_flow: Decimal,
@@ -91,7 +133,6 @@ def build_stock_analysis(
     management: Decimal,
     market_behavior: Decimal,
     evidence_quality: Decimal,
-
     liquidity: Decimal,
     relative_strength: Decimal,
     catalyst_strength: Decimal,
@@ -111,12 +152,18 @@ def build_stock_analysis(
     if not normalized_symbol:
         raise ValueError("symbol cannot be empty")
 
-    if company_intelligence.symbol.strip().upper() != normalized_symbol:
+    if (
+        company_intelligence.symbol.strip().upper()
+        != normalized_symbol
+    ):
         raise ValueError(
             "company intelligence symbol does not match analysis symbol"
         )
 
-    if market_snapshot.symbol.strip().upper() != normalized_symbol:
+    if (
+        market_snapshot.symbol.strip().upper()
+        != normalized_symbol
+    ):
         raise ValueError(
             "market snapshot symbol does not match analysis symbol"
         )
@@ -135,6 +182,10 @@ def build_stock_analysis(
         management=management,
         market_behavior=market_behavior,
         evidence_quality=evidence_quality,
+    )
+
+    future_scores = _future_intelligence_scores(
+        company_intelligence
     )
 
     base_input = RankingInput(
@@ -157,6 +208,23 @@ def build_stock_analysis(
         valuation=valuation,
         management=management,
         evidence_quality=evidence_quality,
+
+        future_readiness=future_scores[
+            "future_readiness"
+        ],
+        ai_participation=future_scores[
+            "ai_participation"
+        ],
+        innovation_execution=future_scores[
+            "innovation_execution"
+        ],
+        technology_diversification=future_scores[
+            "technology_diversification"
+        ],
+
+        # Sector-specific intelligence will be connected
+        # after the industry technology framework is wired.
+        sector_fit=Decimal("50"),
     )
 
     intraday = rank_stock(

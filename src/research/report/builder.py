@@ -11,6 +11,7 @@ from src.research.features.financial_trends import (
     FinancialTrendSummary,
 )
 from src.research.report.models import (
+    CompanyIntelligenceReport,
     ResearchConclusion,
     ResearchEvidence,
     ResearchReport,
@@ -21,6 +22,9 @@ from src.research.signals.models import (
     SignalSeverity,
 )
 
+from src.analysis.company_intelligence import (
+    CompanyResearchSnapshot,
+)
 
 _SEVERITY_WEIGHT = {
     SignalSeverity.INFO: 1,
@@ -166,6 +170,7 @@ def _conclusion(
 
         if signal.direction == SignalDirection.POSITIVE:
             positive += weight
+
         elif signal.direction == SignalDirection.NEGATIVE:
             negative += weight
 
@@ -181,79 +186,27 @@ def _conclusion(
     return ResearchConclusion.MIXED
 
 
-def _thesis(
-    *,
-    symbol: str,
-    conclusion: ResearchConclusion,
-    signals: list[ResearchSignal],
-) -> str:
-    if not signals:
-        return (
-            f"{symbol} does not have enough validated "
-            "point-in-time evidence to form a research conclusion."
-        )
-
-    positive = [
-        signal
-        for signal in signals
-        if signal.direction == SignalDirection.POSITIVE
-    ]
-
-    negative = [
-        signal
-        for signal in signals
-        if signal.direction == SignalDirection.NEGATIVE
-    ]
-
-    if conclusion == ResearchConclusion.POSITIVE:
-        return (
-            f"{symbol} shows a predominantly positive research "
-            f"profile across the available evidence, with "
-            f"{len(positive)} positive signal(s) versus "
-            f"{len(negative)} negative signal(s)."
-        )
-
-    if conclusion == ResearchConclusion.NEGATIVE:
-        return (
-            f"{symbol} shows a predominantly negative research "
-            f"profile across the available evidence, with "
-            f"{len(negative)} negative signal(s) versus "
-            f"{len(positive)} positive signal(s)."
-        )
-
-    if conclusion == ResearchConclusion.MIXED:
-        return (
-            f"{symbol} presents mixed research evidence. "
-            f"The available dataset contains {len(positive)} "
-            f"positive and {len(negative)} negative signal(s)."
-        )
-
-    return (
-        f"{symbol} has validated research evidence, but the "
-        "available signals do not establish a strong directional "
-        "conclusion."
-    )
-
-
 def _feature_evidence(
     features: list[FeatureValue],
+    *,
+    symbol: str,
 ) -> list[ResearchEvidence]:
     evidence: list[ResearchEvidence] = []
 
     for feature in features:
         evidence.append(
             ResearchEvidence(
-                evidence_id=f"FEATURE_{feature.feature_id.upper()}",
-                title=feature.feature_id.replace("_", " ").title(),
+                evidence_id=f"FEATURE_{feature.feature_id}",
+                title=f"Validated feature: {feature.feature_id}",
                 explanation=(
-                    f"{feature.feature_id} was measured at "
-                    f"{feature.value} {feature.unit}."
+                    f"Feature {feature.feature_id} is available "
+                    "as validated point-in-time research evidence."
                 ),
-                symbol=feature.symbol,
+                symbol=symbol,
                 observation_at=feature.observation_at,
-                source_ids=feature.source_ids,
-                provenance_ids=feature.provenance_ids,
                 confidence=Decimal(str(feature.confidence)),
+                source_ids=tuple(feature.source_ids),
+                provenance_ids=tuple(feature.provenance_ids),
             )
         )
 
@@ -290,6 +243,140 @@ def _signal_evidence(
     return positive, negative
 
 
+def _company_intelligence_report(
+    snapshot: CompanyResearchSnapshot | None,
+    *,
+    fallback_present: bool = False,
+    fallback_signal_count: int = 0,
+    fallback_positive_count: int = 0,
+    fallback_negative_count: int = 0,
+) -> CompanyIntelligenceReport:
+    if snapshot is None:
+        return CompanyIntelligenceReport(
+            present=fallback_present,
+            signal_count=fallback_signal_count,
+            positive_signal_count=fallback_positive_count,
+            negative_signal_count=fallback_negative_count,
+        )
+
+    return CompanyIntelligenceReport(
+        present=True,
+        signal_count=snapshot.signal_count,
+        material_signal_count=snapshot.material_signal_count,
+        positive_signal_count=snapshot.positive_signal_count,
+        negative_signal_count=snapshot.negative_signal_count,
+        financial_observations=tuple(
+            snapshot.financial_observations
+        ),
+        ownership_observations=tuple(
+            snapshot.ownership_observations
+        ),
+        management_observations=tuple(
+            snapshot.management_observations
+        ),
+        related_party_observations=tuple(
+            snapshot.related_party_observations
+        ),
+        event_observations=tuple(
+            snapshot.event_observations
+        ),
+        market_observations=tuple(
+            snapshot.market_observations
+        ),
+        risk_observations=tuple(
+            snapshot.risk_observations
+        ),
+        future_readiness=snapshot.future_readiness,
+        ai_participation=snapshot.ai_participation,
+        innovation_execution=snapshot.innovation_execution,
+        technology_diversification=(
+            snapshot.technology_diversification
+        ),
+    )
+
+
+def _thesis(
+    *,
+    symbol: str,
+    conclusion: ResearchConclusion,
+    signals: list[ResearchSignal],
+    company_intelligence_present: bool = False,
+    company_intelligence_signal_count: int = 0,
+    company_intelligence_positive_count: int = 0,
+    company_intelligence_negative_count: int = 0,
+) -> str:
+    if not signals:
+        if company_intelligence_present:
+            return (
+                f"{symbol} has company-intelligence data available, "
+                "but there is not enough validated point-in-time "
+                "evidence to form a broader research conclusion."
+            )
+
+        return (
+            f"{symbol} does not have enough validated "
+            "point-in-time evidence to form a research conclusion."
+        )
+
+    positive = [
+        signal
+        for signal in signals
+        if signal.direction == SignalDirection.POSITIVE
+    ]
+
+    negative = [
+        signal
+        for signal in signals
+        if signal.direction == SignalDirection.NEGATIVE
+    ]
+
+    if conclusion == ResearchConclusion.POSITIVE:
+        base_thesis = (
+            f"{symbol} shows a predominantly positive research "
+            f"profile across the available evidence, with "
+            f"{len(positive)} positive signal(s) versus "
+            f"{len(negative)} negative signal(s)."
+        )
+
+    elif conclusion == ResearchConclusion.NEGATIVE:
+        base_thesis = (
+            f"{symbol} shows a predominantly negative research "
+            f"profile across the available evidence, with "
+            f"{len(negative)} negative signal(s) versus "
+            f"{len(positive)} positive signal(s)."
+        )
+
+    elif conclusion == ResearchConclusion.MIXED:
+        base_thesis = (
+            f"{symbol} presents mixed research evidence. "
+            f"The available dataset contains {len(positive)} "
+            f"positive and {len(negative)} negative signal(s)."
+        )
+
+    elif conclusion == ResearchConclusion.INSUFFICIENT_EVIDENCE:
+        base_thesis = (
+            f"{symbol} does not have enough validated "
+            "point-in-time evidence to form a research conclusion."
+        )
+
+    else:
+        base_thesis = (
+            f"{symbol} has validated research evidence, but the "
+            "available signals do not establish a strong directional "
+            "conclusion."
+        )
+
+    if company_intelligence_present:
+        base_thesis += (
+            f" Company intelligence contributed "
+            f"{company_intelligence_signal_count} signal(s), "
+            f"including {company_intelligence_positive_count} "
+            f"positive and {company_intelligence_negative_count} "
+            f"negative observation(s)."
+        )
+
+    return base_thesis
+
 def build_company_report(
     *,
     symbol: str,
@@ -297,13 +384,17 @@ def build_company_report(
     features: list[FeatureValue],
     signals: list[ResearchSignal] | None = None,
     trend_summaries: list[FinancialTrendSummary] | None = None,
+    company_snapshot: CompanyResearchSnapshot | None = None,
+    company_intelligence_present: bool = False,
+    company_intelligence_signal_count: int = 0,
+    company_intelligence_positive_count: int = 0,
+    company_intelligence_negative_count: int = 0,
 ) -> ResearchReport:
     """
     Build a deterministic point-in-time company research report.
 
-    Features, supplied signals, and financial trend summaries are
-    filtered/converted into one unified research signal set before
-    conclusion and confidence are calculated.
+    Features, supplied signals, financial trends, and company
+    intelligence are assembled without creating new intelligence.
     """
 
     _validate_as_of(as_of)
@@ -349,13 +440,28 @@ def build_company_report(
         )
     )
 
-    positive_evidence = _feature_evidence(usable)
+    positive_evidence = _feature_evidence(
+        usable,
+        symbol=symbol,
+    )
 
     signal_positive, signal_negative = _signal_evidence(
         all_signals
     )
 
     positive_evidence.extend(signal_positive)
+
+    intelligence = _company_intelligence_report(
+        company_snapshot,
+        fallback_present=company_intelligence_present,
+        fallback_signal_count=company_intelligence_signal_count,
+        fallback_positive_count=(
+            company_intelligence_positive_count
+        ),
+        fallback_negative_count=(
+            company_intelligence_negative_count
+        ),
+    )
 
     conclusion = _conclusion(all_signals)
 
@@ -371,6 +477,18 @@ def build_company_report(
             symbol=symbol,
             conclusion=conclusion,
             signals=all_signals,
+            company_intelligence_present=(
+                intelligence.present
+            ),
+            company_intelligence_signal_count=(
+                intelligence.signal_count
+            ),
+            company_intelligence_positive_count=(
+                intelligence.positive_signal_count
+            ),
+            company_intelligence_negative_count=(
+                intelligence.negative_signal_count
+            ),
         ),
         features=feature_ids,
         signals=tuple(all_signals),
@@ -387,6 +505,22 @@ def build_company_report(
                 "point-in-time research signals before conclusion "
                 "and confidence calculations."
             ),
+            (
+                "Company intelligence is carried into the report "
+                "as descriptive evidence and future-intelligence "
+                "context; it does not constitute a trading signal."
+            ),
+        ),
+        company_intelligence=intelligence,
+        company_intelligence_present=intelligence.present,
+        company_intelligence_signal_count=(
+            intelligence.signal_count
+        ),
+        company_intelligence_positive_count=(
+            intelligence.positive_signal_count
+        ),
+        company_intelligence_negative_count=(
+            intelligence.negative_signal_count
         ),
     )
 

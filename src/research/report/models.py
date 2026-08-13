@@ -6,9 +6,7 @@ from enum import Enum
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from src.research.signals.models import (
-    ResearchSignal,
-)
+from src.research.signals.models import ResearchSignal
 
 
 class ResearchConclusion(str, Enum):
@@ -64,11 +62,109 @@ class ResearchEvidence(BaseModel):
         return value
 
 
+class CompanyIntelligenceReport(BaseModel):
+    """
+    Report-level representation of normalized company intelligence.
+
+    This is descriptive research evidence. It does not represent
+    a trading or execution recommendation.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    present: bool = False
+
+    signal_count: int = Field(
+        default=0,
+        ge=0,
+    )
+
+    material_signal_count: int = Field(
+        default=0,
+        ge=0,
+    )
+
+    positive_signal_count: int = Field(
+        default=0,
+        ge=0,
+    )
+
+    negative_signal_count: int = Field(
+        default=0,
+        ge=0,
+    )
+
+    financial_observations: tuple[str, ...] = ()
+    ownership_observations: tuple[str, ...] = ()
+    management_observations: tuple[str, ...] = ()
+    related_party_observations: tuple[str, ...] = ()
+    event_observations: tuple[str, ...] = ()
+    market_observations: tuple[str, ...] = ()
+    risk_observations: tuple[str, ...] = ()
+
+    future_readiness: Decimal | None = Field(
+        default=None,
+        ge=Decimal("0"),
+        le=Decimal("100"),
+    )
+
+    ai_participation: Decimal | None = Field(
+        default=None,
+        ge=Decimal("0"),
+        le=Decimal("100"),
+    )
+
+    innovation_execution: Decimal | None = Field(
+        default=None,
+        ge=Decimal("0"),
+        le=Decimal("100"),
+    )
+
+    technology_diversification: Decimal | None = Field(
+        default=None,
+        ge=Decimal("0"),
+        le=Decimal("100"),
+    )
+
+    @property
+    def is_mixed(self) -> bool:
+        return (
+            self.positive_signal_count > 0
+            and self.negative_signal_count > 0
+        )
+
+    @property
+    def has_observations(self) -> bool:
+        return any(
+            (
+                self.financial_observations,
+                self.ownership_observations,
+                self.management_observations,
+                self.related_party_observations,
+                self.event_observations,
+                self.market_observations,
+                self.risk_observations,
+            )
+        )
+
+    @property
+    def has_future_intelligence(self) -> bool:
+        return any(
+            value is not None
+            for value in (
+                self.future_readiness,
+                self.ai_participation,
+                self.innovation_execution,
+                self.technology_diversification,
+            )
+        )
+
+
 class ResearchReport(BaseModel):
     """
     User-facing company research report.
 
-    The report is an evidence assembly layer. It does not claim
+    This is an evidence assembly layer. It does not claim
     to predict returns and does not fabricate missing evidence.
     """
 
@@ -95,6 +191,38 @@ class ResearchReport(BaseModel):
     negative_evidence: tuple[ResearchEvidence, ...] = ()
 
     data_quality_notes: tuple[str, ...] = ()
+
+    company_intelligence: CompanyIntelligenceReport = (
+        CompanyIntelligenceReport()
+    )
+
+    company_intelligence_present: bool = False
+
+    company_intelligence_signal_count: int = Field(
+        default=0,
+        ge=0,
+    )
+
+    company_intelligence_positive_count: int = Field(
+        default=0,
+        ge=0,
+    )
+
+    company_intelligence_negative_count: int = Field(
+        default=0,
+        ge=0,
+    )
+
+    @property
+    def has_company_intelligence(self) -> bool:
+        return self.company_intelligence_present
+
+    @property
+    def company_intelligence_is_mixed(self) -> bool:
+        return (
+            self.company_intelligence_positive_count > 0
+            and self.company_intelligence_negative_count > 0
+        )
 
     @field_validator("symbol")
     @classmethod
