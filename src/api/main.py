@@ -25,6 +25,7 @@ from src.research.market_engine import (
     run_market_research,
 )
 
+import os
 
 app = FastAPI(
     title="Quant Research API",
@@ -37,9 +38,18 @@ app = FastAPI(
     ),
 )
 
+FRONTEND_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv(
+        "FRONTEND_ORIGINS",
+        "http://127.0.0.1:5173,http://localhost:5173",
+    ).split(",")
+    if origin.strip()
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=FRONTEND_ORIGINS,
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
