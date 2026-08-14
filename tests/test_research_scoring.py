@@ -92,3 +92,57 @@ def test_confidence_drops_when_components_disagree():
     )
 
     assert consistent.confidence > inconsistent.confidence
+
+
+def test_research_score_tracks_partial_coverage():
+    from decimal import Decimal
+
+    from src.analysis.research_scoring import calculate_research_score
+
+    score = calculate_research_score(
+        fundamentals=Decimal("70"),
+        financial_trends=Decimal("70"),
+        cash_flow=Decimal("70"),
+        balance_sheet=Decimal("70"),
+        risk=Decimal("70"),
+        management=Decimal("50"),
+        market_behavior=Decimal("50"),
+        evidence_quality=Decimal("80"),
+        component_availability={
+            "fundamentals": True,
+            "financial_trends": True,
+            "cash_flow": True,
+            "balance_sheet": True,
+            "risk": True,
+            "management": False,
+            "market_behavior": False,
+            "evidence_quality": True,
+        },
+    )
+
+    assert score.coverage.status == "PARTIAL"
+    assert score.coverage.available_components == 6
+    assert score.coverage.total_components == 8
+    assert "management" in score.coverage.missing_components
+    assert "market_behavior" in score.coverage.missing_components
+    assert score.coverage.coverage == Decimal("75")
+
+
+def test_research_score_is_complete_by_default():
+    from decimal import Decimal
+
+    from src.analysis.research_scoring import calculate_research_score
+
+    score = calculate_research_score(
+        fundamentals=Decimal("70"),
+        financial_trends=Decimal("70"),
+        cash_flow=Decimal("70"),
+        balance_sheet=Decimal("70"),
+        risk=Decimal("70"),
+        management=Decimal("70"),
+        market_behavior=Decimal("70"),
+        evidence_quality=Decimal("70"),
+    )
+
+    assert score.coverage.status == "COMPLETE"
+    assert score.coverage.coverage == Decimal("100")

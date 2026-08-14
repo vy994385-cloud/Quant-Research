@@ -19,12 +19,18 @@ class RankingInput:
 
     All values are normalized to 0-100.
 
-    Existing research components remain supported for backwards
-    compatibility. Future-oriented intelligence is now explicitly
-    represented rather than being hidden inside a generic score.
+    `available_components` identifies which dimensions have
+    actual research evidence.
 
-    A missing future-intelligence component uses a neutral baseline
-    rather than assuming either strength or weakness.
+    A component can therefore retain a numeric compatibility
+    value while still being excluded from the ranking when its
+    evidence is unavailable.
+
+    This prevents:
+
+        missing evidence == neutral evidence
+
+    from silently affecting rankings.
     """
 
     symbol: str
@@ -51,6 +57,13 @@ class RankingInput:
     technology_diversification: Decimal = Decimal("50")
     sector_fit: Decimal = Decimal("50")
 
+    # None means every component is considered available.
+    #
+    # This preserves backwards compatibility with existing callers
+    # and tests while allowing new research pipelines to explicitly
+    # identify missing evidence.
+    available_components: frozenset[str] | None = None
+
 
 @dataclass(frozen=True)
 class StockRanking:
@@ -67,6 +80,14 @@ class StockRanking:
     rank_signal: str
     confidence: Decimal
     components: dict[str, Decimal]
+
+    # Components that were not backed by evidence and therefore
+    # were excluded from the weighted score.
+    missing_components: tuple[str, ...] = ()
+
+    # Percentage of the configured ranking weight supported by
+    # available research evidence.
+    coverage: Decimal = Decimal("100")
 
     @property
     def priority(self) -> str:
@@ -104,6 +125,7 @@ _WEIGHTS: dict[Horizon, dict[str, Decimal]] = {
         "technology_diversification": Decimal("0.00"),
         "sector_fit": Decimal("0.00"),
     },
+
     "SWING": {
         "research_score": Decimal("0.08"),
         "fundamentals": Decimal("0.05"),
@@ -126,6 +148,7 @@ _WEIGHTS: dict[Horizon, dict[str, Decimal]] = {
         "technology_diversification": Decimal("0.00"),
         "sector_fit": Decimal("0.03"),
     },
+
     "LONG_TERM": {
         "research_score": Decimal("0.08"),
         "fundamentals": Decimal("0.12"),
@@ -172,17 +195,37 @@ def _validate_input(
         raise ValueError("symbol cannot be empty")
 
     for name, value in vars(data).items():
-        if name == "symbol":
+        if name in {
+            "symbol",
+            "available_components",
+        }:
             continue
 
         _validate_score(value, name)
+
+    if data.available_components is not None:
+        known_components = set(
+            _WEIGHTS["LONG_TERM"].keys()
+        )
+
+        unknown = (
+            set(data.available_components)
+            - known_components
+        )
+
+        if unknown:
+            raise ValueError(
+                "unknown ranking components: "
+                + ", ".join(sorted(unknown))
+            )
 
 
 def _confidence(
     components: list[Decimal],
 ) -> Decimal:
     """
-    Measure internal consistency of the research components.
+    Measure internal consistency of the available research
+    components.
 
     This is NOT probability of a profitable trade.
     """
@@ -249,13 +292,16 @@ def rank_stock(
     """
     Produce a transparent, horizon-specific research ranking.
 
-    The score combines financial quality, market behavior,
-    evidence quality and future-oriented business intelligence.
+    Missing evidence is excluded from the weighted score rather
+    than being interpreted as a neutral 50.
 
-    It does NOT predict future returns.
+    The remaining available weights are normalized so the score
+    remains on a 0-100 scale.
 
-    The weights are research parameters and must be validated
-    through out-of-sample testing before production use.
+    Coverage reports how much of the configured horizon weighting
+    was actually supported by evidence.
+
+    The score does NOT predict future returns.
     """
 
     if horizon not in _WEIGHTS:
@@ -265,20 +311,73 @@ def rank_stock(
 
     _validate_input(data)
 
+    raw_weights = _WEIGHTS[horizon]
+
     weights = _normalise_weights(
-        _WEIGHTS[horizon]
+        raw_weights
     )
 
-    available_components: dict[str, Decimal] = {}
-
-    for name in weights:
-        available_components[name] = Decimal(
-            getattr(data, name)
+    if data.available_components is None:
+        available = set(raw_weights.keys())
+    else:
+        available = set(
+            data.available_components
         )
 
+    # A zero-weight component contributes nothing and does not
+    # affect coverage.
+    weighted_components = {
+        name: value
+        for name, value in raw_weights.items()
+        if value > Decimal("0")
+    }
+
+    available_weight = sum(
+        weight
+        for name, weight in weighted_components.items()
+        if name in available
+    )
+
+    configured_weight = sum(
+        weighted_components.values(),
+        Decimal("0"),
+    )
+
+    if available_weight <= Decimal("0"):
+        raise ValueError(
+            "ranking requires at least one available "
+            "weighted component"
+        )
+
+    # Coverage describes how much of the original configured
+    # ranking was backed by evidence.
+    coverage = (
+        available_weight
+        / configured_weight
+    ) * Decimal("100")
+
+    # Renormalize only over available evidence.
+    available_normalized_weights = {
+        name: (
+            weight
+            / available_weight
+        )
+        for name, weight in weighted_components.items()
+        if name in available
+    }
+
+    available_components: dict[str, Decimal] = {
+        name: Decimal(
+            getattr(data, name)
+        )
+        for name in raw_weights
+    }
+
     score = sum(
-        available_components[name] * weight
-        for name, weight in weights.items()
+        available_components[name]
+        * weight
+        for name, weight
+        in available_normalized_weights.items()
     )
 
     score = max(
@@ -286,15 +385,19 @@ def rank_stock(
         min(Decimal("100"), score),
     )
 
-    # Use only meaningful weighted components for confidence.
     confidence_components = [
         available_components[name]
-        for name, weight in weights.items()
-        if weight > Decimal("0")
+        for name in available_normalized_weights
     ]
 
     confidence = _confidence(
         confidence_components
+    )
+
+    missing_components = tuple(
+        name
+        for name, weight in weighted_components.items()
+        if name not in available
     )
 
     return StockRanking(
@@ -304,6 +407,8 @@ def rank_stock(
         rank_signal=_signal(score),
         confidence=confidence,
         components=available_components,
+        missing_components=missing_components,
+        coverage=coverage,
     )
 
 

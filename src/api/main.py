@@ -1,5 +1,7 @@
 from datetime import date, timedelta
 from decimal import Decimal
+from threading import Lock
+from time import monotonic
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -59,6 +61,69 @@ MARKET_LOOKBACK_DAYS = 365
 # Financial provider returns annual observations.
 FINANCIAL_LOOKBACK_DAYS = 3650
 
+# ---------------------------------------------------------------------
+# Market research cache
+# ---------------------------------------------------------------------
+
+RESEARCH_CACHE_TTL_SECONDS = 300
+
+
+class _ResearchCache:
+    """
+    Small process-local cache for expensive universe research.
+
+    The cache is intentionally isolated from the research engine so
+    that the engine remains deterministic and reusable by backtests,
+    notebooks and other callers.
+
+    A future production deployment can replace this with Redis or a
+    persistent cache without changing the research pipeline.
+    """
+
+    def __init__(
+        self,
+        ttl_seconds: int = RESEARCH_CACHE_TTL_SECONDS,
+    ) -> None:
+        if ttl_seconds <= 0:
+            raise ValueError(
+                "ttl_seconds must be greater than zero."
+            )
+
+        self.ttl_seconds = ttl_seconds
+        self._lock = Lock()
+        self._value = None
+        self._expires_at = 0.0
+        self._key = None
+
+    def get(self, key):
+        now = monotonic()
+
+        with self._lock:
+            if (
+                self._value is None
+                or self._key != key
+                or now >= self._expires_at
+            ):
+                return None
+
+            return self._value
+
+    def set(self, key, value) -> None:
+        with self._lock:
+            self._key = key
+            self._value = value
+            self._expires_at = (
+                monotonic() + self.ttl_seconds
+            )
+
+    def clear(self) -> None:
+        with self._lock:
+            self._key = None
+            self._value = None
+            self._expires_at = 0.0
+
+
+research_cache = _ResearchCache()
 
 # ---------------------------------------------------------------------
 # Health
@@ -678,6 +743,69 @@ def search_stocks(
     }
 
 
+def _research_cache_key(
+    *,
+    universe_file: str,
+    benchmark_symbol: str,
+    start_date: date,
+    end_date: date,
+) -> tuple:
+    """
+    Build a deterministic cache key for a research run.
+    """
+
+    return (
+        universe_file,
+        benchmark_symbol,
+        start_date,
+        end_date,
+    )
+
+
+def _get_market_research():
+    """
+    Return the current universe research result.
+
+    Multiple API endpoints share this result so a request for
+    /api/stocks followed by /api/rankings/LONG_TERM does not
+    download and analyze the entire universe twice.
+    """
+
+    universe_file = (
+        "data/raw/universe/nse_equities.csv"
+    )
+
+    end_date = date.today()
+    start_date = (
+        end_date
+        - timedelta(days=MARKET_LOOKBACK_DAYS)
+    )
+
+    key = _research_cache_key(
+        universe_file=universe_file,
+        benchmark_symbol=DEFAULT_BENCHMARK,
+        start_date=start_date,
+        end_date=end_date,
+    )
+
+    cached = research_cache.get(key)
+
+    if cached is not None:
+        return cached
+
+    result = run_market_research(
+        provider=market_provider,
+        financial_provider=financial_provider,
+        universe_file=universe_file,
+        benchmark_symbol=DEFAULT_BENCHMARK,
+        start_date=start_date,
+        end_date=end_date,
+    )
+
+    research_cache.set(key, result)
+
+    return result
+
 # ---------------------------------------------------------------------
 # Stock universe
 # ---------------------------------------------------------------------
@@ -691,24 +819,7 @@ def list_stocks() -> dict:
     Individual symbols that fail provider validation are skipped.
     """
 
-    universe_file = (
-        "data/raw/universe/nse_equities.csv"
-    )
-
-    end_date = date.today()
-    start_date = (
-        end_date
-        - timedelta(days=MARKET_LOOKBACK_DAYS)
-    )
-
-    result = run_market_research(
-        provider=market_provider,
-        financial_provider=financial_provider,
-        universe_file=universe_file,
-        benchmark_symbol=DEFAULT_BENCHMARK,
-        start_date=start_date,
-        end_date=end_date,
-    )
+    result = _get_market_research()
 
     results = []
 
@@ -774,24 +885,7 @@ def get_rankings(horizon: str) -> dict:
             },
         )
 
-    universe_file = (
-        "data/raw/universe/nse_equities.csv"
-    )
-
-    end_date = date.today()
-    start_date = (
-        end_date
-        - timedelta(days=MARKET_LOOKBACK_DAYS)
-    )
-
-    result = run_market_research(
-        provider=market_provider,
-        financial_provider=financial_provider,
-        universe_file=universe_file,
-        benchmark_symbol=DEFAULT_BENCHMARK,
-        start_date=start_date,
-        end_date=end_date,
-    )
+        result = _get_market_research()
 
     results = []
 

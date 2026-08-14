@@ -7,6 +7,9 @@ from decimal import Decimal
 from src.analysis.company_intelligence import (
     CompanyResearchSnapshot,
 )
+from src.analysis.research_coverage import (
+    ResearchComponentStatus,
+)
 from src.analysis.research_scoring import (
     ResearchScore,
     calculate_research_score,
@@ -21,18 +24,57 @@ from src.ranking.stock_ranker import (
 )
 
 
+# ---------------------------------------------------------------------
+# Constants
+# ---------------------------------------------------------------------
+
+MIN_SCORE = Decimal("0")
+MAX_SCORE = Decimal("100")
+
+# Used only at the ranking boundary when a dimension has no evidence.
+#
+# IMPORTANT:
+# This is NOT presented as the company's actual score.
+# Missing dimensions are tracked separately through
+# future_intelligence_available() and research coverage.
+#
+# This fallback exists only because the current RankingInput model
+# requires numeric values.
+RANKING_MISSING_VALUE = Decimal("50")
+
+SECTOR_FIT_MISSING_VALUE = Decimal("50")
+
+
+# ---------------------------------------------------------------------
+# Unified stock-analysis result
+# ---------------------------------------------------------------------
+
 @dataclass(frozen=True)
 class StockAnalysisReport:
     """
     Unified stock-research result.
 
-    This is a research and ranking object.
+    This is the analytical layer used by the research platform.
 
-    It does not:
+    It does NOT:
     - execute trades
-    - predict guaranteed returns
     - place orders
+    - guarantee returns
+    - predict guaranteed market direction
     - represent investment advice
+
+    The report combines:
+
+    1. Fundamental research
+    2. Financial trends
+    3. Cash-flow quality
+    4. Balance-sheet quality
+    5. Risk
+    6. Management
+    7. Market behavior
+    8. Evidence quality
+    9. Future-oriented company intelligence
+    10. Horizon-specific rankings
     """
 
     symbol: str
@@ -71,53 +113,161 @@ class StockAnalysisReport:
     def is_research_ready(self) -> bool:
         return (
             self.symbol.strip() != ""
-            and self.company_intelligence.symbol == self.symbol
-            and self.market_snapshot.symbol == self.symbol
+            and (
+                self.company_intelligence.symbol
+                .strip()
+                .upper()
+                == self.symbol.strip().upper()
+            )
+            and (
+                self.market_snapshot.symbol
+                .strip()
+                .upper()
+                == self.symbol.strip().upper()
+            )
         )
 
+    @property
+    def future_intelligence_available(self) -> bool:
+        """
+        Whether at least one future-oriented research dimension
+        has real evidence.
+
+        This is intentionally separate from the ranking score.
+
+        A company with no AI/future evidence must NOT be represented
+        as though it actually scored 50.
+        """
+
+        return any(
+            value is not None
+            for value in (
+                self.company_intelligence.future_readiness,
+                self.company_intelligence.ai_participation,
+                self.company_intelligence.innovation_execution,
+                self.company_intelligence.technology_diversification,
+            )
+        )
+
+    @property
+    def future_intelligence_completeness(self) -> Decimal:
+        """
+        Percentage of future-oriented dimensions for which
+        actual research evidence is available.
+
+        Four dimensions are currently tracked:
+
+        - future readiness
+        - AI participation
+        - innovation execution
+        - technology diversification
+        """
+
+        values = (
+            self.company_intelligence.future_readiness,
+            self.company_intelligence.ai_participation,
+            self.company_intelligence.innovation_execution,
+            self.company_intelligence.technology_diversification,
+        )
+
+        available = sum(
+            value is not None
+            for value in values
+        )
+
+        return (
+            Decimal(available)
+            / Decimal("4")
+        ) * Decimal("100")
+
+
+# ---------------------------------------------------------------------
+# Future intelligence
+# ---------------------------------------------------------------------
 
 def _future_intelligence_scores(
     company_intelligence: CompanyResearchSnapshot,
-) -> dict[str, Decimal]:
+) -> dict[str, Decimal | None]:
     """
-    Extract future-oriented company intelligence from the
-    normalized company research snapshot.
+    Extract future-oriented intelligence.
 
-    Missing future intelligence remains explicitly neutral.
+    Missing evidence remains None.
 
-    The individual dimensions are kept separate so that the
-    ranking layer can learn different weights for:
-    - future readiness
-    - AI participation
-    - innovation execution
-    - technology diversification
+    NEVER fabricate a company's future-readiness, AI participation,
+    innovation, or technology diversification score.
 
-    No missing information is fabricated.
+    This is important for the platform's core philosophy:
+
+        "absence of evidence" != "average company"
+
+    The ranking layer converts None to a temporary numerical
+    fallback only because the current ranking engine expects
+    numeric inputs.
     """
 
     return {
         "future_readiness": (
             company_intelligence.future_readiness
-            if company_intelligence.future_readiness is not None
-            else Decimal("50")
         ),
         "ai_participation": (
             company_intelligence.ai_participation
-            if company_intelligence.ai_participation is not None
-            else Decimal("50")
         ),
         "innovation_execution": (
             company_intelligence.innovation_execution
-            if company_intelligence.innovation_execution is not None
-            else Decimal("50")
         ),
         "technology_diversification": (
             company_intelligence.technology_diversification
-            if company_intelligence.technology_diversification is not None
-            else Decimal("50")
         ),
     }
 
+
+def _ranking_value(
+    value: Decimal | None,
+    *,
+    fallback: Decimal = RANKING_MISSING_VALUE,
+) -> Decimal:
+    """
+    Convert optional research evidence into a numeric value for
+    the current ranking engine.
+
+    IMPORTANT:
+
+    This does NOT claim that the underlying company actually
+    scored the fallback value.
+
+    The true evidence state remains separate through
+    available_components.
+    """
+
+    if value is None:
+        return fallback
+
+    return max(
+        MIN_SCORE,
+        min(MAX_SCORE, Decimal(value)),
+    )
+
+
+def _normalize_component_status(
+    value: ResearchComponentStatus | str,
+) -> ResearchComponentStatus:
+    """
+    Normalize financial evidence status.
+
+    Supports both enum values and serialized strings.
+    """
+
+    if isinstance(value, ResearchComponentStatus):
+        return value
+
+    return ResearchComponentStatus(
+        str(value).strip().upper()
+    )
+
+
+# ---------------------------------------------------------------------
+# Main analysis builder
+# ---------------------------------------------------------------------
 
 def build_stock_analysis(
     *,
@@ -137,33 +287,66 @@ def build_stock_analysis(
     relative_strength: Decimal,
     catalyst_strength: Decimal,
     valuation: Decimal,
+    financial_component_statuses: dict[
+        str,
+        ResearchComponentStatus | str,
+    ] | None = None,
 ) -> StockAnalysisReport:
     """
     Build the complete research view for one stock.
 
     All supplied component scores must be between 0 and 100.
 
-    The function is intentionally deterministic. It does not fetch
-    external data and does not make execution decisions.
+    External data fetching does NOT happen here.
+
+    This function is deliberately deterministic.
+
+    Architecture:
+
+        providers
+            ↓
+        normalized research context
+            ↓
+        analysis
+            ↓
+        scoring
+            ↓
+        horizon ranking
+            ↓
+        user-facing research report
+
+    The analysis layer must never fabricate missing evidence.
+
+    Financial evidence availability is passed separately from
+    numeric financial scores so missing data cannot silently become
+    positive, negative, or neutral evidence.
     """
 
     normalized_symbol = symbol.strip().upper()
 
     if not normalized_symbol:
-        raise ValueError("symbol cannot be empty")
+        raise ValueError(
+            "symbol cannot be empty"
+        )
 
-    if (
-        company_intelligence.symbol.strip().upper()
-        != normalized_symbol
-    ):
+    intelligence_symbol = (
+        company_intelligence.symbol
+        .strip()
+        .upper()
+    )
+
+    market_symbol = (
+        market_snapshot.symbol
+        .strip()
+        .upper()
+    )
+
+    if intelligence_symbol != normalized_symbol:
         raise ValueError(
             "company intelligence symbol does not match analysis symbol"
         )
 
-    if (
-        market_snapshot.symbol.strip().upper()
-        != normalized_symbol
-    ):
+    if market_symbol != normalized_symbol:
         raise ValueError(
             "market snapshot symbol does not match analysis symbol"
         )
@@ -172,6 +355,44 @@ def build_stock_analysis(
         raise ValueError(
             "market snapshot date does not match analysis date"
         )
+
+    # -----------------------------------------------------------------
+    # Financial evidence coverage
+    # -----------------------------------------------------------------
+
+    normalized_financial_statuses = {
+        name: _normalize_component_status(status)
+        for name, status in (
+            financial_component_statuses or {}
+        ).items()
+    }
+
+    financial_component_names = {
+        "fundamentals",
+        "financial_trends",
+        "cash_flow",
+        "balance_sheet",
+    }
+
+    # Preserve backwards compatibility for existing callers that do
+    # not yet provide financial coverage metadata.
+    #
+    # Once the market engine provides statuses, those statuses become
+    # authoritative.
+    component_availability: dict[
+        str,
+        ResearchComponentStatus,
+    ] = {
+        name: normalized_financial_statuses.get(
+            name,
+            ResearchComponentStatus.AVAILABLE,
+        )
+        for name in financial_component_names
+    }
+
+    # -----------------------------------------------------------------
+    # Core research score
+    # -----------------------------------------------------------------
 
     research_score = calculate_research_score(
         fundamentals=fundamentals,
@@ -182,14 +403,70 @@ def build_stock_analysis(
         management=management,
         market_behavior=market_behavior,
         evidence_quality=evidence_quality,
+        component_availability=component_availability,
     )
+
+    # -----------------------------------------------------------------
+    # Future intelligence
+    # -----------------------------------------------------------------
 
     future_scores = _future_intelligence_scores(
         company_intelligence
     )
 
+    # -----------------------------------------------------------------
+    # Ranking input
+    #
+    # The ranking engine requires numeric compatibility values, but
+    # it is evidence-aware through `available_components`.
+    #
+    # Missing future-intelligence dimensions therefore remain
+    # excluded from the ranking instead of being treated as neutral.
+    # -----------------------------------------------------------------
+
+    future_available_components = {
+        name
+        for name, value in future_scores.items()
+        if value is not None
+    }
+
+    available_components = frozenset(
+        {
+            # Core research dimensions.
+            "research_score",
+
+            # Financial components are included only when their
+            # evidence is actually usable.
+            *{
+                name
+                for name, status in component_availability.items()
+                if status
+                in {
+                    ResearchComponentStatus.AVAILABLE,
+                    ResearchComponentStatus.PARTIAL,
+                }
+            },
+
+            "risk",
+            "momentum",
+            "trend_strength",
+            "liquidity",
+            "volatility",
+            "relative_strength",
+            "catalyst_strength",
+            "valuation",
+            "management",
+            "evidence_quality",
+
+            # Future-oriented dimensions are included only when
+            # actual research evidence exists.
+            *future_available_components,
+        }
+    )
+
     base_input = RankingInput(
         symbol=normalized_symbol,
+
         research_score=research_score.total,
 
         fundamentals=fundamentals,
@@ -198,10 +475,20 @@ def build_stock_analysis(
         balance_sheet=balance_sheet,
         risk=risk,
 
-        momentum=_market_momentum(market_snapshot),
-        trend_strength=_trend_strength(market_snapshot),
+        momentum=_market_momentum(
+            market_snapshot
+        ),
+
+        trend_strength=_trend_strength(
+            market_snapshot
+        ),
+
         liquidity=liquidity,
-        volatility=_volatility_score(market_snapshot),
+
+        volatility=_volatility_score(
+            market_snapshot
+        ),
+
         relative_strength=relative_strength,
 
         catalyst_strength=catalyst_strength,
@@ -209,23 +496,37 @@ def build_stock_analysis(
         management=management,
         evidence_quality=evidence_quality,
 
-        future_readiness=future_scores[
-            "future_readiness"
-        ],
-        ai_participation=future_scores[
-            "ai_participation"
-        ],
-        innovation_execution=future_scores[
-            "innovation_execution"
-        ],
-        technology_diversification=future_scores[
-            "technology_diversification"
-        ],
+        # Numeric compatibility values remain required by the
+        # RankingInput model. The ranker excludes these values
+        # whenever their component is absent from
+        # `available_components`.
+        future_readiness=_ranking_value(
+            future_scores["future_readiness"]
+        ),
 
-        # Sector-specific intelligence will be connected
-        # after the industry technology framework is wired.
-        sector_fit=Decimal("50"),
+        ai_participation=_ranking_value(
+            future_scores["ai_participation"]
+        ),
+
+        innovation_execution=_ranking_value(
+            future_scores["innovation_execution"]
+        ),
+
+        technology_diversification=_ranking_value(
+            future_scores["technology_diversification"]
+        ),
+
+        # Sector-specific intelligence is not wired yet.
+        # Therefore it is deliberately NOT included in
+        # available_components.
+        sector_fit=SECTOR_FIT_MISSING_VALUE,
+
+        available_components=available_components,
     )
+
+    # -----------------------------------------------------------------
+    # Horizon-specific rankings
+    # -----------------------------------------------------------------
 
     intraday = rank_stock(
         base_input,
@@ -242,6 +543,10 @@ def build_stock_analysis(
         "LONG_TERM",
     )
 
+    # -----------------------------------------------------------------
+    # Final immutable research report
+    # -----------------------------------------------------------------
+
     return StockAnalysisReport(
         symbol=normalized_symbol,
         as_of_date=as_of_date,
@@ -254,21 +559,28 @@ def build_stock_analysis(
     )
 
 
+# ---------------------------------------------------------------------
+# Market feature transformations
+# ---------------------------------------------------------------------
+
 def _market_momentum(
     snapshot: MarketFeatureSnapshot,
 ) -> Decimal:
     """
-    Convert the descriptive 20-day momentum feature into a
-    normalized 0-100 research factor.
+    Convert descriptive 20-day momentum into a normalized
+    0-100 research factor.
 
-    This is deliberately a simple provisional transformation.
-    It must eventually be calibrated using historical data.
+    +20% or greater -> 100
+    0%              -> 50
+    -20% or lower   -> 0
+
+    This is descriptive normalization, not a forecast.
     """
 
     value = snapshot.technical.momentum
 
     if value is None:
-        return Decimal("50")
+        return RANKING_MISSING_VALUE
 
     return _normalize_percent(value)
 
@@ -277,10 +589,15 @@ def _trend_strength(
     snapshot: MarketFeatureSnapshot,
 ) -> Decimal:
     """
-    Estimate trend strength from price position relative to
-    available moving averages.
+    Estimate current trend strength from:
 
-    This is a research feature, not a prediction.
+    - latest close vs SMA-5
+    - latest close vs SMA-20
+    - SMA-5 vs SMA-20
+
+    This is a descriptive market feature.
+
+    It is not a prediction.
     """
 
     technical = snapshot.technical
@@ -289,7 +606,7 @@ def _trend_strength(
         technical.sma_5 is None
         or technical.sma_20 is None
     ):
-        return Decimal("50")
+        return RANKING_MISSING_VALUE
 
     close = _latest_close(snapshot)
 
@@ -311,8 +628,8 @@ def _trend_strength(
         score -= Decimal("10")
 
     return max(
-        Decimal("0"),
-        min(Decimal("100"), score),
+        MIN_SCORE,
+        min(MAX_SCORE, score),
     )
 
 
@@ -320,18 +637,21 @@ def _volatility_score(
     snapshot: MarketFeatureSnapshot,
 ) -> Decimal:
     """
-    Convert volatility into a risk-adjusted descriptive score.
+    Convert realized 20-day volatility into a descriptive
+    risk-adjusted score.
 
     Lower realized volatility receives a higher score.
 
-    This is intentionally provisional and must be validated
-    against the eventual strategy universe.
+    This is provisional and must eventually be calibrated
+    against the actual research universe and historical outcomes.
     """
 
-    volatility = snapshot.technical.volatility_20d
+    volatility = (
+        snapshot.technical.volatility_20d
+    )
 
     if volatility is None:
-        return Decimal("50")
+        return RANKING_MISSING_VALUE
 
     if volatility <= Decimal("1"):
         return Decimal("90")
@@ -351,6 +671,10 @@ def _volatility_score(
     return Decimal("25")
 
 
+# ---------------------------------------------------------------------
+# Numeric normalization
+# ---------------------------------------------------------------------
+
 def _normalize_percent(
     value: Decimal,
 ) -> Decimal:
@@ -362,20 +686,31 @@ def _normalize_percent(
     0%              -> 50
     """
 
+    value = Decimal(value)
+
     lower = Decimal("-20")
     upper = Decimal("20")
 
     if value <= lower:
-        return Decimal("0")
+        return MIN_SCORE
 
     if value >= upper:
-        return Decimal("100")
+        return MAX_SCORE
 
-    return (
+    normalized = (
         (value - lower)
         / (upper - lower)
-    ) * Decimal("100")
+    ) * MAX_SCORE
 
+    return max(
+        MIN_SCORE,
+        min(MAX_SCORE, normalized),
+    )
+
+
+# ---------------------------------------------------------------------
+# Latest market observation
+# ---------------------------------------------------------------------
 
 def _latest_close(
     snapshot: MarketFeatureSnapshot,
@@ -383,15 +718,18 @@ def _latest_close(
     """
     Return the actual latest observed close.
 
-    The close is stored directly in TechnicalFeatures.
-    Never substitute an SMA for the current market price.
+    IMPORTANT:
+
+    Never substitute SMA-5/SMA-20 for the latest market price.
     """
 
-    latest_close = snapshot.technical.latest_close
+    latest_close = (
+        snapshot.technical.latest_close
+    )
 
     if latest_close is None:
         raise ValueError(
             "Market snapshot does not contain latest_close"
         )
 
-    return latest_close
+    return Decimal(latest_close)

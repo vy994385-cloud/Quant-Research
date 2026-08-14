@@ -1,10 +1,14 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from decimal import Decimal
 
+from src.analysis.research_coverage import (
+    ResearchComponentStatus,
+    ResearchCoverage,
+    ResearchComponentCoverage,
+)
 
-@dataclass(frozen=True)
+
 class ResearchScore:
     """
     Composite research score.
@@ -15,19 +19,34 @@ class ResearchScore:
     returns or a prediction of market direction.
     """
 
-    total: Decimal
-
-    fundamentals: Decimal
-    financial_trends: Decimal
-    cash_flow: Decimal
-    balance_sheet: Decimal
-    risk: Decimal
-    management: Decimal
-    market_behavior: Decimal
-    evidence_quality: Decimal
-
-    signal: str
-    confidence: Decimal
+    def __init__(
+        self,
+        *,
+        total: Decimal,
+        fundamentals: Decimal,
+        financial_trends: Decimal,
+        cash_flow: Decimal,
+        balance_sheet: Decimal,
+        risk: Decimal,
+        management: Decimal,
+        market_behavior: Decimal,
+        evidence_quality: Decimal,
+        signal: str,
+        confidence: Decimal,
+        coverage: ResearchCoverage,
+    ) -> None:
+        self.total = total
+        self.fundamentals = fundamentals
+        self.financial_trends = financial_trends
+        self.cash_flow = cash_flow
+        self.balance_sheet = balance_sheet
+        self.risk = risk
+        self.management = management
+        self.market_behavior = market_behavior
+        self.evidence_quality = evidence_quality
+        self.signal = signal
+        self.confidence = confidence
+        self.coverage = coverage
 
     @property
     def is_positive(self) -> bool:
@@ -38,11 +57,6 @@ class ResearchScore:
         return self.signal == "NEGATIVE"
 
 
-# Initial weights.
-#
-# These are deliberately explicit rather than hidden inside the
-# calculation so that they can later be optimized using historical
-# out-of-sample validation.
 _WEIGHTS = {
     "fundamentals": Decimal("0.18"),
     "financial_trends": Decimal("0.16"),
@@ -55,7 +69,10 @@ _WEIGHTS = {
 }
 
 
-def _validate_component(value: Decimal, name: str) -> Decimal:
+def _validate_component(
+    value: Decimal,
+    name: str,
+) -> Decimal:
     value = Decimal(value)
 
     if value < 0 or value > 100:
@@ -80,13 +97,9 @@ def _confidence_for_scores(
     scores: list[Decimal],
 ) -> Decimal:
     """
-    Estimate confidence from the consistency of component scores.
+    Descriptive consistency metric.
 
-    This is intentionally NOT a prediction-confidence metric.
-
-    It measures how internally consistent the supplied research
-    components are. Later we can replace this with a calibrated
-    historical confidence model.
+    This is not a probability of being correct.
     """
 
     if not scores:
@@ -107,6 +120,56 @@ def _confidence_for_scores(
     )
 
 
+def _normalize_status(
+    value: ResearchComponentStatus | str | bool,
+) -> ResearchComponentStatus:
+    """
+    Preserve compatibility with the old boolean availability API.
+
+    True  -> AVAILABLE
+    False -> MISSING
+    """
+
+    if isinstance(value, bool):
+        return (
+            ResearchComponentStatus.AVAILABLE
+            if value
+            else ResearchComponentStatus.MISSING
+        )
+
+    if isinstance(value, ResearchComponentStatus):
+        return value
+
+    return ResearchComponentStatus(str(value).upper())
+
+
+def _build_coverage(
+    *,
+    component_status: dict[
+        str,
+        ResearchComponentStatus,
+    ],
+) -> ResearchCoverage:
+    components = tuple(
+        ResearchComponentCoverage(
+            component=name,
+            status=status,
+            score_contribution=(
+                status
+                in {
+                    ResearchComponentStatus.AVAILABLE,
+                    ResearchComponentStatus.PARTIAL,
+                }
+            ),
+        )
+        for name, status in component_status.items()
+    )
+
+    return ResearchCoverage(
+        components=components,
+    )
+
+
 def calculate_research_score(
     *,
     fundamentals: Decimal,
@@ -117,15 +180,24 @@ def calculate_research_score(
     management: Decimal,
     market_behavior: Decimal,
     evidence_quality: Decimal,
+    component_availability: dict[
+        str,
+        bool | str | ResearchComponentStatus,
+    ]
+    | None = None,
 ) -> ResearchScore:
     """
     Calculate the composite company research score.
 
-    Every component must be between 0 and 100.
+    Missing evidence is NOT treated as a neutral 50.
 
-    The function is deterministic and contains no market prediction
-    logic. Historical validation will be required before weights are
-    considered production-quality.
+    Available components contribute their weighted score.
+    Partial components contribute their score with their existing
+    value, while missing/unverified/stale/conflicting components
+    are excluded from the composite.
+
+    Existing callers using boolean component_availability remain
+    compatible.
     """
 
     values = {
@@ -163,10 +235,64 @@ def calculate_research_score(
         ),
     }
 
-    total = sum(
-        values[name] * weight
-        for name, weight in _WEIGHTS.items()
+    if component_availability is None:
+        component_availability = {
+            name: ResearchComponentStatus.AVAILABLE
+            for name in values
+        }
+
+    component_status = {
+        name: _normalize_status(
+            component_availability.get(
+                name,
+                ResearchComponentStatus.AVAILABLE,
+            )
+        )
+        for name in values
+    }
+
+    coverage = _build_coverage(
+        component_status=component_status,
     )
+
+    usable_names = {
+        name
+        for name, status in component_status.items()
+        if status
+        in {
+            ResearchComponentStatus.AVAILABLE,
+            ResearchComponentStatus.PARTIAL,
+        }
+    }
+
+    if not usable_names:
+        total = Decimal("0")
+        confidence = Decimal("0")
+    else:
+        usable_weight = sum(
+            _WEIGHTS[name]
+            for name in usable_names
+        )
+
+        weighted_total = sum(
+            values[name] * _WEIGHTS[name]
+            for name in usable_names
+        )
+
+        # Renormalize only across components for which evidence
+        # is actually usable.
+        total = (
+            weighted_total / usable_weight
+            if usable_weight
+            else Decimal("0")
+        )
+
+        confidence = _confidence_for_scores(
+            [
+                values[name]
+                for name in usable_names
+            ]
+        )
 
     total = max(
         Decimal("0"),
@@ -174,10 +300,6 @@ def calculate_research_score(
     )
 
     signal = _signal_for_score(total)
-
-    confidence = _confidence_for_scores(
-        list(values.values())
-    )
 
     return ResearchScore(
         total=total,
@@ -191,4 +313,5 @@ def calculate_research_score(
         evidence_quality=values["evidence_quality"],
         signal=signal,
         confidence=confidence,
+        coverage=coverage,
     )

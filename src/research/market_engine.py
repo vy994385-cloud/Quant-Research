@@ -1,21 +1,19 @@
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 
-from src.analysis.company_intelligence import (
-    CompanyResearchSnapshot,
-)
-
 from src.analysis.company_assembly import (
     assemble_company_intelligence,
 )
-from src.analysis.financial_scoring import (
-    score_financial_snapshot,
-)
 from src.analysis.financial_risk_scoring import (
     financial_risk_score,
+)
+from src.analysis.financial_scoring import (
+    financial_component_status,
+    score_financial_snapshot,
 )
 from src.analysis.stock_analysis import (
     StockAnalysisReport,
@@ -153,23 +151,33 @@ def _market_scores(
 
 def _financial_scores(
     snapshots: list[FinancialSnapshot],
-) -> dict[str, Decimal]:
+) -> tuple[
+    dict[str, Decimal],
+    dict[str, str],
+]:
     """
     Convert the latest available annual financial statements
-    into normalized research inputs.
+    into normalized research inputs plus truthful evidence status.
 
-    The previous annual period is used for growth/trend analysis.
-
-    No missing financial information is fabricated.
+    Numeric scores remain compatible with the existing scoring
+    pipeline. Evidence availability is tracked separately.
     """
 
     if not snapshots:
-        return {
-            "fundamentals": Decimal("50"),
-            "financial_trends": Decimal("50"),
-            "cash_flow": Decimal("50"),
-            "balance_sheet": Decimal("50"),
-        }
+        return (
+            {
+                "fundamentals": Decimal("50"),
+                "financial_trends": Decimal("50"),
+                "cash_flow": Decimal("50"),
+                "balance_sheet": Decimal("50"),
+            },
+            {
+                "fundamentals": "MISSING",
+                "financial_trends": "MISSING",
+                "cash_flow": "MISSING",
+                "balance_sheet": "MISSING",
+            },
+        )
 
     ordered = sorted(
         snapshots,
@@ -184,16 +192,28 @@ def _financial_scores(
         else None
     )
 
-    return score_financial_snapshot(
+    scores = score_financial_snapshot(
         previous=previous,
         current=current,
     )
 
+    statuses = financial_component_status(
+        previous=previous,
+        current=current,
+    )
 
-def run_market_research(
+    return (
+        scores,
+        {
+            name: status.value
+            for name, status in statuses.items()
+        },
+    )
+
+def _build_symbol_report(
     *,
+    symbol: str,
     provider: MarketDataProvider,
-    universe_file: str,
     benchmark_symbol: str,
     start_date: date,
     end_date: date,
@@ -202,39 +222,22 @@ def run_market_research(
     ownership_provider: OwnershipDataProvider | None = None,
     related_party_provider: RelatedPartyDataProvider | None = None,
     company_events_provider: CompanyEventsDataProvider | None = None,
-) -> MarketResearchResult:
+) -> StockAnalysisReport | None:
     """
-    Run the provider -> financial -> market-feature ->
-    analysis pipeline.
+    Build one stock report.
 
-    Financial company-intelligence is populated from available
-    normalized financial history. Other company-intelligence
-    domains remain explicitly neutral until their providers
-    are connected.
+    Returning None for an individual failed symbol keeps one
+    provider failure from terminating the entire universe run.
     """
 
-    if start_date > end_date:
-        raise ValueError(
-            "start_date must not be after end_date"
+    try:
+        snapshot = build_market_feature_snapshot_from_provider(
+            provider=provider,
+            symbol=symbol,
+            benchmark_symbol=benchmark_symbol,
+            start_date=start_date,
+            end_date=end_date,
         )
-
-    symbols = load_symbols(universe_file)
-
-    results: list[StockAnalysisReport] = []
-
-    for symbol in symbols:
-        try:
-            snapshot = (
-                build_market_feature_snapshot_from_provider(
-                    provider=provider,
-                    symbol=symbol,
-                    benchmark_symbol=benchmark_symbol,
-                    start_date=start_date,
-                    end_date=end_date,
-                )
-            )
-        except ValueError:
-            continue
 
         financial_snapshots: list[FinancialSnapshot] = []
 
@@ -247,12 +250,12 @@ def run_market_research(
                         end_date=end_date,
                     )
                 )
-            except (RuntimeError, ValueError):
+            except (RuntimeError, ValueError, KeyError):
                 financial_snapshots = []
 
-        financial_scores = _financial_scores(
-            financial_snapshots
-        )
+        financial_scores, financial_status = _financial_scores(
+    financial_snapshots
+)
 
         management_changes = []
 
@@ -265,7 +268,7 @@ def run_market_research(
                         end_date=end_date,
                     )
                 )
-            except (RuntimeError, ValueError):
+            except (RuntimeError, ValueError, KeyError):
                 management_changes = []
 
         ownership_snapshots = []
@@ -279,7 +282,7 @@ def run_market_research(
                         end_date=end_date,
                     )
                 )
-            except (RuntimeError, ValueError):
+            except (RuntimeError, ValueError, KeyError):
                 ownership_snapshots = []
 
         related_party_transactions = []
@@ -293,7 +296,7 @@ def run_market_research(
                         end_date=end_date,
                     )
                 )
-            except (RuntimeError, ValueError):
+            except (RuntimeError, ValueError, KeyError):
                 related_party_transactions = []
 
         company_events = []
@@ -307,7 +310,7 @@ def run_market_research(
                         end_date=end_date,
                     )
                 )
-            except (RuntimeError, ValueError):
+            except (RuntimeError, ValueError, KeyError):
                 company_events = []
 
         risk_score = financial_risk_score(
@@ -328,24 +331,17 @@ def run_market_research(
             )
         )
 
-        report = build_stock_analysis(
+        return build_stock_analysis(
             symbol=symbol,
             as_of_date=snapshot.trading_date,
             company_intelligence=company_snapshot,
             market_snapshot=snapshot,
 
-            fundamentals=financial_scores[
-                "fundamentals"
-            ],
-            financial_trends=financial_scores[
-                "financial_trends"
-            ],
-            cash_flow=financial_scores[
-                "cash_flow"
-            ],
-            balance_sheet=financial_scores[
-                "balance_sheet"
-            ],
+            fundamentals=financial_scores["fundamentals"],
+            financial_trends=financial_scores["financial_trends"],
+            cash_flow=financial_scores["cash_flow"],
+            balance_sheet=financial_scores["balance_sheet"],
+            financial_component_statuses=financial_status,
 
             risk=risk_score,
             management=Decimal("50"),
@@ -360,7 +356,75 @@ def run_market_research(
             valuation=Decimal("50"),
         )
 
-        results.append(report)
+    except (RuntimeError, ValueError, KeyError):
+        return None
+
+
+def run_market_research(
+    *,
+    provider: MarketDataProvider,
+    universe_file: str,
+    benchmark_symbol: str,
+    start_date: date,
+    end_date: date,
+    financial_provider=None,
+    management_provider: ManagementDataProvider | None = None,
+    ownership_provider: OwnershipDataProvider | None = None,
+    related_party_provider: RelatedPartyDataProvider | None = None,
+    company_events_provider: CompanyEventsDataProvider | None = None,
+    max_workers: int = 8,
+) -> MarketResearchResult:
+    """
+    Run the provider -> financial -> market-feature ->
+    analysis pipeline across the configured universe.
+
+    Symbols are processed concurrently to avoid serial network
+    latency across the entire universe.
+
+    Individual provider failures are isolated to the affected
+    symbol. Successful symbols continue through the pipeline.
+
+    Results preserve the original universe ordering so that
+    concurrency does not make output nondeterministic.
+    """
+
+    if start_date > end_date:
+        raise ValueError(
+            "start_date must not be after end_date"
+        )
+
+    if max_workers < 1:
+        raise ValueError(
+            "max_workers must be at least 1"
+        )
+
+    symbols = load_symbols(universe_file)
+
+    def build(symbol: str) -> StockAnalysisReport | None:
+        return _build_symbol_report(
+            symbol=symbol,
+            provider=provider,
+            benchmark_symbol=benchmark_symbol,
+            start_date=start_date,
+            end_date=end_date,
+            financial_provider=financial_provider,
+            management_provider=management_provider,
+            ownership_provider=ownership_provider,
+            related_party_provider=related_party_provider,
+            company_events_provider=company_events_provider,
+        )
+
+    with ThreadPoolExecutor(
+        max_workers=max_workers,
+        thread_name_prefix="market-research",
+    ) as executor:
+        reports = executor.map(build, symbols)
+
+        results = [
+            report
+            for report in reports
+            if report is not None
+        ]
 
     return MarketResearchResult(
         as_of=end_date,

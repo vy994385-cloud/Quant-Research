@@ -187,3 +187,64 @@ def test_invalid_horizon_is_rejected():
             make_stock(),
             "INVALID",  # type: ignore[arg-type]
         )
+
+def test_missing_components_are_excluded_from_score():
+    stock = make_stock()
+
+    result = rank_stock(
+        RankingInput(
+            **{
+                **vars(stock),
+                "available_components": frozenset({
+                    "research_score",
+                    "fundamentals",
+                }),
+            }
+        ),
+        "LONG_TERM",
+    )
+
+    assert result.score == Decimal("80")
+    assert result.coverage < Decimal("100")
+
+    assert "cash_flow" in result.missing_components
+    assert "sector_fit" in result.missing_components
+
+
+def test_missing_component_does_not_count_as_neutral_evidence():
+    stock = make_stock()
+
+    # Build a stock where future_readiness has a deliberately
+    # extreme compatibility value, but no evidence is available.
+    partial = rank_stock(
+        RankingInput(
+            **{
+                **vars(stock),
+                "future_readiness": Decimal("0"),
+                "available_components": frozenset({
+                    "research_score",
+                    "fundamentals",
+                    "financial_trends",
+                    "cash_flow",
+                    "balance_sheet",
+                    "risk",
+                    "momentum",
+                    "trend_strength",
+                    "liquidity",
+                    "volatility",
+                    "relative_strength",
+                    "catalyst_strength",
+                    "valuation",
+                    "management",
+                    "evidence_quality",
+                }),
+            }
+        ),
+        "LONG_TERM",
+    )
+
+    # The unavailable zero must not pull the ranking down.
+    # The remaining available components are all 80.
+    assert abs(partial.score - Decimal("80")) < Decimal("0.00000001")
+    assert "future_readiness" in partial.missing_components
+    assert partial.coverage < Decimal("100")

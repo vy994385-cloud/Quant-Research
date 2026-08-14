@@ -10,6 +10,9 @@ from src.analysis.financial_ratios import (
     receivables_to_revenue,
     revenue_growth,
 )
+from src.analysis.research_coverage import (
+    ResearchComponentStatus,
+)
 from src.data.company.financials import FinancialSnapshot
 
 
@@ -33,8 +36,8 @@ def _score_range(
     """
     Higher value receives a higher score.
 
-    Thresholds are provisional research heuristics and should
-    eventually be calibrated by sector and historical data.
+    Missing data remains numerically neutral for compatibility.
+    Evidence availability is tracked separately.
     """
 
     if value is None:
@@ -59,6 +62,8 @@ def _score_lower_is_better(
 ) -> Decimal:
     """
     Lower value receives a higher score.
+
+    Missing data remains numerically neutral for compatibility.
     """
 
     if value is None:
@@ -110,7 +115,7 @@ def score_growth(
     """
     Evaluate year-over-year revenue growth.
 
-    No previous period means neutral rather than fabricated growth.
+    Missing previous period remains numerically neutral.
     """
 
     if previous is None:
@@ -128,9 +133,6 @@ def score_cash_flow(
 ) -> Decimal:
     """
     Evaluate operating cash flow relative to accounting profit.
-
-    A ratio around 100% indicates strong conversion of reported
-    earnings into operating cash.
     """
 
     return _score_range(
@@ -162,9 +164,8 @@ def score_working_capital(
     """
     Evaluate receivables relative to revenue.
 
-    This is deliberately only one working-capital signal.
-    A high receivables ratio is not automatically evidence
-    of misconduct or poor business quality.
+    A high receivables ratio is a monitoring signal,
+    not an automatic misconduct finding.
     """
 
     return _score_lower_is_better(
@@ -172,6 +173,105 @@ def score_working_capital(
         Decimal("10"),
         Decimal("35"),
     )
+
+
+def _profitability_status(
+    snapshot: FinancialSnapshot,
+) -> ResearchComponentStatus:
+    """
+    Profitability requires actual profit and revenue evidence.
+
+    FCF is used as a secondary profitability-quality input,
+    but its absence makes the component partial rather than
+    pretending that the entire component is fully evidenced.
+    """
+
+    if (
+        snapshot.revenue is None
+        or snapshot.net_profit is None
+    ):
+        return ResearchComponentStatus.MISSING
+
+    if snapshot.free_cash_flow is None:
+        return ResearchComponentStatus.PARTIAL
+
+    return ResearchComponentStatus.AVAILABLE
+
+
+def _financial_trends_status(
+    previous: FinancialSnapshot | None,
+    current: FinancialSnapshot,
+) -> ResearchComponentStatus:
+    """
+    Financial trends use:
+
+    - revenue growth
+    - working-capital quality
+
+    A previous period is required for genuine growth evidence.
+    """
+
+    revenue_available = (
+        current.revenue is not None
+    )
+
+    receivables_available = (
+        current.receivables is not None
+        and current.revenue is not None
+    )
+
+    growth_available = (
+        previous is not None
+        and previous.revenue is not None
+        and current.revenue is not None
+    )
+
+    usable_signals = sum(
+        (
+            growth_available,
+            receivables_available,
+        )
+    )
+
+    if usable_signals == 0:
+        return ResearchComponentStatus.MISSING
+
+    if usable_signals == 2:
+        return ResearchComponentStatus.AVAILABLE
+
+    return ResearchComponentStatus.PARTIAL
+
+
+def _cash_flow_status(
+    snapshot: FinancialSnapshot,
+) -> ResearchComponentStatus:
+    """
+    Cash-flow quality requires operating cash flow and profit.
+    """
+
+    if (
+        snapshot.operating_cash_flow is None
+        or snapshot.net_profit is None
+    ):
+        return ResearchComponentStatus.MISSING
+
+    return ResearchComponentStatus.AVAILABLE
+
+
+def _balance_sheet_status(
+    snapshot: FinancialSnapshot,
+) -> ResearchComponentStatus:
+    """
+    Balance-sheet quality requires debt and revenue evidence.
+    """
+
+    if (
+        snapshot.total_debt is None
+        or snapshot.revenue is None
+    ):
+        return ResearchComponentStatus.MISSING
+
+    return ResearchComponentStatus.AVAILABLE
 
 
 def score_financial_snapshot(
@@ -182,24 +282,12 @@ def score_financial_snapshot(
     """
     Produce normalized financial research components.
 
-    Component architecture:
+    Numeric compatibility values may remain neutral when
+    observations are missing.
 
-        fundamentals
-            = profitability
-
-        financial_trends
-            = revenue growth + working-capital quality
-
-        cash_flow
-            = cash conversion
-
-        balance_sheet
-            = leverage
-
-    Every returned component is normalized to 0-100.
-
-    Missing observations receive a neutral score rather than
-    being treated as either good or bad.
+    IMPORTANT:
+    Evidence state is exposed separately through
+    financial_component_status().
     """
 
     profitability = score_profitability(
@@ -243,15 +331,41 @@ def score_financial_snapshot(
     }
 
 
+def financial_component_status(
+    *,
+    previous: FinancialSnapshot | None,
+    current: FinancialSnapshot,
+) -> dict[str, ResearchComponentStatus]:
+    """
+    Return truthful evidence availability for each financial
+    research component.
+
+    Numeric scores and evidence status are intentionally separate.
+    """
+
+    return {
+        "fundamentals": _profitability_status(
+            current
+        ),
+        "financial_trends": _financial_trends_status(
+            previous,
+            current,
+        ),
+        "cash_flow": _cash_flow_status(
+            current
+        ),
+        "balance_sheet": _balance_sheet_status(
+            current
+        ),
+    }
+
+
 def financial_quality_score(
     scores: dict[str, Decimal],
 ) -> Decimal:
     """
     Combine normalized financial components into one
     descriptive financial-quality score.
-
-    The weights are explicit and provisional.
-    They must eventually be validated out-of-sample.
     """
 
     weights = {
