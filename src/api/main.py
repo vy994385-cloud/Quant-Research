@@ -841,13 +841,13 @@ def list_stocks() -> dict:
             }
         )
 
-    results.sort(
+        results.sort(
         key=lambda item: Decimal(item["score"]),
         reverse=True,
     )
 
     return {
-        "as_of": result.as_of.isoformat(),
+        "horizon": normalized,
         "count": len(results),
         "results": results,
     }
@@ -885,11 +885,19 @@ def get_rankings(horizon: str) -> dict:
             },
         )
 
-        result = _get_market_research()
+    result = _get_market_research()
 
     results = []
 
+    # Always expose the deterministic DEMO research fixture.
+    results.append(
+        _demo_ranking(normalized)
+    )
+
     for report in result.results:
+        if report.symbol == "DEMO":
+            continue
+
         if normalized == "INTRADAY":
             ranking = report.intraday
         elif normalized == "SWING":
@@ -901,14 +909,8 @@ def get_rankings(horizon: str) -> dict:
             _ranking_payload(ranking)
         )
 
-    results.sort(
-        key=lambda item: Decimal(item["score"]),
-        reverse=True,
-    )
-
     return {
         "horizon": normalized,
-        "as_of": result.as_of.isoformat(),
         "count": len(results),
         "results": results,
     }
@@ -1015,7 +1017,15 @@ def get_stock_research(symbol: str) -> dict:
     requested = symbol.strip().upper()
 
     if requested == "DEMO":
-        return demo_research()
+        data = demo_research()
+
+        data["rankings"] = {
+            "intraday": _demo_ranking("INTRADAY"),
+            "swing": _demo_ranking("SWING"),
+            "long_term": _demo_ranking("LONG_TERM"),
+        }
+
+        return data
 
     try:
         report = _run_real_stock_research(
@@ -1033,28 +1043,27 @@ def get_stock_research(symbol: str) -> dict:
 
     return _report_payload(report)
 
-
 # ---------------------------------------------------------------------
-# Stock endpoint
+# Stock detail
 # ---------------------------------------------------------------------
 
 @app.get("/api/stocks/{symbol}")
 def get_stock(symbol: str) -> dict:
     requested = symbol.strip().upper()
 
-    if not requested:
-        raise HTTPException(
-            status_code=400,
-            detail="symbol cannot be empty",
-        )
-
     if requested == "DEMO":
-        return demo_research()
+        data = demo_research()
+
+        data["rankings"] = {
+            "intraday": _demo_ranking("INTRADAY"),
+            "swing": _demo_ranking("SWING"),
+            "long_term": _demo_ranking("LONG_TERM"),
+        }
+
+        return data
 
     try:
-        report = _run_real_stock_research(
-            requested
-        )
+        report = _run_real_stock_research(requested)
     except (RuntimeError, ValueError) as exc:
         raise HTTPException(
             status_code=404,
