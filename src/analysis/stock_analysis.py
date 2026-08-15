@@ -448,15 +448,28 @@ def build_stock_analysis(
             },
 
             "risk",
-            "momentum",
-            "trend_strength",
             "liquidity",
-            "volatility",
-            "relative_strength",
             "catalyst_strength",
             "valuation",
             "management",
             "evidence_quality",
+
+            # Market-derived dimensions are included only when the
+            # corresponding market evidence actually exists.
+            *(
+                {
+                    "momentum",
+                    "trend_strength",
+                    "volatility",
+                }
+                if market_snapshot.technical is not None
+                else set()
+            ),
+            *(
+                {"relative_strength"}
+                if market_snapshot.relative_strength is not None
+                else set()
+            ),
 
             # Future-oriented dimensions are included only when
             # actual research evidence exists.
@@ -577,6 +590,9 @@ def _market_momentum(
     This is descriptive normalization, not a forecast.
     """
 
+    if snapshot.technical is None:
+        return RANKING_MISSING_VALUE
+
     value = snapshot.technical.momentum
 
     if value is None:
@@ -601,6 +617,9 @@ def _trend_strength(
     """
 
     technical = snapshot.technical
+
+    if technical is None:
+        return RANKING_MISSING_VALUE
 
     if (
         technical.sma_5 is None
@@ -646,9 +665,10 @@ def _volatility_score(
     against the actual research universe and historical outcomes.
     """
 
-    volatility = (
-        snapshot.technical.volatility_20d
-    )
+    if snapshot.technical is None:
+        return RANKING_MISSING_VALUE
+
+    volatility = snapshot.technical.volatility_20d
 
     if volatility is None:
         return RANKING_MISSING_VALUE
