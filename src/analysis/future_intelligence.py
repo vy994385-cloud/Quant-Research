@@ -898,6 +898,114 @@ def future_readiness_score(
     )
 
 
+
+def sector_fit_score(
+    profile: FutureTechnologyProfile,
+) -> Decimal | None:
+    """
+    Measure how strongly demonstrated company innovation fits the
+    technology vectors that are relevant to its industry.
+
+    Sector membership alone creates no score.
+
+    A score is returned only when there is usable, evidence-backed
+    technology activity. Unverified or zero-weight evidence does not
+    create artificial neutral evidence.
+
+    The calculation uses the existing future-intelligence framework:
+
+        industry relevance
+        × evidence strength
+        × materiality
+        × confidence
+        × execution
+        × commercialization
+        × technology relevance
+        × strategic importance
+
+    This is a descriptive research factor, not a price prediction.
+    """
+
+    if not profile.signals:
+        return None
+
+    weighted_total = Decimal("0")
+    total_weight = Decimal("0")
+
+    criteria = industry_innovation_criteria(profile.sector)
+
+    for signal in profile.signals:
+        evidence_weight = _evidence_weight(
+            signal.evidence_strength
+        )
+
+        materiality_weight = (
+            Decimal(signal.materiality) / Decimal("5")
+        )
+
+        weight = (
+            evidence_weight
+            * materiality_weight
+            * signal.confidence
+        )
+
+        if weight <= 0:
+            continue
+
+        relevant = (
+            signal.technology_area
+            in criteria.relevant_technology_areas
+        )
+
+        # Relevant technology receives full consideration.
+        # Unrelated technology is deliberately discounted rather
+        # than treated as equally valuable to the industry.
+        relevance_multiplier = (
+            Decimal("1.00")
+            if relevant
+            else Decimal("0.70")
+        )
+
+        quality_score = (
+            signal.execution_strength * Decimal("0.30")
+            + signal.commercialization_strength * Decimal("0.30")
+            + signal.technology_relevance * Decimal("0.20")
+            + signal.strategic_importance * Decimal("0.20")
+        )
+
+        if signal.direction == InnovationSignalDirection.POSITIVE:
+            direction_score = (
+                Decimal("60") + quality_score * Decimal("0.40")
+            )
+        elif signal.direction == InnovationSignalDirection.NEGATIVE:
+            direction_score = (
+                Decimal("40") - quality_score * Decimal("0.40")
+            )
+        elif signal.direction == InnovationSignalDirection.NEUTRAL:
+            direction_score = Decimal("50")
+        else:
+            direction_score = Decimal("50")
+
+        signal_score = (
+            direction_score * relevance_multiplier
+            + Decimal("50")
+            * (Decimal("1") - relevance_multiplier)
+        )
+
+        weighted_total += signal_score * weight
+        total_weight += weight
+
+    if total_weight <= 0:
+        return None
+
+    score = weighted_total / total_weight
+
+    return max(
+        Decimal("0"),
+        min(Decimal("100"), score),
+    )
+
+
 def innovation_execution_score(
     profile: FutureTechnologyProfile,
 ) -> Decimal:

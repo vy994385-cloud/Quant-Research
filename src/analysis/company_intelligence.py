@@ -9,6 +9,7 @@ from src.analysis.future_intelligence import (
     ai_participation_score,
     future_readiness_score,
     innovation_execution_score,
+    sector_fit_score,
     technology_diversification_score,
 )
 
@@ -231,6 +232,24 @@ class CompanyResearchSnapshot(BaseModel):
             return None
 
         return technology_diversification_score(
+            self.future_technology_profile
+        )
+
+
+    @property
+    def sector_fit(self) -> Decimal | None:
+        """
+        Descriptive sector-fit score based on demonstrated
+        technology and innovation evidence relevant to the
+        company's industry.
+
+        Industry membership alone never creates a score.
+        """
+
+        if self.future_technology_profile is None:
+            return None
+
+        return sector_fit_score(
             self.future_technology_profile
         )
 

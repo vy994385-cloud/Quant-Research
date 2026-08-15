@@ -13,6 +13,7 @@ from src.analysis.future_intelligence import (
     future_readiness_score,
     innovation_execution_score,
     technology_diversification_score,
+    sector_fit_score,
 )
 
 
@@ -329,3 +330,90 @@ def test_technology_diversification_rewards_multiple_areas():
     )
 
     assert technology_diversification_score(profile) == Decimal("82")
+
+
+def test_sector_fit_requires_actual_evidence():
+    profile = build_future_technology_profile(
+        "TEST",
+        sector="semiconductors",
+    )
+
+    assert sector_fit_score(profile) is None
+
+
+def test_sector_fit_rewards_relevant_positive_evidence():
+    signal = FutureTechnologySignal(
+        code="SEMICONDUCTOR_RND",
+        title="Advanced semiconductor process development",
+        description="Verified process technology development with production deployment.",
+        technology_area=FutureTechnologyArea.SEMICONDUCTORS,
+        direction=InnovationSignalDirection.POSITIVE,
+        materiality=5,
+        confidence=Decimal("1.0"),
+        evidence_strength=InnovationEvidenceStrength.VERIFIED,
+        technology_relevance=Decimal("95"),
+        execution_strength=Decimal("90"),
+        commercialization_strength=Decimal("90"),
+        strategic_importance=Decimal("95"),
+    )
+
+    profile = build_future_technology_profile(
+        "TEST",
+        sector="semiconductors",
+        signals=[signal],
+    )
+
+    score = sector_fit_score(profile)
+
+    assert score is not None
+    assert Decimal("0") <= score <= Decimal("100")
+    assert score > Decimal("70")
+
+
+def test_sector_fit_does_not_treat_ai_as_universal_positive():
+    signal = FutureTechnologySignal(
+        code="AI_HYPE",
+        title="AI initiative",
+        description="General AI announcement without semiconductor-specific deployment.",
+        technology_area=FutureTechnologyArea.ARTIFICIAL_INTELLIGENCE,
+        direction=InnovationSignalDirection.POSITIVE,
+        materiality=2,
+        confidence=Decimal("0.8"),
+        evidence_strength=InnovationEvidenceStrength.MODERATE,
+        technology_relevance=Decimal("50"),
+        execution_strength=Decimal("40"),
+        commercialization_strength=Decimal("30"),
+        strategic_importance=Decimal("40"),
+    )
+
+    profile = build_future_technology_profile(
+        "TEST",
+        sector="agriculture",
+        signals=[signal],
+    )
+
+    score = sector_fit_score(profile)
+
+    assert score is not None
+    assert score < Decimal("70")
+
+
+def test_unverified_sector_evidence_does_not_create_score():
+    signal = FutureTechnologySignal(
+        code="UNVERIFIED",
+        title="Unverified technology claim",
+        description="Unverified claim.",
+        technology_area=FutureTechnologyArea.SEMICONDUCTORS,
+        direction=InnovationSignalDirection.POSITIVE,
+        materiality=5,
+        confidence=Decimal("1.0"),
+        evidence_strength=InnovationEvidenceStrength.UNVERIFIED,
+    )
+
+    profile = build_future_technology_profile(
+        "TEST",
+        sector="semiconductors",
+        signals=[signal],
+    )
+
+    assert sector_fit_score(profile) is None

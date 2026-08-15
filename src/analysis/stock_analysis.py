@@ -218,6 +218,9 @@ def _future_intelligence_scores(
         "technology_diversification": (
             company_intelligence.technology_diversification
         ),
+        "sector_fit": (
+            company_intelligence.sector_fit
+        ),
     }
 
 
@@ -529,10 +532,12 @@ def build_stock_analysis(
             future_scores["technology_diversification"]
         ),
 
-        # Sector-specific intelligence is not wired yet.
-        # Therefore it is deliberately NOT included in
-        # available_components.
-        sector_fit=SECTOR_FIT_MISSING_VALUE,
+        # Sector-specific intelligence is evidence-aware.
+        # A missing score remains a compatibility value only and
+        # is excluded from available_components.
+        sector_fit=_ranking_value(
+            future_scores["sector_fit"]
+        ),
 
         available_components=available_components,
     )
