@@ -337,3 +337,383 @@ def test_trend_signals_are_exposed_in_report():
     assert report.signals[0].category == (
         "FINANCIAL_TREND"
     )
+
+
+def test_report_contains_evidence_synthesis():
+    report = build_company_report(
+        symbol="TEST",
+        as_of=AS_OF,
+        features=[
+            feature("revenue_growth", 20.0),
+        ],
+        signals=[
+            signal(
+                "FIN_REVENUE_GROWTH",
+                SignalDirection.POSITIVE,
+            ),
+        ],
+    )
+
+    assert report.evidence_synthesis is not None
+    assert report.evidence_synthesis.symbol == "TEST"
+    assert report.evidence_synthesis.positive_count >= 1
+    assert report.evidence_synthesis.negative_count == 0
+
+
+def test_report_evidence_synthesis_detects_conflict():
+    report = build_company_report(
+        symbol="TEST",
+        as_of=AS_OF,
+        features=[
+            feature("revenue_growth", 20.0),
+        ],
+        signals=[
+            signal(
+                "FIN_REVENUE_GROWTH",
+                SignalDirection.POSITIVE,
+            ),
+            signal(
+                "FIN_HIGH_DEBT",
+                SignalDirection.NEGATIVE,
+            ),
+        ],
+    )
+
+    synthesis = report.evidence_synthesis
+
+    assert synthesis is not None
+    assert synthesis.positive_count >= 1
+    assert synthesis.negative_count >= 1
+    assert synthesis.conflict_detected is True
+    assert synthesis.direction.value == "MIXED"
+
+
+def test_report_evidence_synthesis_excludes_future_evidence():
+    later = datetime(
+        2026,
+        8,
+        11,
+        12,
+        0,
+        tzinfo=timezone.utc,
+    )
+
+    report = build_company_report(
+        symbol="TEST",
+        as_of=AS_OF,
+        features=[
+            feature(
+                "future_revenue",
+                50.0,
+                observation_at=later,
+            ),
+        ],
+    )
+
+    synthesis = report.evidence_synthesis
+
+    assert synthesis is not None
+    assert synthesis.evidence == ()
+    assert synthesis.positive_count == 0
+    assert synthesis.negative_count == 0
+
+from datetime import date
+
+from src.analysis.company_intelligence import (
+    CompanyResearchSnapshot,
+    EvidenceReference,
+    IntelligenceDirection,
+    IntelligenceSignal,
+)
+
+
+def intelligence_signal(
+    code: str,
+    direction: IntelligenceDirection,
+    *,
+    reliability_tier: int = 1,
+) -> IntelligenceSignal:
+    return IntelligenceSignal(
+        code=code,
+        title=code,
+        description="Company intelligence evidence.",
+        direction=direction,
+        materiality=4,
+        confidence=Decimal("0.9"),
+        evidence=[
+            EvidenceReference(
+                source_name="Test Source",
+                source_type="PRIMARY",
+                title="Test evidence",
+                reliability_tier=reliability_tier,
+                reference=f"SRC_{code}",
+            )
+        ],
+    )
+
+
+def company_snapshot(
+    *,
+    snapshot_date: date = AS_OF.date(),
+    signals: list[IntelligenceSignal] | None = None,
+) -> CompanyResearchSnapshot:
+    return CompanyResearchSnapshot(
+        symbol="TEST",
+        company_name="Test Company",
+        as_of_date=snapshot_date,
+        signals=signals or [],
+    )
+
+
+def test_company_intelligence_enters_evidence_synthesis():
+    report = build_company_report(
+        symbol="TEST",
+        as_of=AS_OF,
+        features=[],
+        company_snapshot=company_snapshot(
+            signals=[
+                intelligence_signal(
+                    "INT_POSITIVE",
+                    IntelligenceDirection.POSITIVE,
+                ),
+            ],
+        ),
+    )
+
+    synthesis = report.evidence_synthesis
+
+    assert synthesis is not None
+    assert len(synthesis.evidence) == 1
+    assert (
+        synthesis.evidence[0].evidence_type.value
+        == "COMPANY_INTELLIGENCE"
+    )
+    assert synthesis.positive_count == 1
+    assert synthesis.negative_count == 0
+    assert synthesis.direction.value == "POSITIVE"
+
+
+def test_company_intelligence_negative_evidence_is_synthesized():
+    report = build_company_report(
+        symbol="TEST",
+        as_of=AS_OF,
+        features=[],
+        company_snapshot=company_snapshot(
+            signals=[
+                intelligence_signal(
+                    "INT_NEGATIVE",
+                    IntelligenceDirection.NEGATIVE,
+                ),
+            ],
+        ),
+    )
+
+    synthesis = report.evidence_synthesis
+
+    assert synthesis is not None
+    assert synthesis.negative_count == 1
+    assert synthesis.direction.value == "NEGATIVE"
+
+
+def test_company_intelligence_conflict_is_synthesized():
+    report = build_company_report(
+        symbol="TEST",
+        as_of=AS_OF,
+        features=[],
+        company_snapshot=company_snapshot(
+            signals=[
+                intelligence_signal(
+                    "INT_POSITIVE",
+                    IntelligenceDirection.POSITIVE,
+                ),
+                intelligence_signal(
+                    "INT_NEGATIVE",
+                    IntelligenceDirection.NEGATIVE,
+                ),
+            ],
+        ),
+    )
+
+    synthesis = report.evidence_synthesis
+
+    assert synthesis is not None
+    assert synthesis.positive_count == 1
+    assert synthesis.negative_count == 1
+    assert synthesis.conflict_detected is True
+    assert synthesis.direction.value == "MIXED"
+
+
+def test_future_company_intelligence_is_excluded():
+    later = date(2026, 8, 11)
+
+    report = build_company_report(
+        symbol="TEST",
+        as_of=AS_OF,
+        features=[],
+        company_snapshot=company_snapshot(
+            snapshot_date=later,
+            signals=[
+                intelligence_signal(
+                    "INT_FUTURE",
+                    IntelligenceDirection.POSITIVE,
+                ),
+            ],
+        ),
+    )
+
+    synthesis = report.evidence_synthesis
+
+    assert synthesis is not None
+    assert synthesis.evidence == ()
+    assert synthesis.positive_count == 0
+    assert synthesis.negative_count == 0
+
+
+def test_company_intelligence_source_reference_is_preserved():
+    report = build_company_report(
+        symbol="TEST",
+        as_of=AS_OF,
+        features=[],
+        company_snapshot=company_snapshot(
+            signals=[
+                intelligence_signal(
+                    "INT_SOURCE",
+                    IntelligenceDirection.POSITIVE,
+                ),
+            ],
+        ),
+    )
+
+    synthesis = report.evidence_synthesis
+
+    assert synthesis is not None
+    assert synthesis.evidence[0].source_ids == (
+        "SRC_INT_SOURCE",
+    )
+
+
+def test_report_contains_evidence_narrative():
+    report = build_company_report(
+        symbol="TEST",
+        as_of=AS_OF,
+        features=[],
+        company_snapshot=company_snapshot(
+            signals=[
+                intelligence_signal(
+                    "INT_NARRATIVE",
+                    IntelligenceDirection.POSITIVE,
+                ),
+            ],
+        ),
+    )
+
+    assert report.evidence_synthesis is not None
+    assert report.evidence_narrative is not None
+    assert report.evidence_narrative.symbol == "TEST"
+    assert report.evidence_narrative.supporting_evidence
+
+
+def test_report_narrative_preserves_conflicting_evidence():
+    report = build_company_report(
+        symbol="TEST",
+        as_of=AS_OF,
+        features=[],
+        company_snapshot=company_snapshot(
+            signals=[
+                intelligence_signal(
+                    "INT_POSITIVE",
+                    IntelligenceDirection.POSITIVE,
+                ),
+                intelligence_signal(
+                    "INT_NEGATIVE",
+                    IntelligenceDirection.NEGATIVE,
+                ),
+            ],
+        ),
+    )
+
+    narrative = report.evidence_narrative
+
+    assert narrative is not None
+    assert narrative.has_conflict is True
+    assert narrative.supporting_evidence
+    assert narrative.contradicting_evidence
+    assert narrative.uncertainty
+
+
+def test_report_narrative_excludes_future_intelligence():
+    later = date(2026, 8, 11)
+
+    report = build_company_report(
+        symbol="TEST",
+        as_of=AS_OF,
+        features=[],
+        company_snapshot=company_snapshot(
+            snapshot_date=later,
+            signals=[
+                intelligence_signal(
+                    "INT_FUTURE",
+                    IntelligenceDirection.POSITIVE,
+                ),
+            ],
+        ),
+    )
+
+    narrative = report.evidence_narrative
+
+    assert narrative is not None
+    assert narrative.supporting_evidence == ()
+    assert narrative.contradicting_evidence == ()
+    assert narrative.evidence_gaps
+
+
+def test_report_narrative_is_deterministic():
+    kwargs = dict(
+        symbol="TEST",
+        as_of=AS_OF,
+        features=[],
+        company_snapshot=company_snapshot(
+            signals=[
+                intelligence_signal(
+                    "INT_A",
+                    IntelligenceDirection.POSITIVE,
+                ),
+                intelligence_signal(
+                    "INT_B",
+                    IntelligenceDirection.NEGATIVE,
+                ),
+            ],
+        ),
+    )
+
+    first = build_company_report(**kwargs)
+    second = build_company_report(**kwargs)
+
+    assert first.evidence_narrative == second.evidence_narrative
+
+
+def test_report_narrative_does_not_change_research_conclusion():
+    report = build_company_report(
+        symbol="TEST",
+        as_of=AS_OF,
+        features=[],
+        company_snapshot=company_snapshot(
+            signals=[
+                intelligence_signal(
+                    "INT_POS",
+                    IntelligenceDirection.POSITIVE,
+                ),
+                intelligence_signal(
+                    "INT_NEG",
+                    IntelligenceDirection.NEGATIVE,
+                ),
+            ],
+        ),
+    )
+
+    assert report.evidence_narrative is not None
+    assert report.evidence_narrative.has_conflict is True
+
+    # Narrative is explanatory only. It must not manufacture
+    # a BUY/SELL conclusion.
+    assert report.evidence_narrative.thesis

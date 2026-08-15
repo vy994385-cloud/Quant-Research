@@ -6,6 +6,10 @@ from enum import Enum
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from src.research.narrative.models import EvidenceNarrative
+
+from src.research.synthesis.models import EvidenceSynthesis
+
 from src.research.signals.models import ResearchSignal
 
 
@@ -189,6 +193,10 @@ class ResearchReport(BaseModel):
 
     positive_evidence: tuple[ResearchEvidence, ...] = ()
     negative_evidence: tuple[ResearchEvidence, ...] = ()
+
+    evidence_synthesis: EvidenceSynthesis | None = None
+
+    evidence_narrative: EvidenceNarrative | None = None
 
     data_quality_notes: tuple[str, ...] = ()
 

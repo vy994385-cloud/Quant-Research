@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, time, timezone
 from decimal import Decimal
 
 from src.research.features.models import (
@@ -22,8 +22,26 @@ from src.research.signals.models import (
     SignalSeverity,
 )
 
+from src.research.synthesis.models import (
+    EvidenceDirection,
+    EvidenceItem,
+    EvidenceReliability,
+    EvidenceType,
+)
+from src.research.synthesis.evidence import (
+    synthesize_evidence,
+)
+
+
+from src.research.narrative.engine import (
+    build_evidence_narrative,
+)
+
 from src.analysis.company_intelligence import (
     CompanyResearchSnapshot,
+    EvidenceReference,
+    IntelligenceDirection,
+    IntelligenceSignal,
 )
 
 _SEVERITY_WEIGHT = {
@@ -241,6 +259,193 @@ def _signal_evidence(
             negative.append(evidence)
 
     return positive, negative
+
+
+def _research_evidence_items(
+    *,
+    positive: list[ResearchEvidence],
+    negative: list[ResearchEvidence],
+    as_of: datetime,
+) -> list[EvidenceItem]:
+    items: list[EvidenceItem] = []
+
+    for evidence in positive:
+        items.append(
+            EvidenceItem(
+                evidence_id=evidence.evidence_id,
+                symbol=evidence.symbol,
+                evidence_type=EvidenceType.FEATURE,
+                title=evidence.title,
+                explanation=evidence.explanation,
+                direction=EvidenceDirection.POSITIVE,
+                confidence=evidence.confidence,
+                reliability=EvidenceReliability.UNKNOWN,
+                observation_at=evidence.observation_at,
+                source_ids=evidence.source_ids,
+                provenance_ids=evidence.provenance_ids,
+            )
+        )
+
+    for evidence in negative:
+        items.append(
+            EvidenceItem(
+                evidence_id=evidence.evidence_id,
+                symbol=evidence.symbol,
+                evidence_type=EvidenceType.SIGNAL,
+                title=evidence.title,
+                explanation=evidence.explanation,
+                direction=EvidenceDirection.NEGATIVE,
+                confidence=evidence.confidence,
+                reliability=EvidenceReliability.UNKNOWN,
+                observation_at=evidence.observation_at,
+                source_ids=evidence.source_ids,
+                provenance_ids=evidence.provenance_ids,
+            )
+        )
+
+    return [
+        item
+        for item in items
+        if item.observation_at <= as_of
+    ]
+
+
+def _intelligence_reliability(
+    reference: EvidenceReference,
+) -> EvidenceReliability:
+    """
+    Map company-intelligence source quality into the
+    normalized evidence reliability contract.
+
+    The mapping is deliberately conservative.
+    """
+    if reference.source_type.upper() == "REGULATORY":
+        return EvidenceReliability.REGULATORY
+
+    if reference.source_type.upper() == "AUDITED":
+        return EvidenceReliability.AUDITED
+
+    if reference.reliability_tier == 1:
+        return EvidenceReliability.PRIMARY
+
+    if reference.reliability_tier == 2:
+        return EvidenceReliability.PRIMARY
+
+    if reference.reliability_tier == 3:
+        return EvidenceReliability.SECONDARY
+
+    if reference.reliability_tier == 4:
+        return EvidenceReliability.TERTIARY
+
+    return EvidenceReliability.UNKNOWN
+
+
+def _intelligence_observation_at(
+    snapshot: CompanyResearchSnapshot,
+) -> datetime:
+    """
+    Convert the intelligence snapshot's date-level observation
+    into the normalized timezone-aware evidence timestamp.
+
+    We intentionally use the beginning of the stated observation
+    date rather than inventing an intraday timestamp.
+    """
+    return datetime.combine(
+        snapshot.as_of_date,
+        time.min,
+        tzinfo=timezone.utc,
+    )
+
+
+def _company_intelligence_evidence_items(
+    snapshot: CompanyResearchSnapshot | None,
+    *,
+    symbol: str,
+    as_of: datetime,
+) -> list[EvidenceItem]:
+    """
+    Convert validated company-intelligence observations into
+    normalized point-in-time EvidenceItems.
+
+    Future intelligence is excluded before synthesis.
+    """
+    if snapshot is None:
+        return []
+
+    if snapshot.symbol.strip().upper() != symbol:
+        return []
+
+    observation_at = _intelligence_observation_at(snapshot)
+
+    if observation_at > as_of:
+        return []
+
+    items: list[EvidenceItem] = []
+
+    for signal in snapshot.signals:
+        if signal.direction == IntelligenceDirection.POSITIVE:
+            direction = EvidenceDirection.POSITIVE
+        elif signal.direction == IntelligenceDirection.NEGATIVE:
+            direction = EvidenceDirection.NEGATIVE
+        elif signal.direction == IntelligenceDirection.NEUTRAL:
+            direction = EvidenceDirection.NEUTRAL
+        else:
+            direction = EvidenceDirection.MIXED
+
+        references = signal.evidence
+
+        if references:
+            for index, reference in enumerate(references):
+                evidence_id = (
+                    f"INTELLIGENCE_{signal.code}_{index}"
+                )
+
+                items.append(
+                    EvidenceItem(
+                        evidence_id=evidence_id,
+                        symbol=symbol,
+                        evidence_type=(
+                            EvidenceType.COMPANY_INTELLIGENCE
+                        ),
+                        title=signal.title,
+                        explanation=signal.description,
+                        direction=direction,
+                        confidence=signal.confidence,
+                        reliability=(
+                            _intelligence_reliability(reference)
+                        ),
+                        observation_at=observation_at,
+                        source_ids=(
+                            (reference.reference,)
+                            if reference.reference
+                            else ()
+                        ),
+                        provenance_ids=(),
+                    )
+                )
+
+        else:
+            items.append(
+                EvidenceItem(
+                    evidence_id=(
+                        f"INTELLIGENCE_{signal.code}"
+                    ),
+                    symbol=symbol,
+                    evidence_type=(
+                        EvidenceType.COMPANY_INTELLIGENCE
+                    ),
+                    title=signal.title,
+                    explanation=signal.description,
+                    direction=direction,
+                    confidence=signal.confidence,
+                    reliability=EvidenceReliability.UNKNOWN,
+                    observation_at=observation_at,
+                    source_ids=(),
+                    provenance_ids=(),
+                )
+            )
+
+    return items
 
 
 def _company_intelligence_report(
@@ -465,6 +670,30 @@ def build_company_report(
 
     conclusion = _conclusion(all_signals)
 
+    synthesis_evidence = _research_evidence_items(
+        positive=positive_evidence,
+        negative=signal_negative,
+        as_of=as_of,
+    )
+
+    synthesis_evidence.extend(
+        _company_intelligence_evidence_items(
+            company_snapshot,
+            symbol=symbol,
+            as_of=as_of,
+        )
+    )
+
+    evidence_synthesis = synthesize_evidence(
+        symbol=symbol,
+        as_of=as_of,
+        evidence=synthesis_evidence,
+    )
+
+    evidence_narrative = build_evidence_narrative(
+        evidence_synthesis
+    )
+
     return ResearchReport(
         symbol=symbol,
         as_of=as_of,
@@ -494,6 +723,8 @@ def build_company_report(
         signals=tuple(all_signals),
         positive_evidence=tuple(positive_evidence),
         negative_evidence=tuple(signal_negative),
+        evidence_synthesis=evidence_synthesis,
+        evidence_narrative=evidence_narrative,
         data_quality_notes=(
             (
                 "Only VALID features whose observation and "
