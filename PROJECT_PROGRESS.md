@@ -2,8 +2,8 @@
 
 ## Current Status
 
-**Test baseline:** 929 passed  
-**Latest commit:** integrate research source acquisition into evidence pipeline  
+**Test baseline:** 944 passed  
+**Latest commit:** add real-data research verification  
 **Working tree:** clean at last verified checkpoint  
 **Phase:** Final Beta Launch Sprint
 
@@ -77,6 +77,7 @@ REAL DATA
 - source acquisition pipeline (planner / providers / validator / agent / runner)
 - relevance-routed, deduplicated research observation extraction
 - acquired-observation evidence integration (point-in-time safe)
+- real-data research verification (recorded TCS fixtures, full-path PIT checks)
 
 ### Ranking
 - horizon-specific ranking
@@ -129,7 +130,7 @@ SEARCH COMPANY
 
 ## Current Verified Test Baseline
 
-929 tests passing.
+944 tests passing.
 
 This number supersedes all older checkpoint counts.
 
@@ -151,7 +152,19 @@ Status: IN PROGRESS
 ### L2 — Production Data Verification
 Verify real provider behavior, failures, missing fields, provenance and date boundaries.
 
-Status: IN PROGRESS
+Real-data research verification is DONE for TCS:
+- recorded real TCS + ^NSEI market bars, real TCS financials, and real
+  dated TCS disclosures replayed through the existing provider
+  architecture (no scraping, no provenance bypass, no network in tests)
+- full path verified: recorded provider → raw archive + provenance →
+  acquisition → ResearchObservation → EvidenceItem → synthesis → report
+- all point-in-time checks pass for as_of 2026-08-10T12:00Z; future-dated
+  contamination is rejected by the validator/evidence gates and never
+  reaches the report; insufficient provenance is never trusted
+- verification is deterministic and reproducible (identical artifacts +
+  artifact checksum), fixtures documented in scripts/capture_real_data_fixtures.py
+
+Status: IN PROGRESS (broader real-provider failure-path verification remains)
 
 ### L3 — Frontend Research Dashboard
 Build production-quality UI for:
@@ -225,7 +238,7 @@ Status: NOT STARTED
 
 Beta is considered READY only when:
 
-[ ] 929+ backend tests pass
+[ ] 944+ backend tests pass
 [ ] frontend builds
 [ ] frontend lint passes
 [ ] API health passes

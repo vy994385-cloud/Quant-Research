@@ -1,0 +1,63 @@
+{
+  "captured_at": "2026-08-15T18:49:10.239167+00:00",
+  "provider": "yahoo_finance_fundamentals",
+  "company": "TCS",
+  "snapshots": [
+    {
+      "symbol": "TCS",
+      "period_end": "2023-03-31",
+      "revenue": "2254580000000.0",
+      "operating_profit": null,
+      "net_profit": "421470000000.0",
+      "operating_cash_flow": "419650000000.0",
+      "free_cash_flow": "388650000000.0",
+      "total_assets": "1436510000000.0",
+      "total_debt": "76880000000.0",
+      "cash_and_equivalents": null,
+      "receivables": "410490000000.0",
+      "payables": null
+    },
+    {
+      "symbol": "TCS",
+      "period_end": "2024-03-31",
+      "revenue": "2408930000000.0",
+      "operating_profit": null,
+      "net_profit": "459080000000.0",
+      "operating_cash_flow": "443380000000.0",
+      "free_cash_flow": "416640000000.0",
+      "total_assets": "1464490000000.0",
+      "total_debt": "80210000000.0",
+      "cash_and_equivalents": null,
+      "receivables": "444340000000.0",
+      "payables": null
+    },
+    {
+      "symbol": "TCS",
+      "period_end": "2025-03-31",
+      "revenue": "2553240000000.0",
+      "operating_profit": null,
+      "net_profit": "485530000000.0",
+      "operating_cash_flow": "489080000000.0",
+      "free_cash_flow": "449710000000.0",
+      "total_assets": "1596290000000.0",
+      "total_debt": "93920000000.0",
+      "cash_and_equivalents": null,
+      "receivables": "501420000000.0",
+      "payables": null
+    },
+    {
+      "symbol": "TCS",
+      "period_end": "2026-03-31",
+      "revenue": "2670210000000.0",
+      "operating_profit": null,
+      "net_profit": "492100000000.0",
+      "operating_cash_flow": "520940000000.0",
+      "free_cash_flow": "479480000000.0",
+      "total_assets": "1823720000000.0",
+      "total_debt": "112830000000.0",
+      "cash_and_equivalents": null,
+      "receivables": "576300000000.0",
+      "payables": null
+    }
+  ]
+}

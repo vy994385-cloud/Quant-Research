@@ -26,6 +26,7 @@ class AcquisitionResult:
     sources_accepted: int
     observations_created: int
     observations: list[ResearchObservation]
+    sources: list[SourceCandidate]
 
 
 class ResearchAcquisitionRunner:
@@ -111,4 +112,5 @@ class ResearchAcquisitionRunner:
             sources_accepted=len(accepted),
             observations_created=len(observations),
             observations=observations,
+            sources=accepted,
         )

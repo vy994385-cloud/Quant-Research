@@ -1,0 +1,62 @@
+{
+  "company": "TCS",
+  "captured_at": "2026-08-15T18:49:10+00:00",
+  "note": "Recorded research source candidates for Tata Consultancy Services curated from publicly available, dated disclosures (NSE/BSE reporting and press coverage). The 'tcs-future-event-fixture' candidate is a deliberate future-dated contamination record used to verify that the point-in-time gate rejects evidence that was unavailable at the research as-of timestamp.",
+  "sources": [
+    {
+      "source_id": "tcs-board-meeting-june22",
+      "source_name": "TCS Exchange Filing",
+      "source_type": "REGULATORY",
+      "url": "https://www.ndtvprofit.com/markets/tcs-q1-results-date-time-dividend-news-earnings-call-details-and-more-11737953",
+      "title": "TCS exchange filing: board meeting on July 9, 2026 to approve Q1 FY27 financial results and consider interim dividend",
+      "published_at": "2026-06-22T18:30:00+05:30",
+      "available_at": "2026-06-22T18:30:00+05:30",
+      "reliability_tier": 1,
+      "categories": ["material_events"]
+    },
+    {
+      "source_id": "tcs-q1fy27-results",
+      "source_name": "Business Today",
+      "source_type": "NEWS",
+      "url": "https://www.businesstoday.in/markets/stocks/story/tcs-q1-fy27-results-rs-12-per-share-interim-dividend-announced-check-record-date-542025-2026-07-09",
+      "title": "TCS Q1 FY27 results: revenue up 13.93% to Rs 72,275 crore, net profit up 4.62% to Rs 13,349 crore, order book $9.5 billion",
+      "published_at": "2026-07-09T18:30:00+05:30",
+      "available_at": "2026-07-09T18:30:00+05:30",
+      "reliability_tier": 2,
+      "categories": ["material_events", "business_model"]
+    },
+    {
+      "source_id": "tcs-interim-dividend-fy27",
+      "source_name": "News18",
+      "source_type": "NEWS",
+      "url": "https://www.news18.com/business/markets/tcs-announces-rs-12-interim-dividend-for-fy27-record-date-set-for-july-15-payment-on-july-31-ws-l-10200711.html",
+      "title": "TCS declares Rs 12 per share interim dividend for FY27, capital return to shareholders, record date July 15, 2026",
+      "published_at": "2026-07-09T19:00:00+05:30",
+      "available_at": "2026-07-09T19:00:00+05:30",
+      "reliability_tier": 2,
+      "categories": ["capital_allocation"]
+    },
+    {
+      "source_id": "tcs-ai-partnerships",
+      "source_name": "Angel One",
+      "source_type": "NEWS",
+      "url": "https://www.angelone.in/news/stocks/tcs-share-price-rises-4-on-july-10-2026-after-q1-fy27-results-announces-12-interim-dividend",
+      "title": "TCS AI initiatives: strategic AI partnerships with Anthropic and Mistral AI, expanded Google Cloud collaboration, annualized AI revenue $2.6 billion",
+      "published_at": "2026-07-10T09:30:00+05:30",
+      "available_at": "2026-07-10T09:30:00+05:30",
+      "reliability_tier": 2,
+      "categories": ["ai_technology", "partnerships"]
+    },
+    {
+      "source_id": "tcs-future-event-fixture",
+      "source_name": "PIT Verification Fixture",
+      "source_type": "NEWS",
+      "url": "https://example.invalid/tcs-future-event-fixture",
+      "title": "TCS future-dated disclosure fixture used to verify point-in-time rejection (available after the research as-of timestamp)",
+      "published_at": "2026-08-14T09:00:00+05:30",
+      "available_at": "2026-08-14T09:00:00+05:30",
+      "reliability_tier": 2,
+      "categories": ["material_events"]
+    }
+  ]
+}
