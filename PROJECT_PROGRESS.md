@@ -2,8 +2,8 @@
 
 ## Current Status
 
-**Test baseline:** 863 passed  
-**Latest commit:** 5f85726 — integrate evidence narrative into research reports  
+**Test baseline:** 929 passed  
+**Latest commit:** integrate research source acquisition into evidence pipeline  
 **Working tree:** clean at last verified checkpoint  
 **Phase:** Final Beta Launch Sprint
 
@@ -74,6 +74,9 @@ REAL DATA
 - conflict detection
 - evidence narrative
 - company research reports
+- source acquisition pipeline (planner / providers / validator / agent / runner)
+- relevance-routed, deduplicated research observation extraction
+- acquired-observation evidence integration (point-in-time safe)
 
 ### Ranking
 - horizon-specific ranking
@@ -126,7 +129,7 @@ SEARCH COMPANY
 
 ## Current Verified Test Baseline
 
-863 tests passing.
+929 tests passing.
 
 This number supersedes all older checkpoint counts.
 
@@ -222,7 +225,7 @@ Status: NOT STARTED
 
 Beta is considered READY only when:
 
-[ ] 863+ backend tests pass
+[ ] 929+ backend tests pass
 [ ] frontend builds
 [ ] frontend lint passes
 [ ] API health passes
@@ -251,6 +254,15 @@ Beta is considered READY only when:
 - Keep research deterministic and testable.
 - Keep the architecture modular.
 - Do not enable live trading as part of the beta launch.
+
+## Tooling Notes
+
+- Python lint/format tooling is not yet enforced. A Ruff evaluation
+  was performed during the source-acquisition milestone; default and
+  minimal rule sets flag thousands of pre-existing violations
+  (including the intentional `Decimal("...")` idiom used across the
+  codebase), so Ruff was NOT introduced. Before production hardening
+  (L6), agree on a backend lint policy rather than bulk-refactoring.
 
 ## Current Launch Estimate
 

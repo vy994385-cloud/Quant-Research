@@ -77,3 +77,38 @@ def test_convenience_api_normalizes_symbol():
     )
 
     assert report.symbol == "TCS"
+
+
+def test_company_engine_carries_acquired_observations_to_report():
+    from src.research.acquisition.models import (
+        ResearchCategory,
+        ResearchObservation,
+    )
+    from src.research.synthesis.models import EvidenceType
+
+    observation = ResearchObservation(
+        observation_id="TCS:innovation:source-1",
+        company="TCS",
+        category=ResearchCategory.INNOVATION,
+        claim="Company filed a new patent application.",
+        evidence_excerpt="Example evidence excerpt.",
+        source_id="source-1",
+        reliability_tier=2,
+        available_at=AS_OF,
+        extracted_at=AS_OF,
+        confidence=0.8,
+    )
+
+    report = run_company_research(
+        symbol="TCS",
+        as_of=AS_OF,
+        acquired_observations=[observation],
+    )
+
+    synthesis = report.evidence_synthesis
+
+    assert synthesis is not None
+    assert any(
+        item.evidence_type == EvidenceType.ACQUIRED
+        for item in synthesis.evidence
+    )

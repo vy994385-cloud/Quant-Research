@@ -717,3 +717,162 @@ def test_report_narrative_does_not_change_research_conclusion():
     # Narrative is explanatory only. It must not manufacture
     # a BUY/SELL conclusion.
     assert report.evidence_narrative.thesis
+
+
+# ---------------------------------------------------------------------
+# Acquired research observations enter the evidence pipeline
+# ---------------------------------------------------------------------
+
+from src.research.acquisition.agent import DeterministicResearchAgent
+from src.research.acquisition.models import SourceCandidate
+from src.research.acquisition.planner import ResearchPlanner
+from src.research.acquisition.providers import ResearchSourceProvider
+from src.research.acquisition.runner import ResearchAcquisitionRunner
+from src.research.acquisition.validator import SourceValidator
+from src.research.synthesis.models import EvidenceType
+
+
+class RelevantSourceProvider(ResearchSourceProvider):
+    def search(self, company, question, as_of):
+        return [
+            SourceCandidate(
+                source_id=f"{question.question_id}-source",
+                source_name="Example Source",
+                source_type="REGULATORY",
+                url="https://example.com/source",
+                title=(
+                    "AI technology innovation digital transformation "
+                    "products revenue customer leadership competitive "
+                    "industry partnerships business financial"
+                ),
+                available_at=datetime(
+                    2026,
+                    8,
+                    10,
+                    12,
+                    tzinfo=timezone.utc,
+                ),
+                reliability_tier=1,
+            )
+        ]
+
+
+class FutureSourceProvider(ResearchSourceProvider):
+    def search(self, company, question, as_of):
+        return [
+            SourceCandidate(
+                source_id=f"{question.question_id}-future",
+                source_name="Example Source",
+                source_type="REGULATORY",
+                url="https://example.com/future",
+                title=(
+                    "AI technology innovation digital transformation "
+                    "products revenue customer leadership competitive "
+                    "industry partnerships business financial"
+                ),
+                available_at=datetime(
+                    2026,
+                    8,
+                    20,
+                    12,
+                    tzinfo=timezone.utc,
+                ),
+                reliability_tier=1,
+            )
+        ]
+
+
+def acquire_observations(provider: ResearchSourceProvider) -> list:
+    runner = ResearchAcquisitionRunner(
+        planner=ResearchPlanner(),
+        providers=[provider],
+        validator=SourceValidator(),
+        agent=DeterministicResearchAgent(),
+    )
+
+    result = runner.run(
+        company="TEST",
+        as_of=AS_OF,
+        extracted_at=AS_OF,
+    )
+
+    return list(result.observations)
+
+
+def test_acquired_evidence_reaches_the_report_safely():
+    observations = acquire_observations(
+        RelevantSourceProvider()
+    )
+
+    assert observations
+
+    report = build_company_report(
+        symbol="TEST",
+        as_of=AS_OF,
+        features=[],
+        acquired_observations=observations,
+    )
+
+    synthesis = report.evidence_synthesis
+
+    assert synthesis is not None
+
+    acquired = [
+        item
+        for item in synthesis.evidence
+        if item.evidence_type == EvidenceType.ACQUIRED
+    ]
+
+    assert acquired
+    assert synthesis.neutral_count >= 1
+    assert all(
+        item.symbol == "TEST"
+        for item in acquired
+    )
+    assert all(
+        item.observation_at <= AS_OF
+        for item in acquired
+    )
+    assert all(
+        item.source_ids
+        for item in acquired
+    )
+
+    narrative = report.evidence_narrative
+
+    assert narrative is not None
+    assert any(
+        "Source" in strongest
+        for strongest in narrative.strongest_evidence
+    )
+    assert narrative.evidence_gaps == (
+        "Available evidence is neutral and does not "
+        "establish directional support.",
+    )
+
+
+def test_future_acquired_evidence_never_reaches_the_report():
+    observations = acquire_observations(
+        FutureSourceProvider()
+    )
+
+    assert observations == []
+
+    report = build_company_report(
+        symbol="TEST",
+        as_of=AS_OF,
+        features=[],
+        acquired_observations=observations,
+    )
+
+    synthesis = report.evidence_synthesis
+
+    assert synthesis is not None
+    assert synthesis.evidence == ()
+
+    narrative = report.evidence_narrative
+
+    assert narrative is not None
+    assert "No validated point-in-time evidence is available." in (
+        narrative.evidence_gaps
+    )

@@ -22,6 +22,7 @@ class EvidenceType(str, Enum):
     MARKET = "MARKET"
     RISK = "RISK"
     FUTURE_TECHNOLOGY = "FUTURE_TECHNOLOGY"
+    ACQUIRED = "ACQUIRED"
 
 
 class EvidenceReliability(str, Enum):

@@ -519,7 +519,7 @@ def _report_payload(report) -> dict:
                 ),
                 "market_behavior": str(
                     report.research_score.market_behavior
-                ), 
+                ),
                 "evidence_quality": str(
                     report.research_score.evidence_quality
                 ),
@@ -1063,23 +1063,23 @@ def _demo_ranking(horizon: str) -> dict:
     values = score_map[horizon]
 
     return {
-    "symbol": "DEMO",
-    "company_name": "Demo Industries",
-    "horizon": horizon,
-    **values,
-    "priority": 1,
-    "is_high_priority": True,
-    "components": {
-        "fundamentals": "82",
-        "financial_trends": "86",
-        "cash_flow": "84",
-        "balance_sheet": "81",
-        "risk": "68",
-        "management": "78",
-        "market_behavior": "80",
-        "evidence_quality": "88",
-    },
-}
+        "symbol": "DEMO",
+        "company_name": "Demo Industries",
+        "horizon": horizon,
+        **values,
+        "priority": 1,
+        "is_high_priority": True,
+        "components": {
+            "fundamentals": "82",
+            "financial_trends": "86",
+            "cash_flow": "84",
+            "balance_sheet": "81",
+            "risk": "68",
+            "management": "78",
+            "market_behavior": "80",
+            "evidence_quality": "88",
+        },
+    }
 
 
 # ---------------------------------------------------------------------

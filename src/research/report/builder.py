@@ -47,6 +47,13 @@ from src.analysis.company_intelligence import (
     IntelligenceSignal,
 )
 
+from src.research.acquisition.evidence import (
+    research_observations_to_evidence,
+)
+from src.research.acquisition.models import (
+    ResearchObservation,
+)
+
 _SEVERITY_WEIGHT = {
     SignalSeverity.INFO: 1,
     SignalSeverity.LOW: 2,
@@ -596,6 +603,7 @@ def build_company_report(
     financial_snapshots: list[FinancialSnapshot] | None = None,
     market_snapshot: MarketFeatureSnapshot | None = None,
     provenance_ids: tuple[str, ...] = (),
+    acquired_observations: list[ResearchObservation] | None = None,
     company_intelligence_present: bool = False,
     company_intelligence_signal_count: int = 0,
     company_intelligence_positive_count: int = 0,
@@ -604,8 +612,9 @@ def build_company_report(
     """
     Build a deterministic point-in-time company research report.
 
-    Features, supplied signals, financial trends, and company
-    intelligence are assembled without creating new intelligence.
+    Features, supplied signals, financial trends, acquired
+    observations, and company intelligence are assembled without
+    creating new intelligence.
     """
 
     _validate_as_of(as_of)
@@ -690,6 +699,14 @@ def build_company_report(
         )
     )
 
+    synthesis_evidence.extend(
+        research_observations_to_evidence(
+            acquired_observations or [],
+            symbol=symbol,
+            as_of=as_of,
+        )
+    )
+
     evidence_synthesis = synthesize_evidence(
         symbol=symbol,
         as_of=as_of,
@@ -758,6 +775,12 @@ def build_company_report(
                 "Company intelligence is carried into the report "
                 "as descriptive evidence and future-intelligence "
                 "context; it does not constitute a trading signal."
+            ),
+            (
+                "Acquired research observations enter evidence "
+                "synthesis only when their availability timestamp "
+                "is known, timezone-aware, and on or before the "
+                "report as-of timestamp."
             ),
         ),
         company_intelligence=intelligence,
