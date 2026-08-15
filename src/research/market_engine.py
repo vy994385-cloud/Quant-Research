@@ -217,6 +217,7 @@ def _build_symbol_report(
     benchmark_symbol: str,
     start_date: date,
     end_date: date,
+    financial_start_date: date | None = None,
     financial_provider=None,
     management_provider: ManagementDataProvider | None = None,
     ownership_provider: OwnershipDataProvider | None = None,
@@ -246,7 +247,11 @@ def _build_symbol_report(
                 financial_snapshots = (
                     financial_provider.get_annual_financials(
                         symbol=symbol,
-                        start_date=start_date,
+                        start_date=(
+                            financial_start_date
+                            if financial_start_date is not None
+                            else start_date
+                        ),
                         end_date=end_date,
                     )
                 )
@@ -254,8 +259,8 @@ def _build_symbol_report(
                 financial_snapshots = []
 
         financial_scores, financial_status = _financial_scores(
-    financial_snapshots
-)
+            financial_snapshots
+        )
 
         management_changes = []
 
@@ -367,6 +372,7 @@ def run_market_research(
     benchmark_symbol: str,
     start_date: date,
     end_date: date,
+    financial_start_date: date | None = None,
     financial_provider=None,
     management_provider: ManagementDataProvider | None = None,
     ownership_provider: OwnershipDataProvider | None = None,
@@ -393,6 +399,14 @@ def run_market_research(
             "start_date must not be after end_date"
         )
 
+    if (
+        financial_start_date is not None
+        and financial_start_date > end_date
+    ):
+        raise ValueError(
+            "financial_start_date must not be after end_date"
+        )
+
     if max_workers < 1:
         raise ValueError(
             "max_workers must be at least 1"
@@ -407,6 +421,7 @@ def run_market_research(
             benchmark_symbol=benchmark_symbol,
             start_date=start_date,
             end_date=end_date,
+            financial_start_date=financial_start_date,
             financial_provider=financial_provider,
             management_provider=management_provider,
             ownership_provider=ownership_provider,

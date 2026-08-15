@@ -16,6 +16,9 @@ from src.research.report.models import (
     ResearchEvidence,
     ResearchReport,
 )
+from src.research.intelligence import build_research_intelligence
+from src.data.company.financials import FinancialSnapshot
+from src.features.market_snapshot import MarketFeatureSnapshot
 from src.research.signals.models import (
     ResearchSignal,
     SignalDirection,
@@ -590,6 +593,9 @@ def build_company_report(
     signals: list[ResearchSignal] | None = None,
     trend_summaries: list[FinancialTrendSummary] | None = None,
     company_snapshot: CompanyResearchSnapshot | None = None,
+    financial_snapshots: list[FinancialSnapshot] | None = None,
+    market_snapshot: MarketFeatureSnapshot | None = None,
+    provenance_ids: tuple[str, ...] = (),
     company_intelligence_present: bool = False,
     company_intelligence_signal_count: int = 0,
     company_intelligence_positive_count: int = 0,
@@ -694,6 +700,17 @@ def build_company_report(
         evidence_synthesis
     )
 
+    research_intelligence = build_research_intelligence(
+        symbol=symbol,
+        as_of=as_of,
+        features=usable,
+        trend_summaries=trend_summaries or [],
+        company_snapshot=company_snapshot,
+        financial_snapshots=financial_snapshots or [],
+        market_snapshot=market_snapshot,
+        provenance_ids=provenance_ids,
+    )
+
     return ResearchReport(
         symbol=symbol,
         as_of=as_of,
@@ -725,6 +742,7 @@ def build_company_report(
         negative_evidence=tuple(signal_negative),
         evidence_synthesis=evidence_synthesis,
         evidence_narrative=evidence_narrative,
+        research_intelligence=research_intelligence,
         data_quality_notes=(
             (
                 "Only VALID features whose observation and "

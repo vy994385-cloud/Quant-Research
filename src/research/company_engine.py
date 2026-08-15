@@ -15,6 +15,8 @@ from src.research.features.financial_trends import (
 from src.research.features.models import FeatureValue
 from src.research.report.builder import build_company_report
 from src.research.report.models import ResearchReport
+from src.data.company.financials import FinancialSnapshot
+from src.features.market_snapshot import MarketFeatureSnapshot
 from src.research.signals.models import ResearchSignal
 
 
@@ -35,6 +37,9 @@ class CompanyResearchInput:
     trend_summaries: tuple[FinancialTrendSummary, ...] = ()
 
     company_snapshot: CompanyResearchSnapshot | None = None
+    financial_snapshots: tuple[FinancialSnapshot, ...] = ()
+    market_snapshot: MarketFeatureSnapshot | None = None
+    provenance_ids: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         symbol = self.symbol.strip().upper()
@@ -110,7 +115,12 @@ class CompanyResearchEngine:
     trend_summaries=list(
         research_input.trend_summaries
     ),
-    company_snapshot=snapshot,
+            company_snapshot=snapshot,
+            financial_snapshots=list(
+                research_input.financial_snapshots
+            ),
+            market_snapshot=research_input.market_snapshot,
+            provenance_ids=research_input.provenance_ids,
 )
 
 def run_company_research(
@@ -121,6 +131,9 @@ def run_company_research(
     signals: list[ResearchSignal] | None = None,
     trend_summaries: list[FinancialTrendSummary] | None = None,
     company_snapshot: CompanyResearchSnapshot | None = None,
+    financial_snapshots: list[FinancialSnapshot] | None = None,
+    market_snapshot: MarketFeatureSnapshot | None = None,
+    provenance_ids: tuple[str, ...] = (),
 ) -> ResearchReport:
     """
     Convenience API for running one company research report.
@@ -142,5 +155,8 @@ def run_company_research(
                 trend_summaries or []
             ),
             company_snapshot=company_snapshot,
+            financial_snapshots=tuple(financial_snapshots or []),
+            market_snapshot=market_snapshot,
+            provenance_ids=provenance_ids,
         )
     )

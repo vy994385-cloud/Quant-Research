@@ -6,6 +6,8 @@ from src.research.features.base import FeatureCalculationContext
 
 def research_context_to_feature_context(
     context: ResearchContext,
+    *,
+    provenance_ids: tuple[str, ...] = (),
 ) -> FeatureCalculationContext:
     """
     Convert a point-in-time ResearchContext into the feature
@@ -43,6 +45,7 @@ def research_context_to_feature_context(
         timestamp=context.timestamp,
         observations=observations,
         source_ids=context.source_ids,
+        provenance_ids=provenance_ids,
     )
 
 

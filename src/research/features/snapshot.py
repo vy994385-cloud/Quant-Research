@@ -109,6 +109,7 @@ class FeatureSnapshotBuilder:
         context: ResearchContext,
         *,
         calculated_at: datetime | None = None,
+        provenance_ids: tuple[str, ...] = (),
     ) -> FeatureSnapshot:
         if not isinstance(
             context,
@@ -120,7 +121,8 @@ class FeatureSnapshotBuilder:
 
         feature_context = (
             research_context_to_feature_context(
-                context
+                context,
+                provenance_ids=provenance_ids,
             )
         )
 

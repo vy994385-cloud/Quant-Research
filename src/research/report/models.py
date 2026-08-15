@@ -66,6 +66,82 @@ class ResearchEvidence(BaseModel):
         return value
 
 
+class IntelligenceSectionStatus(str, Enum):
+    """Evidence state for one company-intelligence section."""
+
+    SUPPORTED = "SUPPORTED"
+    CONTRADICTED = "CONTRADICTED"
+    MIXED = "MIXED"
+    PARTIAL = "PARTIAL"
+    UNKNOWN = "UNKNOWN"
+
+
+class IntelligenceConfidence(str, Enum):
+    HIGH = "HIGH"
+    MEDIUM = "MEDIUM"
+    LOW = "LOW"
+    UNKNOWN = "UNKNOWN"
+
+
+class ResearchObservation(BaseModel):
+    """A dated, traceable descriptive research observation."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    observation_id: str = Field(min_length=1)
+    claim: str = Field(min_length=1)
+    explanation: str = Field(min_length=1)
+    observed_at: datetime
+    available_at: datetime | None = None
+    confidence: Decimal | None = Field(default=None, ge=0, le=1)
+    source_ids: tuple[str, ...] = ()
+    provenance_ids: tuple[str, ...] = ()
+
+    @field_validator("observed_at", "available_at")
+    @classmethod
+    def require_timezone_if_present(
+        cls,
+        value: datetime | None,
+    ) -> datetime | None:
+        if value is not None and value.tzinfo is None:
+            raise ValueError("observation timestamps must be timezone-aware")
+        return value
+
+
+class ResearchIntelligenceSection(BaseModel):
+    """Evidence ledger for one intelligence category."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    status: IntelligenceSectionStatus = IntelligenceSectionStatus.UNKNOWN
+    confidence: IntelligenceConfidence = IntelligenceConfidence.UNKNOWN
+    observations: tuple[ResearchObservation, ...] = ()
+    positive_evidence: tuple[ResearchEvidence, ...] = ()
+    negative_evidence: tuple[ResearchEvidence, ...] = ()
+    unknown: tuple[str, ...] = ()
+    as_of: datetime
+    source_ids: tuple[str, ...] = ()
+    provenance_ids: tuple[str, ...] = ()
+
+
+class ResearchIntelligence(BaseModel):
+    """Structured evidence-first company intelligence."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    business_quality: ResearchIntelligenceSection
+    financial_quality: ResearchIntelligenceSection
+    transformation: ResearchIntelligenceSection
+    capital_allocation: ResearchIntelligenceSection
+    competitive_position: ResearchIntelligenceSection
+    innovation: ResearchIntelligenceSection
+    future_technology: ResearchIntelligenceSection
+    customer_intelligence: ResearchIntelligenceSection
+    management_intelligence: ResearchIntelligenceSection
+    market_intelligence: ResearchIntelligenceSection
+    risks_anomalies: ResearchIntelligenceSection
+    unknown_missing: tuple[str, ...] = ()
+
 class CompanyIntelligenceReport(BaseModel):
     """
     Report-level representation of normalized company intelligence.
@@ -197,6 +273,8 @@ class ResearchReport(BaseModel):
     evidence_synthesis: EvidenceSynthesis | None = None
 
     evidence_narrative: EvidenceNarrative | None = None
+
+    research_intelligence: ResearchIntelligence | None = None
 
     data_quality_notes: tuple[str, ...] = ()
 

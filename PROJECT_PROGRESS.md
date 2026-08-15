@@ -1,294 +1,267 @@
-# QUANT-RESEARCH — PROJECT CHECKPOINT
+# QUANT-RESEARCH — LAUNCH CHECKPOINT
 
 ## Current Status
 
-**Tests:** 546 passed  
-**Current Milestone:** 3A — Market Data Ingestion Hardening  
-**Status:** Implemented and fully tested
+**Test baseline:** 863 passed  
+**Latest commit:** 5f85726 — integrate evidence narrative into research reports  
+**Working tree:** clean at last verified checkpoint  
+**Phase:** Final Beta Launch Sprint
 
-## Environment
+## Product
 
-- OS: macOS
-- Architecture: arm64
-- Python: 3.14.5
-- Virtual environment: `.venv`
-- Repository: `~/quant-research`
-- Git initialized: yes
+Evidence-driven quantitative research and company-intelligence platform for Indian markets.
 
-## Product Goal
+The product is intentionally NOT a simple screener or BUY/SELL generator.
 
-Build a research/quantitative intelligence platform for Indian markets.
+Core pipeline:
 
-The system should eventually:
-
-- track companies and markets
-- analyze technical and fundamental data
-- detect unusual financial behavior
-- analyze management/events/news
-- compare companies with peers
-- rank securities for different horizons
-- explain research conclusions with evidence
-- support rigorous backtesting
-- eventually support paper trading
-- only consider live trading after extensive validation
-
-## Core Principle
-
-The system must NOT blindly generate:
-
-BUY / SELL
-
-Instead:
-
-DATA
+REAL DATA
+→ RAW ARCHIVE
+→ PROVENANCE
 → VALIDATION
-→ ANALYSIS
-→ EVIDENCE
+→ POINT-IN-TIME CONTEXT
+→ FEATURES
 → SIGNALS
-→ CONFIDENCE
-→ RESEARCH
+→ EVIDENCE SYNTHESIS
+→ NARRATIVE
+→ COMPANY RESEARCH REPORT
+→ RANKING
 → BACKTEST
-→ PAPER TRADE
-→ ONLY THEN consider live execution
+→ WALK-FORWARD VALIDATION
+→ PAPER TRADING
+→ ONLY AFTER EXTENSIVE VALIDATION: POSSIBLE EXECUTION
 
-The AI/LLM should explain and synthesize evidence, not invent financial facts.
+## Completed Core Systems
 
-## Completed Milestones
-
-### Milestone 1 — Project Foundation
-- Python project structure
-- virtual environment
-- dependency setup
-- pytest
-- Git repository
-- configuration/data directories
-
-### Milestone 2 — Data Foundation
-- normalized financial models
-- market data provider abstraction
-- CSV market provider
+### Data
+- provider abstractions
+- Yahoo market provider
+- Yahoo financial provider
+- company data models
+- market ingestion
+- provenance
+- validation
+- security/data contracts
 - NSE provider contract/stub
-- security/data validation
-- daily price ingestion scaffold
 
-### Milestone 2A — Company Intelligence
-Implemented models for:
+### Company Intelligence
 - financial snapshots
-- company events
-- evidence
-- management changes
+- events/news structure
+- management
 - ownership
-- related-party transactions
+- related parties
+- evidence references
+- company intelligence snapshots
+- company research assembly
 
-### Milestone 2B — Financial Anomaly Detection
-Implemented:
-- financial anomaly detection
-- materiality/direction handling
-- profit/cash-flow divergence
+### Financial Analysis
+- ratios
+- multi-period trends
+- financial anomalies
+- financial risk scoring
+- financial scoring
+- cash-flow analysis
+- peer benchmarking
 
-### Milestone 2C — Multi-period Financial Trends
-Implemented:
-- revenue trends
-- receivables trends
-- payables trends
-- debt trends
-- cash trends
-- profit/cash-flow trends
-- free-cash-flow trends
+### Research Intelligence
+- point-in-time research context
+- leakage protection
+- feature snapshots
+- feature quality evaluation
+- research feature engine
+- research signals
+- evidence synthesis
+- conflict detection
+- evidence narrative
+- company research reports
 
-### Milestone 2D — Fundamental Ratios
-Implemented:
-- revenue growth
-- net profit margin
-- operating cash-flow margin
-- free-cash-flow margin
-- receivables/revenue
-- payables/revenue
-- debt/revenue
-- cash/debt
-- cash conversion
-
-### Milestone 2E — Peer Benchmarking
-Implemented:
-- median calculation
-- percentile ranking
-- peer comparison
-- standard financial benchmarking
-
-### Milestone 2F — Risk Signal Engine
-Implemented:
-- anomaly signals
-- trend signals
-- peer-context signals
-- severity
+### Ranking
+- horizon-specific ranking
+- Intraday
+- Swing
+- Long-term
+- evidence-aware weighting
+- partial-data handling
+- coverage
 - confidence
-- supporting metrics
+- missing-component reporting
+- sector-fit/future-oriented components
+- deterministic ranking
 
-### Milestone 2G — Company Research Report
-Implemented:
+### Validation / Backtesting
+- backtest engine
+- event context
+- benchmark comparison
+- optimization contracts
+- walk-forward framework
+- ranking validation
+- ranking outcomes
+- validation quality
+- future-intelligence validation
+- validation artifacts
+- stress validation
+
+### API
+- FastAPI application
+- health endpoint
+- research/ranking infrastructure
+- provider integration
+- CORS configuration
+- process-local research cache
+- deterministic demo research dataset
+
+### Frontend
+Current frontend exists but remains the major productization area.
+
+Target launch workflow:
+
+SEARCH COMPANY
+→ COMPANY RESEARCH
+→ EVIDENCE
+→ RISKS
+→ TRENDS
+→ FUTURE READINESS
+→ RANKING
+→ VALIDATION
+
+## Current Verified Test Baseline
+
+863 tests passing.
+
+This number supersedes all older checkpoint counts.
+
+## Final Beta Launch Work
+
+### L1 — API End-to-End
+Verify:
+
+company search
+→ real provider
+→ validation
+→ point-in-time research
+→ evidence
+→ report
+→ ranking
+
+Status: IN PROGRESS
+
+### L2 — Production Data Verification
+Verify real provider behavior, failures, missing fields, provenance and date boundaries.
+
+Status: IN PROGRESS
+
+### L3 — Frontend Research Dashboard
+Build production-quality UI for:
+
+- company search
+- research overview
+- research score
+- evidence coverage
+- confidence
 - strengths
 - risks
 - unknowns
-- anomalies
-- trends
-- peer benchmarks
-- risk signals
-- confidence/coverage
+- financial trends
+- signals
+- evidence narrative
+- future readiness
+- ranking
+- data/provenance information
 
-## Current Test Status
+Status: IN PROGRESS
 
-49 / 49 tests passing.
+### L4 — Ranking Dashboard
+Expose:
 
-## Current Architecture
+- Intraday
+- Swing
+- Long-term
+- score
+- confidence
+- coverage
+- missing components
+- explanation
 
-REAL DATA
-↓
-RAW DATA
-↓
-VALIDATION
-↓
-NORMALIZATION
-↓
-┌─────────────────────────────┐
-│                             │
-MARKET ENGINE          COMPANY ENGINE
-│                             │
-prices                  financials
-volume                  management
-volatility              ownership
-momentum                customers
-technical factors       related parties
-                        events/news
-│                             │
-└──────────────┬──────────────┘
-               ↓
-        RESEARCH INTELLIGENCE
-               ↓
-          RISK SIGNALS
-               ↓
-       COMPANY RESEARCH REPORT
-               ↓
-         QUANT RANKING
-               ↓
-            BACKTEST
-               ↓
-         PAPER TRADING
-               ↓
-        POSSIBLE EXECUTION
+Status: IN PROGRESS
 
-## Current Files / Important Modules
+### L5 — Backtest / Validation UI
+Expose:
 
-src/data/models.py
-src/data/validator.py
-src/data/security.py
+- historical return
+- benchmark comparison
+- drawdown
+- sample size
+- positive-return rate
+- excess return
+- correlation
+- validation quality
+- walk-forward status
 
-src/data/providers/base.py
-src/data/providers/csv_provider.py
-src/data/providers/nse_provider.py
+Status: IN PROGRESS
 
-src/data/ingestion/daily_prices.py
+### L6 — Production Hardening
+Run:
 
-src/data/company/financials.py
-src/data/company/events.py
-src/data/company/evidence.py
-src/data/company/management.py
-src/data/company/ownership.py
-src/data/company/related_parties.py
+- full pytest
+- frontend lint
+- frontend build
+- API health
+- API integration
+- production CORS
+- environment validation
+- failure-path checks
 
-src/analysis/financial_anomalies.py
-src/analysis/financial_ratios.py
-src/analysis/financial_trends.py
-src/analysis/benchmarking.py
-src/analysis/risk_signals.py
-src/analysis/company_report.py
+Status: IN PROGRESS
 
-## NEXT MILESTONE
+### L7 — Beta Deployment
+Deploy backend + frontend only after L1-L6 pass.
 
-### Milestone 3A — Market Data Ingestion Validator
+Status: NOT STARTED
 
-Implement a dedicated ingestion validation layer.
+## Launch Gate
 
-It must handle:
+Beta is considered READY only when:
 
-1. OHLC relationship validation
-2. duplicate trading dates
-3. duplicate symbol/date records
-4. requested date-range enforcement
-5. invalid/missing records
-6. chronological ordering
-7. suspicious price jumps
-8. abnormal volume checks
-9. source/provenance metadata
-10. ACCEPT / REJECT / NEEDS_REVIEW outcomes
+[ ] 863+ backend tests pass
+[ ] frontend builds
+[ ] frontend lint passes
+[ ] API health passes
+[ ] real company lookup works
+[ ] research report is generated
+[ ] evidence narrative is displayed
+[ ] ranking works for all supported horizons
+[ ] missing data is explicitly surfaced
+[ ] provenance/as_of information is exposed
+[ ] backtest/validation results are not presented as guaranteed returns
+[ ] production CORS works
+[ ] deployed frontend reaches deployed API
+[ ] deployed real-company lookup succeeds
 
-Important:
-PriceBar itself remains constructible for diagnostic purposes.
-Cross-field validation belongs in the ingestion/validation layer.
+## Important Constraints
 
-## After Milestone 3A
+- Never invent missing data.
+- Never hide missing evidence.
+- Never claim correlation is causation.
+- Never label an anomaly as fraud without evidence.
+- Never introduce look-ahead bias.
+- Never use future information in point-in-time research.
+- Never present backtests as guaranteed future performance.
+- Preserve provenance.
+- Keep raw and normalized data separate.
+- Keep research deterministic and testable.
+- Keep the architecture modular.
+- Do not enable live trading as part of the beta launch.
 
-### Milestone 3B
-Connect a real/approved Indian-market data source.
+## Current Launch Estimate
 
-Do NOT blindly scrape or bypass provider restrictions.
+Core research engine: ~90% complete  
+Data/provenance/PIT: ~90% complete  
+Ranking/validation: ~90% complete  
+API: ~75–85% complete  
+Frontend: ~20–30% complete  
+End-to-end integration: ~60–70% complete  
+Deployment hardening: ~40% complete
 
-### Milestone 3C
-Store raw and normalized market datasets.
+Overall beta launch readiness: approximately 75–80%.
 
-### Milestone 3D
-First real company lookup:
-company search
-→ real data
-→ validation
-→ analysis
-→ CompanyResearchReport
-
-### Milestone 4
-Technical factor engine.
-
-### Milestone 5
-Fundamental + technical ranking engine.
-
-### Milestone 6
-Historical backtesting framework.
-
-### Milestone 7
-Out-of-sample / walk-forward validation.
-
-### Milestone 8
-Paper trading.
-
-### Milestone 9
-Research web application/dashboard.
-
-### Milestone 10
-Only after extensive validation:
-broker integration / automated execution research.
-
-## Important Development Rules
-
-- Never silently invent missing financial data.
-- Never treat correlation as causation.
-- Never call an anomaly fraud without evidence.
-- Never present backtested performance as guaranteed future performance.
-- Never optimize exclusively on the same data used for evaluation.
-- Avoid look-ahead bias.
-- Avoid survivorship bias.
-- Track data provenance.
-- Keep raw and processed data separate.
-- Keep tests alongside every analytical module.
-- Preserve existing contracts unless deliberately changing them.
-- Run the full pytest suite after every milestone.
-- Prefer small replaceable files.
-- Maintain this checkpoint whenever a milestone is completed.
-
-## LAST ACTION
-
-Fixed PriceBar validation contract.
-
-Result:
-
-49 passed in 0.07s
-
-NEXT ACTION:
-Build the dedicated market-data ingestion validator.
+The remaining work is primarily integration, UI, production verification and deployment — not another major research-engine rewrite.

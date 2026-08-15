@@ -25,7 +25,7 @@ class RankingResponse(BaseModel):
     score: str
     signal: str
     confidence: str
-    priority: int | None = None
+    priority: int | str | None = None
     is_high_priority: bool = False
     components: dict[str, str] = {}
 
@@ -58,4 +58,8 @@ class StockResearchResponse(BaseModel):
     financial_trends: list[dict[str, Any]] = []
     observations: dict[str, Any]
     evidence: list[dict[str, Any]] = []
+    research_report: dict[str, Any] | None = None
+    provenance: dict[str, Any] | None = None
+    data_quality: dict[str, Any] | None = None
+    financial_records: list[dict[str, Any]] = []
     is_trade_signal: bool = False

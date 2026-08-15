@@ -110,6 +110,7 @@ class DailyPriceIngestion:
                 source_id=self._source_id,
                 record_id=self._record_id(bar),
                 retrieved_at=retrieved_at,
+                available_at=retrieved_at,
                 payload=bar.model_dump(mode="json"),
                 dataset_id=dataset_id,
                 dataset_version=dataset_version,

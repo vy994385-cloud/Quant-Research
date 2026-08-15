@@ -24,6 +24,10 @@ from src.data.providers.yahoo_financials import (
 from src.research.market_engine import (
     run_market_research,
 )
+from src.api.real_company_research import (
+    RealCompanyResearchResult,
+    RealCompanyResearchService,
+)
 
 from src.api.schemas import (
     RankingResponse,
@@ -142,6 +146,13 @@ class _ResearchCache:
 
 
 research_cache = _ResearchCache()
+
+real_company_research_service = RealCompanyResearchService(
+    market_provider=market_provider,
+    financial_provider=financial_provider,
+    archive_root="data/raw/research",
+    benchmark_symbol=DEFAULT_BENCHMARK,
+)
 
 # ---------------------------------------------------------------------
 # Health
@@ -678,6 +689,97 @@ def _run_real_stock_research(
     return result.results[0]
 
 
+def _run_real_company_research(
+    symbol: str,
+) -> RealCompanyResearchResult:
+    """Run the validated, archived, point-in-time report path."""
+
+    return real_company_research_service.run(symbol)
+
+
+def _real_company_report_payload(
+    result: RealCompanyResearchResult,
+) -> dict:
+    payload = _report_payload(result.analysis)
+    report = result.report
+
+    payload["research_report"] = report.model_dump(mode="json")
+    payload["financial_records"] = [
+        {
+            key: (
+                value.isoformat()
+                if hasattr(value, "isoformat")
+                else str(value)
+                if value is not None
+                else None
+            )
+            for key, value in snapshot.model_dump().items()
+        }
+        for snapshot in result.financial_snapshots
+    ]
+    payload["provenance"] = {
+        "as_of": result.retrieved_at.isoformat(),
+        "market": {
+            "source": result.market_provenance.source,
+            "dataset_id": result.market_provenance.dataset_id,
+            "record_id": result.market_provenance.record_id,
+            "retrieved_at": result.market_provenance.retrieved_at.isoformat(),
+            "available_at": result.market_provenance.available_at.isoformat(),
+            "archived_records": len(result.market_ingestion.accepted),
+            "market_as_of": result.analysis.as_of_date.isoformat(),
+        },
+        "financials": {
+            "source": result.financial_provenance.source,
+            "dataset_id": result.financial_provenance.dataset_id,
+            "record_id": result.financial_provenance.record_id,
+            "retrieved_at": result.financial_provenance.retrieved_at.isoformat(),
+            "available_at": result.financial_provenance.available_at.isoformat(),
+        },
+    }
+    payload["data_quality"] = {
+        "market_validation_status": result.market_ingestion.status.value,
+        "market_accepted_records": len(result.market_ingestion.accepted),
+        "market_rejected_records": len(result.market_ingestion.rejected),
+        "market_issues": [
+            {
+                "code": issue.code,
+                "status": issue.status.value,
+                "message": issue.message,
+            }
+            for issue in result.market_ingestion.issues
+        ],
+        "financial_record_count": result.financial_record_count,
+        "financial_data_missing": result.financial_record_count == 0,
+        "feature_statuses": {
+            feature.feature_id: feature.status.value
+            for feature in result.feature_snapshot.features
+        },
+        "context": {
+            "accepted_observations": result.context_result.accepted_count,
+            "rejected_observations": result.context_result.rejected_count,
+            "rejected_missing_availability": (
+                result.context_result.rejected_missing_availability
+            ),
+            "rejected_not_known_at": (
+                result.context_result.rejected_not_known_at
+            ),
+        },
+        "provenance_completeness": {
+            "financial_records": bool(result.financial_snapshots),
+            "market_source": bool(result.market_provenance.source),
+            "financial_source": bool(result.financial_provenance.source),
+            "evidence_with_provenance": sum(
+                bool(item.provenance_ids)
+                for item in (
+                    *result.report.positive_evidence,
+                    *result.report.negative_evidence,
+                )
+            ),
+        },
+    }
+    return payload
+
+
 # ---------------------------------------------------------------------
 # Stock search
 # IMPORTANT: this route must appear before /api/stocks/{symbol}
@@ -1065,7 +1167,7 @@ def get_stock_research(symbol: str) -> dict:
         return data
 
     try:
-        report = _run_real_stock_research(
+        result = _run_real_company_research(
             requested
         )
     except (RuntimeError, ValueError) as exc:
@@ -1078,7 +1180,7 @@ def get_stock_research(symbol: str) -> dict:
             },
         ) from exc
 
-    return _report_payload(report)
+    return _real_company_report_payload(result)
 
 # ---------------------------------------------------------------------
 # Stock detail
@@ -1103,7 +1205,7 @@ def get_stock(symbol: str) -> dict:
         return data
 
     try:
-        report = _run_real_stock_research(requested)
+        result = _run_real_company_research(requested)
     except (RuntimeError, ValueError) as exc:
         raise HTTPException(
             status_code=404,
@@ -1114,4 +1216,4 @@ def get_stock(symbol: str) -> dict:
             },
         ) from exc
 
-    return _report_payload(report)
+    return _real_company_report_payload(result)
