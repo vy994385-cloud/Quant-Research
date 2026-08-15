@@ -841,23 +841,21 @@ def list_stocks() -> dict:
                     report.company_intelligence.company_name
                     or report.symbol
                 ),
-                "score": str(
-                    report.research_score.total
-                ),
+                "score": str(report.research_score.total),
                 "signal": report.research_score.signal,
-                "research_ready": (
-                    report.is_research_ready
+                "confidence": str(
+                    report.research_score.confidence
                 ),
+                "research_ready": report.is_research_ready,
             }
         )
 
-        results.sort(
+    results.sort(
         key=lambda item: Decimal(item["score"]),
         reverse=True,
     )
 
     return {
-        "horizon": normalized,
         "count": len(results),
         "results": results,
     }
