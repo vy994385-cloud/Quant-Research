@@ -11,6 +11,7 @@ from src.data.company.related_parties import RelatedPartyTransaction
 
 def test_high_quality_evidence():
     evidence = Evidence(
+        evidence_id="evidence-1",
         source_name="Example Exchange",
         source_type="REGULATORY",
         title="Corporate announcement",
