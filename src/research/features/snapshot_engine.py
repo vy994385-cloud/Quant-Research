@@ -18,15 +18,8 @@ from src.research.features.base import (
 from src.research.features.engine import FeatureEngine
 
 
-class FeatureSnapshotEngine(FeatureEngine):
-    """
-    Backward-compatible alias for the canonical FeatureEngine.
-
-    Kept so existing research modules continue to work while the
-    feature architecture is consolidated.
-    """
-
-    pass
+# Backward-compatible alias for the canonical feature engine.
+FeatureSnapshotEngine = FeatureEngine
 
 
 __all__ = [
