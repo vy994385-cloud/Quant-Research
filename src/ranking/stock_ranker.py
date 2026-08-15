@@ -279,10 +279,24 @@ def _normalise_weights(
             "ranking weights must have a positive total"
         )
 
-    return {
+    normalised = {
         name: weight / total
         for name, weight in weights.items()
     }
+
+    # Decimal division is finite-precision, so the normalized values
+    # can accumulate a tiny rounding error. Force the final component
+    # to absorb that error while preserving the exact total of 1.
+    names = list(normalised)
+
+    if names:
+        remainder = Decimal("1") - sum(
+            normalised.values(),
+            Decimal("0"),
+        )
+        normalised[names[-1]] += remainder
+
+    return normalised
 
 
 def rank_stock(
