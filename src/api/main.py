@@ -25,6 +25,14 @@ from src.research.market_engine import (
     run_market_research,
 )
 
+from src.api.schemas import (
+    RankingResponse,
+    StockRankingsResponse,
+    StockResearchResponse,
+    StockSearchResult,
+    StockUniverseResponse,
+)
+
 import os
 
 app = FastAPI(
@@ -820,7 +828,10 @@ def _get_market_research():
 # Stock universe
 # ---------------------------------------------------------------------
 
-@app.get("/api/stocks")
+@app.get(
+    "/api/stocks",
+    response_model=StockUniverseResponse,
+)
 def list_stocks() -> dict:
     """
     Run the live research pipeline across the configured
@@ -950,18 +961,33 @@ def _demo_ranking(horizon: str) -> dict:
     values = score_map[horizon]
 
     return {
-        "symbol": "DEMO",
-        "company_name": "Demo Industries",
-        "horizon": horizon,
-        **values,
-    }
+    "symbol": "DEMO",
+    "company_name": "Demo Industries",
+    "horizon": horizon,
+    **values,
+    "priority": 1,
+    "is_high_priority": True,
+    "components": {
+        "fundamentals": "82",
+        "financial_trends": "86",
+        "cash_flow": "84",
+        "balance_sheet": "81",
+        "risk": "68",
+        "management": "78",
+        "market_behavior": "80",
+        "evidence_quality": "88",
+    },
+}
 
 
 # ---------------------------------------------------------------------
 # All horizon rankings for one stock
 # ---------------------------------------------------------------------
 
-@app.get("/api/stocks/{symbol}/rankings")
+@app.get(
+    "/api/stocks/{symbol}/rankings",
+    response_model=StockRankingsResponse,
+)
 def get_stock_rankings(symbol: str) -> dict:
     requested = symbol.strip().upper()
 
@@ -1020,7 +1046,10 @@ def get_stock_rankings(symbol: str) -> dict:
 # Stock research summary
 # ---------------------------------------------------------------------
 
-@app.get("/api/stocks/{symbol}/research")
+@app.get(
+    "/api/stocks/{symbol}/research",
+    response_model=StockResearchResponse,
+)
 def get_stock_research(symbol: str) -> dict:
     requested = symbol.strip().upper()
 
@@ -1055,7 +1084,10 @@ def get_stock_research(symbol: str) -> dict:
 # Stock detail
 # ---------------------------------------------------------------------
 
-@app.get("/api/stocks/{symbol}")
+@app.get(
+    "/api/stocks/{symbol}",
+    response_model=StockResearchResponse,
+)
 def get_stock(symbol: str) -> dict:
     requested = symbol.strip().upper()
 
