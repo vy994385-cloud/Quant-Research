@@ -22,6 +22,12 @@ from src.research.company_intel.evidence import (
     detect_evidence_conflicts,
 )
 from src.research.company_intel.change import detect_changes
+from src.research.company_intel.deep_financial import (
+    build_deep_financial_insights,
+)
+from src.research.company_intel.derived import (
+    build_hidden_information,
+)
 from src.research.company_intel.models import (
     CompanyIntelligenceSnapshot,
     CorporateIntelItem,
@@ -42,6 +48,10 @@ from src.research.company_intel.semantics import (
     SemanticCategory,
     VerificationStatus,
     default_intel_category,
+)
+from src.research.company_intel.source_status import (
+    build_source_statuses,
+    stale_source_count,
 )
 from src.research.company_intel.timeline import build_timeline
 
@@ -993,6 +1003,7 @@ def build_company_intelligence_snapshot(
     financial_periods: Sequence[FinancialPeriod] = (),
     previous_snapshot: CompanyIntelligenceSnapshot | None = None,
     provenance_ids: Sequence[str] = (),
+    provider_failures: Sequence[str] = (),
 ) -> CompanyIntelligenceSnapshot:
     """
     Build the deep intelligence snapshot for one company at `as_of`.
@@ -1103,6 +1114,24 @@ def build_company_intelligence_snapshot(
         as_of=as_of,
     )
 
+    deep_financial_insights = build_deep_financial_insights(
+        financial_intelligence,
+        as_of=as_of,
+    )
+
+    source_statuses = build_source_statuses(
+        surviving,
+        symbol=symbol,
+        as_of=as_of,
+    )
+
+    hidden_information = build_hidden_information(
+        surviving,
+        symbol=symbol,
+        as_of=as_of,
+        deep_financial_insights=deep_financial_insights,
+    )
+
     conflicts = detect_evidence_conflicts(
         surviving,
         as_of=as_of,
@@ -1187,6 +1216,8 @@ def build_company_intelligence_snapshot(
         evidence_links=evidence_links,
         deduplicated_count=max(0, candidate_count - len(classified)),
         insufficient_evidence_notes=list(insufficient),
+        provider_failures=provider_failures,
+        stale_source_count=stale_source_count(source_statuses),
     )
 
     return CompanyIntelligenceSnapshot(
@@ -1205,6 +1236,10 @@ def build_company_intelligence_snapshot(
         conflicts=conflicts,
         evidence_links=evidence_links,
         changes=changes,
+        deep_financial_insights=deep_financial_insights,
+        source_statuses=tuple(source_statuses),
+        hidden_information=hidden_information,
+        provider_failures=tuple(sorted(provider_failures)),
         item_count=len(surviving),
         source_ids=tuple(source_ids),
         provenance_ids=tuple(sorted(all_provenance)),

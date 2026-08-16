@@ -25,12 +25,15 @@ import { ApiError, fetchResearch } from "./api/client"
 import type { CompanyResearch } from "./api/types"
 import CompanyHeader from "./components/CompanyHeader"
 import CompanySearch from "./components/CompanySearch"
+import DeepFinancialsPanel from "./components/DeepFinancialsPanel"
 import EvidencePanel from "./components/EvidencePanel"
+import HiddenInfoPanel from "./components/HiddenInfoPanel"
 import IntelligencePanel from "./components/IntelligencePanel"
 import OverviewPanel from "./components/OverviewPanel"
 import RankingsPanel from "./components/RankingsPanel"
 import RisksPanel from "./components/RisksPanel"
 import SignalsPanel from "./components/SignalsPanel"
+import SourceStatusesPanel from "./components/SourceStatusesPanel"
 import SourcesPanel from "./components/SourcesPanel"
 import { DegradedAlerts, ErrorState, LoadingState } from "./components/States"
 import TrendsPanel from "./components/TrendsPanel"
@@ -45,7 +48,10 @@ const navigation = [
   { id: "signals", label: "Signals", icon: Activity },
   { id: "risks", label: "Risks", icon: AlertTriangle },
   { id: "intelligence", label: "Intelligence", icon: Sparkles },
+  { id: "deep-financial", label: "Deep Financials", icon: BarChart3 },
   { id: "timeline", label: "Timeline", icon: Clock },
+  { id: "source-statuses", label: "Source Statuses", icon: Database },
+  { id: "hidden-info", label: "Hidden Info", icon: AlertTriangle },
   { id: "sources", label: "Sources & PIT", icon: Database },
 ]
 
@@ -190,7 +196,10 @@ function App() {
               <SignalsPanel data={research} />
               <RisksPanel data={research} />
               <IntelligencePanel data={research} />
+              <DeepFinancialsPanel insights={research.deep_financial_insights} />
               <TimelinePanel data={research} />
+              <SourceStatusesPanel statuses={research.source_statuses} />
+              <HiddenInfoPanel hidden={research.hidden_information} />
               <SourcesPanel data={research} />
             </>
           )}
@@ -213,6 +222,12 @@ function buildDegradedAlerts(research: CompanyResearch): string[] {
   if (quality.provider_failures.length > 0) {
     alerts.push(
       `${quality.provider_failures.length} research source provider(s) failed and were isolated from this report.`,
+    )
+  }
+
+  if (research.provider_failures.length > 0) {
+    alerts.push(
+      `${research.provider_failures.length} intelligence source provider(s) failed and were isolated from this snapshot.`,
     )
   }
 

@@ -616,6 +616,7 @@ def _build_intelligence_snapshot(
     """
 
     intel_items: list = []
+    provider_failures: list[str] = []
 
     intel_path = (
         fixture_dir / f"{company.strip().upper().lower()}_intel.json"
@@ -632,6 +633,7 @@ def _build_intelligence_snapshot(
         )
 
         intel_items.extend(update.items)
+        provider_failures.extend(update.provider_failures)
 
     observation_items = intel_items_from_observations(
         observations,
@@ -674,6 +676,7 @@ def _build_intelligence_snapshot(
         items=items,
         financial_periods=periods,
         provenance_ids=provenance_ids,
+        provider_failures=provider_failures,
     )
 
 

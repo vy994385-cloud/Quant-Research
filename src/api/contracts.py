@@ -248,6 +248,11 @@ class CompanyResearchContract(BaseModel):
     timeline: ContractTimeline | None = None
     research_status: ContractResearchStatus | None = None
 
+    deep_financial_insights: ContractDeepFinancialInsights | None = None
+    source_statuses: list[ContractSourceStatus] = []
+    hidden_information: ContractHiddenInformation | None = None
+    provider_failures: list[str] = []
+
     rankings: dict[str, ContractRanking] = {}
     research_score: dict[str, object] = {}
 
@@ -470,6 +475,12 @@ class ContractIntelChange(BaseModel):
     description: str = Field(min_length=1)
     previous_checksum: str | None = None
     current_checksum: str | None = None
+    previous_title: str | None = None
+    semantic_category: str | None = None
+    intel_category: str | None = None
+    event_type: str | None = None
+    published_at: str | None = None
+    available_at: str | None = None
     as_of: str
 
 
@@ -494,6 +505,11 @@ class CompanyIntelligenceContract(BaseModel):
     conflicts: list[ContractEvidenceConflict] = []
     changes: list[ContractIntelChange] = []
 
+    deep_financial_insights: ContractDeepFinancialInsights | None = None
+    source_statuses: list[ContractSourceStatus] = []
+    hidden_information: ContractHiddenInformation | None = None
+    provider_failures: list[str] = []
+
     timeline: "ContractTimeline | None" = None
     research_status: "ContractResearchStatus | None" = None
 
@@ -506,6 +522,103 @@ class CompanyIntelligenceContract(BaseModel):
     status_summary: dict[str, int] = {}
 
     insufficient_evidence_notes: list[str] = []
+    notes: list[str] = []
+
+
+class ContractDeepMetricObservation(BaseModel):
+    """One metric observation in a deep financial series."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    observation_id: str = Field(min_length=1)
+    symbol: str = Field(min_length=1)
+    metric: str
+    period_id: str
+    period_end: str
+    period_type: str
+    consolidation: str
+    observation_type: str
+
+    value: str | None = None
+    previous_value: str | None = None
+    delta: str | None = None
+    delta_pct: str | None = None
+    derivation: str | None = None
+
+    published_at: str | None = None
+    available_at: str | None = None
+    provenance_id: str | None = None
+
+
+class ContractDeepFinancialSeries(BaseModel):
+    """One comparable reporting-period series."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    series_id: str = Field(min_length=1)
+    symbol: str = Field(min_length=1)
+    period_type: str
+    consolidation: str
+    period_count: int
+    period_ends: list[str] = []
+    metrics: list[str] = []
+
+
+class ContractDeepFinancialInsights(BaseModel):
+    """Deep financial insights for a company."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    symbol: str = Field(min_length=1)
+    as_of: str
+    series: list[ContractDeepFinancialSeries] = []
+    observations: list[ContractDeepMetricObservation] = []
+    comparability_notes: list[str] = []
+    financial_type_counts: dict[str, int] = {}
+
+
+class ContractSourceStatus(BaseModel):
+    """Status of one research source at as_of."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    source_name: str = Field(min_length=1)
+    source_type: str
+    item_count: int
+    categories: list[str] = []
+    latest_published_at: str | None = None
+    latest_available_at: str | None = None
+    days_since_latest_published: int | None = None
+    stale: bool = False
+    provenance_completeness: bool = False
+    notes: list[str] = []
+
+
+class ContractDerivedObservation(BaseModel):
+    """A derived (less-obvious) observation from recorded evidence."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    observation_id: str = Field(min_length=1)
+    symbol: str = Field(min_length=1)
+    label: str
+    semantic_category: str
+    description: str = Field(min_length=1)
+    derivation: str = Field(min_length=1)
+    source_ids: list[str] = []
+    provenance_ids: list[str] = []
+    related_item_ids: list[str] = []
+    as_of: str
+
+
+class ContractHiddenInformation(BaseModel):
+    """Hidden / less-obvious information for a company."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    symbol: str = Field(min_length=1)
+    as_of: str
+    observations: list[ContractDerivedObservation] = []
     notes: list[str] = []
 
 
@@ -617,6 +730,33 @@ class CompanyTimelineContract(BaseModel):
     timeline: ContractTimeline
 
 
+class CompanyDeepFinancialInsightsContract(BaseModel):
+    """Deep financial insights response for one company."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    company: dict[str, object]
+    deep_financial_insights: ContractDeepFinancialInsights | None = None
+
+
+class CompanySourceStatusesContract(BaseModel):
+    """Source statuses response for one company."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    company: dict[str, object]
+    source_statuses: list[ContractSourceStatus] = []
+
+
+class CompanyHiddenInformationContract(BaseModel):
+    """Hidden / less-obvious information response for one company."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    company: dict[str, object]
+    hidden_information: ContractHiddenInformation | None = None
+
+
 __all__ = [
     "CompanyDiscoveryItem",
     "CompanyDiscoveryResponse",
@@ -624,10 +764,17 @@ __all__ = [
     "CompanyRankingsContract",
     "CompanyResearchContract",
     "CompanyTimelineContract",
+    "CompanyDeepFinancialInsightsContract",
+    "CompanySourceStatusesContract",
+    "CompanyHiddenInformationContract",
     "ContractAssessment",
     "ContractConflictSide",
     "ContractCoverage",
     "ContractDataQuality",
+    "ContractDeepFinancialInsights",
+    "ContractDeepFinancialSeries",
+    "ContractDeepMetricObservation",
+    "ContractDerivedObservation",
     "ContractEvidence",
     "ContractEvidenceConflict",
     "ContractEvidenceSummary",
@@ -635,6 +782,7 @@ __all__ = [
     "ContractFinancialPeriod",
     "ContractFinancialStatement",
     "ContractFreshness",
+    "ContractHiddenInformation",
     "ContractIntelChange",
     "ContractIntelItem",
     "ContractIntelSource",
@@ -649,6 +797,7 @@ __all__ = [
     "ContractResearchStatus",
     "ContractSegment",
     "ContractSignal",
+    "ContractSourceStatus",
     "ContractTimeline",
     "ContractTimelineEntry",
     "UniverseRankingsContract",

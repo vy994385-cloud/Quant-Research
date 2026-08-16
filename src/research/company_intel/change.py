@@ -47,6 +47,7 @@ def _change(
     as_of: datetime,
     description: str,
     previous_checksum: str | None,
+    previous: CorporateIntelItem | None = None,
 ) -> IntelChange:
     return IntelChange(
         change_type=change_type,
@@ -57,6 +58,12 @@ def _change(
         previous_checksum=previous_checksum,
         current_checksum=item.checksum,
         as_of=as_of,
+        semantic_category=item.semantic_category,
+        intel_category=item.intel_category,
+        event_type=item.event_type,
+        previous_title=previous.title if previous is not None else None,
+        published_at=item.published_at,
+        available_at=item.available_at,
     )
 
 
@@ -120,6 +127,7 @@ def detect_changes(
                         f"(was {previous.verification_status.value})."
                     ),
                     previous_checksum=previous.checksum,
+                    previous=previous,
                 )
             )
             continue
@@ -140,6 +148,7 @@ def detect_changes(
                         f"(was {previous.verification_status.value})."
                     ),
                     previous_checksum=previous.checksum,
+                    previous=previous,
                 )
             )
             continue
@@ -155,6 +164,7 @@ def detect_changes(
                         "previous snapshot."
                     ),
                     previous_checksum=previous.checksum,
+                    previous=previous,
                 )
             )
             continue
@@ -169,6 +179,7 @@ def detect_changes(
                     "previous snapshot."
                 ),
                 previous_checksum=previous.checksum,
+                previous=previous,
             )
         )
 

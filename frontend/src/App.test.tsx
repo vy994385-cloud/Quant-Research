@@ -83,6 +83,13 @@ describe("App", () => {
     ).toBeInTheDocument()
     expect(screen.getByText("Freshness")).toBeInTheDocument()
 
+    // Deep financial insights
+    expect(screen.getByText("Deep financial insights")).toBeInTheDocument()
+
+    // Source statuses
+    expect(screen.getByText("Source statuses")).toBeInTheDocument()
+    expect(screen.getAllByText("recorded_intel_sources").length).toBeGreaterThan(0)
+
     // Sources, provenance, and point-in-time
     expect(screen.getByText("Point-in-time context")).toBeInTheDocument()
     expect(screen.getByText("PIT CHECKS PASSED")).toBeInTheDocument()
@@ -148,6 +155,11 @@ describe("App", () => {
     expect(
       screen.getByText(
         "1 research source provider(s) failed and were isolated from this report.",
+      ),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        "1 intelligence source provider(s) failed and were isolated from this snapshot.",
       ),
     ).toBeInTheDocument()
     expect(screen.getByText("PIT CHECKS FAILED")).toBeInTheDocument()

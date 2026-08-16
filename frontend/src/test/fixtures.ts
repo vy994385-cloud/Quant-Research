@@ -504,6 +504,69 @@ export const RESEARCH: CompanyResearch = {
       evidence_quality: "50",
     },
   },
+  deep_financial_insights: {
+    symbol: "TCS",
+    as_of: "2026-08-10T12:00:00+00:00",
+    series: [
+      {
+        series_id: "TCS:ANNUAL:CONSOLIDATED",
+        symbol: "TCS",
+        period_type: "ANNUAL",
+        consolidation: "CONSOLIDATED",
+        period_count: 4,
+        period_ends: [
+          "2023-03-31",
+          "2024-03-31",
+          "2025-03-31",
+          "2026-03-31",
+        ],
+        metrics: ["revenue", "net_profit"],
+      },
+    ],
+    observations: [
+      {
+        observation_id: "TCS:2026-03-31:ANNUAL:CONSOLIDATED:revenue",
+        symbol: "TCS",
+        metric: "revenue",
+        period_id: "TCS:2026-03-31:ANNUAL:CONSOLIDATED",
+        period_end: "2026-03-31",
+        period_type: "ANNUAL",
+        consolidation: "CONSOLIDATED",
+        observation_type: "REPORTED",
+        value: "279331000000",
+        previous_value: "255124000000",
+        delta: "24207000000",
+        delta_pct: "0.09488",
+        derivation: "reported value for TCS:2026-03-31:ANNUAL:CONSOLIDATED compared against TCS:2025-03-31:ANNUAL:CONSOLIDATED",
+        published_at: "2026-07-09T18:30:00+00:00",
+        available_at: "2026-08-10T12:00:00+00:00",
+        provenance_id: "fin-1",
+      },
+    ],
+    comparability_notes: [],
+    financial_type_counts: { REPORTED: 1 },
+  },
+  source_statuses: [
+    {
+      source_name: "recorded_intel_sources",
+      source_type: "COMPANY_DISCLOSURES",
+      item_count: 3,
+      categories: ["MANAGEMENT_STATEMENT", "CORPORATE_ACTION"],
+      latest_published_at: "2026-07-30T12:00:00+00:00",
+      latest_available_at: "2026-08-10T12:00:00+00:00",
+      days_since_latest_published: 11,
+      stale: false,
+      provenance_completeness: true,
+      notes: [],
+    },
+  ],
+  hidden_information: {
+    symbol: "TCS",
+    as_of: "2026-08-10T12:00:00+00:00",
+    observations: [],
+    notes: [],
+  },
+  provider_failures: [],
 }
 
 export const DEGRADED_RESEARCH: CompanyResearch = {
@@ -517,4 +580,5 @@ export const DEGRADED_RESEARCH: CompanyResearch = {
     provider_failures: ["missing-sources-provider"],
     financial_data_missing: true,
   },
+  provider_failures: ["missing-intel-provider"],
 }

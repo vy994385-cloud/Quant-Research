@@ -163,6 +163,20 @@ export type IntelCategory =
   | "MANAGEMENT_STATEMENT"
   | "CORPORATE_ACTION"
   | "REGULATORY_LEGAL"
+  | "EXECUTIVE_CHANGE"
+  | "ORDER_CONTRACT"
+  | "ACQUISITION_DIVESTMENT"
+  | "CAPEX_EXPANSION"
+  | "PRODUCT_BUSINESS_UPDATE"
+  | "SUBSIDIARY_UPDATE"
+  | "SEGMENT_UPDATE"
+  | "OWNERSHIP_DISCLOSURE"
+  | "INSIDER_ACTIVITY"
+  | "CONFERENCE_CALL"
+  | "INVESTOR_PRESENTATION"
+  | "CREDIT_RATING_ACTION"
+  | "LEGAL_PROCEEDING"
+  | "FORECAST_GUIDANCE"
   | "OTHER"
 
 export interface TimelineSource {
@@ -263,6 +277,10 @@ export interface CompanyResearch {
   provenance: Provenance
   timeline: CompanyTimeline | null
   research_status: ResearchStatus | null
+  deep_financial_insights: DeepFinancialInsights | null
+  source_statuses: SourceStatus[]
+  hidden_information: HiddenInformation | null
+  provider_failures: string[]
   rankings: Record<string, Ranking>
   research_score: ResearchScore
 }
@@ -311,4 +329,107 @@ export interface ApiErrorBody {
     message: string
     details: Record<string, unknown>
   }
+}
+
+// ── Deep continuous research layer ──────────────────────────────
+
+export interface DeepMetricObservation {
+  observation_id: string
+  symbol: string
+  metric: string
+  period_id: string
+  period_end: string
+  period_type: string
+  consolidation: string
+  observation_type: string
+  value: string | null
+  previous_value: string | null
+  delta: string | null
+  delta_pct: string | null
+  derivation: string | null
+  published_at: string | null
+  available_at: string | null
+  provenance_id: string | null
+}
+
+export interface DeepFinancialSeries {
+  series_id: string
+  symbol: string
+  period_type: string
+  consolidation: string
+  period_count: number
+  period_ends: string[]
+  metrics: string[]
+}
+
+export interface DeepFinancialInsights {
+  symbol: string
+  as_of: string
+  series: DeepFinancialSeries[]
+  observations: DeepMetricObservation[]
+  comparability_notes: string[]
+  financial_type_counts: Record<string, number>
+}
+
+export interface SourceStatus {
+  source_name: string
+  source_type: string
+  item_count: number
+  categories: string[]
+  latest_published_at: string | null
+  latest_available_at: string | null
+  days_since_latest_published: number | null
+  stale: boolean
+  provenance_completeness: boolean
+  notes: string[]
+}
+
+export interface DerivedObservation {
+  observation_id: string
+  symbol: string
+  label: string
+  semantic_category: string
+  description: string
+  derivation: string
+  source_ids: string[]
+  provenance_ids: string[]
+  related_item_ids: string[]
+  as_of: string
+}
+
+export interface HiddenInformation {
+  symbol: string
+  as_of: string
+  observations: DerivedObservation[]
+  notes: string[]
+}
+
+export interface CompanyDeepFinancialResponse {
+  company: {
+    symbol: string
+    company_name: string | null
+    sector: string | null
+    as_of: string
+  }
+  deep_financial_insights: DeepFinancialInsights | null
+}
+
+export interface CompanySourceStatusesResponse {
+  company: {
+    symbol: string
+    company_name: string | null
+    sector: string | null
+    as_of: string
+  }
+  source_statuses: SourceStatus[]
+}
+
+export interface CompanyHiddenInformationResponse {
+  company: {
+    symbol: string
+    company_name: string | null
+    sector: string | null
+    as_of: string
+  }
+  hidden_information: HiddenInformation | null
 }

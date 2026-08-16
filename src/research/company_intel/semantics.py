@@ -98,17 +98,49 @@ class IntelCategory(str, Enum):
     High-level category of a piece of company intelligence.
 
     Categories describe where the information comes from, not its
-    investment meaning.
+    investment meaning. They let coverage tracking distinguish, for
+    example, a credit-rating action from a legal proceeding even when
+    both are regulatory in nature.
 
-    - FINANCIAL_DISCLOSURE: regulated financial disclosures and
+    - FINANCIAL_DISCLOSURE:      regulated financial disclosures and
       figures derived deterministically from them.
-    - BUSINESS_NEWS:        discrete business events and developments.
-    - MANAGEMENT_STATEMENT: statements made by company management.
-    - CORPORATE_ACTION:     dividends, buybacks, M&A, and
-      shareholder / board actions.
-    - REGULATORY_LEGAL:     regulatory, compliance, legal, and
-      credit-related developments.
-    - OTHER:                anything else that is still evidence-based.
+    - BUSINESS_NEWS:             discrete business events and
+      developments without a more specific category.
+    - MANAGEMENT_STATEMENT:      statements made by company management.
+    - CORPORATE_ACTION:          dividends, buybacks, board meetings,
+      shareholder meetings, and other shareholder / board actions.
+    - REGULATORY_LEGAL:          regulatory and compliance matters and
+      legal proceedings.
+    - EXECUTIVE_CHANGE:          appointments, resignations, and other
+      changes in management or board roles.
+    - ORDER_CONTRACT:            contract wins, losses, renewals, and
+      order-intake developments.
+    - ACQUISITION_DIVESTMENT:    acquisitions, divestments, stake
+      purchases and sales, and corporate restructuring.
+    - CAPEX_EXPANSION:           capital expenditure, capacity
+      expansion, and investment in fixed assets.
+    - PRODUCT_BUSINESS_UPDATE:   product launches, partnerships,
+      services launches, and operational business updates.
+    - SUBSIDIARY_UPDATE:         subsidiary incorporation, winding-up,
+      and subsidiary-level developments.
+    - SEGMENT_UPDATE:            reporting-segment performance and
+      segment-level disclosures.
+    - OWNERSHIP_DISCLOSURE:      shareholding-pattern and ownership
+      disclosures including pledges.
+    - INSIDER_ACTIVITY:          trades and activity by insiders,
+      promoters, and connected persons.
+    - CONFERENCE_CALL:           earnings calls, investor meets, and
+      analyst calls.
+    - INVESTOR_PRESENTATION:     investor presentations, annual
+      reports, and other company-issued research materials.
+    - CREDIT_RATING_ACTION:      credit-rating assignments, changes,
+      and outlook actions by rating agencies.
+    - LEGAL_PROCEEDING:          litigation, regulatory proceedings,
+      orders, and penalties.
+    - FORECAST_GUIDANCE:         management forecasts, guidance, and
+      outlook statements.
+    - OTHER:                     anything else that is still
+      evidence-based.
     """
 
     FINANCIAL_DISCLOSURE = "FINANCIAL_DISCLOSURE"
@@ -116,6 +148,20 @@ class IntelCategory(str, Enum):
     MANAGEMENT_STATEMENT = "MANAGEMENT_STATEMENT"
     CORPORATE_ACTION = "CORPORATE_ACTION"
     REGULATORY_LEGAL = "REGULATORY_LEGAL"
+    EXECUTIVE_CHANGE = "EXECUTIVE_CHANGE"
+    ORDER_CONTRACT = "ORDER_CONTRACT"
+    ACQUISITION_DIVESTMENT = "ACQUISITION_DIVESTMENT"
+    CAPEX_EXPANSION = "CAPEX_EXPANSION"
+    PRODUCT_BUSINESS_UPDATE = "PRODUCT_BUSINESS_UPDATE"
+    SUBSIDIARY_UPDATE = "SUBSIDIARY_UPDATE"
+    SEGMENT_UPDATE = "SEGMENT_UPDATE"
+    OWNERSHIP_DISCLOSURE = "OWNERSHIP_DISCLOSURE"
+    INSIDER_ACTIVITY = "INSIDER_ACTIVITY"
+    CONFERENCE_CALL = "CONFERENCE_CALL"
+    INVESTOR_PRESENTATION = "INVESTOR_PRESENTATION"
+    CREDIT_RATING_ACTION = "CREDIT_RATING_ACTION"
+    LEGAL_PROCEEDING = "LEGAL_PROCEEDING"
+    FORECAST_GUIDANCE = "FORECAST_GUIDANCE"
     OTHER = "OTHER"
 
 
@@ -196,6 +242,22 @@ class FinancialStatementType(str, Enum):
     OTHER = "OTHER"
 
 
+class FinancialObservationType(str, Enum):
+    """
+    How a deep financial observation was produced.
+
+    - REPORTED:    the value is disclosed / reported by the company.
+    - DERIVED:     the value is computed deterministically from
+      reported figures (the derivation records the exact formula).
+    - UNAVAILABLE: the figure was expected for the period but is not
+      present in the recorded evidence.
+    """
+
+    REPORTED = "REPORTED"
+    DERIVED = "DERIVED"
+    UNAVAILABLE = "UNAVAILABLE"
+
+
 _INSUFFICIENT_EVIDENCE = "Insufficient evidence for a firm conclusion."
 
 
@@ -263,21 +325,40 @@ def default_intel_category(
     if event_type == BusinessEventType.EARNINGS:
         return IntelCategory.FINANCIAL_DISCLOSURE
 
-    if event_type in {
-        BusinessEventType.REGULATORY,
-        BusinessEventType.CREDIT_ACTION,
-    }:
+    if event_type == BusinessEventType.REGULATORY:
         return IntelCategory.REGULATORY_LEGAL
+
+    if event_type == BusinessEventType.CREDIT_ACTION:
+        return IntelCategory.CREDIT_RATING_ACTION
+
+    if event_type == BusinessEventType.MERGER_ACQUISITION:
+        return IntelCategory.ACQUISITION_DIVESTMENT
+
+    if event_type == BusinessEventType.MANAGEMENT_CHANGE:
+        return IntelCategory.EXECUTIVE_CHANGE
 
     if event_type in {
         BusinessEventType.DIVIDEND,
         BusinessEventType.BUYBACK,
-        BusinessEventType.MERGER_ACQUISITION,
         BusinessEventType.BOARD_MEETING,
         BusinessEventType.SHAREHOLDER_MEETING,
-        BusinessEventType.MANAGEMENT_CHANGE,
     }:
         return IntelCategory.CORPORATE_ACTION
+
+    if event_type in {
+        BusinessEventType.CONTRACT_WIN,
+        BusinessEventType.CONTRACT_LOSS,
+    }:
+        return IntelCategory.ORDER_CONTRACT
+
+    if event_type in {
+        BusinessEventType.PARTNERSHIP,
+        BusinessEventType.PRODUCT_LAUNCH,
+    }:
+        return IntelCategory.PRODUCT_BUSINESS_UPDATE
+
+    if event_type == BusinessEventType.FORECAST:
+        return IntelCategory.FORECAST_GUIDANCE
 
     if kind in {
         IntelKind.BUSINESS_EVENT,
@@ -295,6 +376,7 @@ __all__ = [
     "ConsolidationScope",
     "EvidenceRelationship",
     "EvidenceStance",
+    "FinancialObservationType",
     "FinancialStatementType",
     "IntelCategory",
     "IntelDirection",

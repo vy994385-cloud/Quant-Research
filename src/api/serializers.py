@@ -7,7 +7,7 @@ the response contract. They never invent scores, evidence, or timing.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from decimal import Decimal
 
 from src.research.synthesis.models import EvidenceDirection
@@ -19,9 +19,12 @@ _HORIZONS = (
 )
 
 
-def _utc_iso(value: datetime | None) -> str | None:
+def _utc_iso(value: datetime | date | None) -> str | None:
     if value is None:
         return None
+
+    if isinstance(value, date) and not isinstance(value, datetime):
+        value = datetime(value.year, value.month, value.day, tzinfo=timezone.utc)
 
     return value.astimezone(timezone.utc).isoformat()
 
@@ -498,6 +501,29 @@ def research_contract(
             if result.intelligence is not None
             else None
         ),
+        "deep_financial_insights": _deep_financial_insights(
+            result.intelligence.deep_financial_insights
+            if result.intelligence is not None
+            else None
+        ),
+        "source_statuses": [
+            _source_status(s)
+            for s in (
+                result.intelligence.source_statuses
+                if result.intelligence is not None
+                else ()
+            )
+        ],
+        "hidden_information": _hidden_information(
+            result.intelligence.hidden_information
+            if result.intelligence is not None
+            else None
+        ),
+        "provider_failures": list(
+            result.intelligence.provider_failures
+            if result.intelligence is not None
+            else ()
+        ),
         "rankings": rankings,
         "research_score": research_score,
     }
@@ -799,6 +825,24 @@ def _intel_change(change) -> dict:
         "description": change.description,
         "previous_checksum": change.previous_checksum,
         "current_checksum": change.current_checksum,
+        "previous_title": change.previous_title,
+        "semantic_category": (
+            change.semantic_category.value
+            if change.semantic_category is not None
+            else None
+        ),
+        "intel_category": (
+            change.intel_category.value
+            if change.intel_category is not None
+            else None
+        ),
+        "event_type": (
+            change.event_type.value
+            if change.event_type is not None
+            else None
+        ),
+        "published_at": _utc_iso(change.published_at),
+        "available_at": _utc_iso(change.available_at),
         "as_of": _utc_iso(change.as_of),
     }
 
@@ -921,6 +965,123 @@ def _intel_research_status(status) -> dict | None:
     }
 
 
+def _deep_metric_observation(obs) -> dict:
+    return {
+        "observation_id": obs.observation_id,
+        "symbol": obs.symbol,
+        "metric": obs.metric,
+        "period_id": obs.period_id,
+        "period_end": _utc_iso(obs.period_end),
+        "period_type": obs.period_type.value,
+        "consolidation": obs.consolidation.value,
+        "observation_type": obs.observation_type.value,
+        "value": _str(obs.value) if obs.value is not None else None,
+        "previous_value": (
+            _str(obs.previous_value)
+            if obs.previous_value is not None
+            else None
+        ),
+        "delta": (
+            _str(obs.delta) if obs.delta is not None else None
+        ),
+        "delta_pct": (
+            _str(obs.delta_pct)
+            if obs.delta_pct is not None
+            else None
+        ),
+        "derivation": obs.derivation,
+        "published_at": _utc_iso(obs.published_at),
+        "available_at": _utc_iso(obs.available_at),
+        "provenance_id": obs.provenance_id,
+    }
+
+
+def _deep_financial_series(series) -> dict:
+    return {
+        "series_id": series.series_id,
+        "symbol": series.symbol,
+        "period_type": series.period_type.value,
+        "consolidation": series.consolidation.value,
+        "period_count": series.period_count,
+        "period_ends": [
+            _utc_iso(p) for p in series.period_ends
+        ],
+        "metrics": list(series.metrics),
+    }
+
+
+def _deep_financial_insights(insights) -> dict | None:
+    if insights is None:
+        return None
+
+    return {
+        "symbol": insights.symbol,
+        "as_of": _utc_iso(insights.as_of),
+        "series": [
+            _deep_financial_series(s) for s in insights.series
+        ],
+        "observations": [
+            _deep_metric_observation(o)
+            for o in insights.observations
+        ],
+        "comparability_notes": list(insights.comparability_notes),
+        "financial_type_counts": dict(
+            insights.financial_type_counts
+        ),
+    }
+
+
+def _source_status(status) -> dict:
+    return {
+        "source_name": status.source_name,
+        "source_type": status.source_type,
+        "item_count": status.item_count,
+        "categories": list(status.categories),
+        "latest_published_at": _utc_iso(
+            status.latest_published_at
+        ),
+        "latest_available_at": _utc_iso(
+            status.latest_available_at
+        ),
+        "days_since_latest_published": (
+            status.days_since_latest_published
+        ),
+        "stale": status.stale,
+        "provenance_completeness": status.provenance_completeness,
+        "notes": list(status.notes),
+    }
+
+
+def _derived_observation(obs) -> dict:
+    return {
+        "observation_id": obs.observation_id,
+        "symbol": obs.symbol,
+        "label": obs.label,
+        "semantic_category": obs.semantic_category.value,
+        "description": obs.description,
+        "derivation": obs.derivation,
+        "source_ids": list(obs.source_ids),
+        "provenance_ids": list(obs.provenance_ids),
+        "related_item_ids": list(obs.related_item_ids),
+        "as_of": _utc_iso(obs.as_of),
+    }
+
+
+def _hidden_information(hidden) -> dict | None:
+    if hidden is None:
+        return None
+
+    return {
+        "symbol": hidden.symbol,
+        "as_of": _utc_iso(hidden.as_of),
+        "observations": [
+            _derived_observation(o)
+            for o in hidden.observations
+        ],
+        "notes": list(hidden.notes),
+    }
+
+
 def intelligence_contract(
     result,
     *,
@@ -977,6 +1138,19 @@ def intelligence_contract(
             _intel_change(change)
             for change in intelligence.changes
         ],
+        "deep_financial_insights": _deep_financial_insights(
+            intelligence.deep_financial_insights
+        ),
+        "source_statuses": [
+            _source_status(s)
+            for s in intelligence.source_statuses
+        ],
+        "hidden_information": _hidden_information(
+            intelligence.hidden_information
+        ),
+        "provider_failures": list(
+            intelligence.provider_failures
+        ),
         "timeline": _intel_timeline(intelligence.timeline),
         "research_status": _intel_research_status(
             intelligence.status
@@ -1021,11 +1195,96 @@ def timeline_contract(
     }
 
 
+def deep_financial_insights_contract(
+    result,
+    *,
+    company_name: str | None,
+) -> dict:
+    """Serialize deep financial insights for a company."""
+
+    intelligence = result.intelligence
+
+    if intelligence is None:
+        raise ValueError(
+            "result does not contain a company intelligence snapshot"
+        )
+
+    return {
+        "company": {
+            "symbol": result.company,
+            "company_name": company_name,
+            "sector": result.sector,
+            "as_of": _utc_iso(result.as_of),
+        },
+        "deep_financial_insights": _deep_financial_insights(
+            intelligence.deep_financial_insights
+        ),
+    }
+
+
+def source_statuses_contract(
+    result,
+    *,
+    company_name: str | None,
+) -> dict:
+    """Serialize source statuses for a company."""
+
+    intelligence = result.intelligence
+
+    if intelligence is None:
+        raise ValueError(
+            "result does not contain a company intelligence snapshot"
+        )
+
+    return {
+        "company": {
+            "symbol": result.company,
+            "company_name": company_name,
+            "sector": result.sector,
+            "as_of": _utc_iso(result.as_of),
+        },
+        "source_statuses": [
+            _source_status(s)
+            for s in intelligence.source_statuses
+        ],
+    }
+
+
+def hidden_information_contract(
+    result,
+    *,
+    company_name: str | None,
+) -> dict:
+    """Serialize hidden / less-obvious information for a company."""
+
+    intelligence = result.intelligence
+
+    if intelligence is None:
+        raise ValueError(
+            "result does not contain a company intelligence snapshot"
+        )
+
+    return {
+        "company": {
+            "symbol": result.company,
+            "company_name": company_name,
+            "sector": result.sector,
+            "as_of": _utc_iso(result.as_of),
+        },
+        "hidden_information": _hidden_information(
+            intelligence.hidden_information
+        ),
+    }
+
+
 __all__ = [
     "company_rankings_contract",
+    "deep_financial_insights_contract",
     "discovery_item",
+    "hidden_information_contract",
     "intelligence_contract",
     "research_contract",
+    "source_statuses_contract",
     "timeline_contract",
     "universe_rankings_contract",
 ]

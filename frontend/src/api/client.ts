@@ -8,8 +8,11 @@
  */
 
 import type {
+  CompanyDeepFinancialResponse,
+  CompanyHiddenInformationResponse,
   CompanyRankings,
   CompanyResearch,
+  CompanySourceStatusesResponse,
   CompanyTimelineResponse,
   DiscoveryResponse,
   UniverseRankings,
@@ -133,5 +136,35 @@ export function fetchUniverseRankings(
   return request<UniverseRankings>(
     `/api/v1/rankings/${encodeURIComponent(horizon)}`,
     { as_of: asOf, symbols },
+  )
+}
+
+export function fetchDeepFinancialInsights(
+  symbol: string,
+  asOf?: string,
+): Promise<CompanyDeepFinancialResponse> {
+  return request<CompanyDeepFinancialResponse>(
+    `/api/v1/companies/${encodeURIComponent(symbol)}/deep-financial-insights`,
+    { as_of: asOf },
+  )
+}
+
+export function fetchSourceStatuses(
+  symbol: string,
+  asOf?: string,
+): Promise<CompanySourceStatusesResponse> {
+  return request<CompanySourceStatusesResponse>(
+    `/api/v1/companies/${encodeURIComponent(symbol)}/source-statuses`,
+    { as_of: asOf },
+  )
+}
+
+export function fetchHiddenInformation(
+  symbol: string,
+  asOf?: string,
+): Promise<CompanyHiddenInformationResponse> {
+  return request<CompanyHiddenInformationResponse>(
+    `/api/v1/companies/${encodeURIComponent(symbol)}/hidden-information`,
+    { as_of: asOf },
   )
 }

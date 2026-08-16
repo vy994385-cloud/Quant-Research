@@ -200,6 +200,8 @@ def build_quality_status(
     evidence_links: list[EvidenceLink],
     deduplicated_count: int,
     insufficient_evidence_notes: list[str],
+    provider_failures: list[str] | tuple[str, ...] = (),
+    stale_source_count: int = 0,
 ) -> QualityStatus:
     """Data-quality status of an intelligence snapshot."""
 
@@ -227,6 +229,17 @@ def build_quality_status(
             "provenance."
         )
 
+    if provider_failures:
+        notes.append(
+            "One or more source providers failed and were isolated "
+            "from this snapshot."
+        )
+
+    if stale_source_count:
+        notes.append(
+            f"{stale_source_count} source(s) are stale at as_of."
+        )
+
     return QualityStatus(
         conflict_count=len(conflicts),
         evidence_link_count=len(evidence_links),
@@ -234,6 +247,8 @@ def build_quality_status(
         source_id_count=source_id_count,
         provenance_id_count=provenance_id_count,
         insufficient_evidence_notes=tuple(insufficient_evidence_notes),
+        provider_failures=tuple(provider_failures),
+        stale_source_count=stale_source_count,
         notes=tuple(notes),
     )
 
@@ -247,6 +262,8 @@ def build_research_status(
     evidence_links: list[EvidenceLink] | None = None,
     deduplicated_count: int = 0,
     insufficient_evidence_notes: list[str] | None = None,
+    provider_failures: list[str] | tuple[str, ...] | None = None,
+    stale_source_count: int = 0,
 ) -> CompanyResearchStatus:
     """Aggregate research status for a company at `as_of`."""
 
@@ -260,6 +277,8 @@ def build_research_status(
         evidence_links=evidence_links or [],
         deduplicated_count=deduplicated_count,
         insufficient_evidence_notes=insufficient_evidence_notes or [],
+        provider_failures=provider_failures or (),
+        stale_source_count=stale_source_count,
     )
 
     return CompanyResearchStatus(

@@ -28,6 +28,7 @@ from src.research.company_intel.semantics import (
     ConsolidationScope,
     EvidenceRelationship,
     EvidenceStance,
+    FinancialObservationType,
     FinancialStatementType,
     IntelCategory,
     IntelDirection,
@@ -277,6 +278,182 @@ class FinancialIntelligence(BaseModel):
         return value
 
 
+class DeepMetricObservation(BaseModel):
+    """
+    One deep financial observation for a reporting period.
+
+    `observation_type` states whether the value was reported by the
+    company, derived deterministically from reported figures (see
+    `derivation` for the exact formula), or unavailable in the
+    recorded evidence. `previous_value`, `delta`, and `delta_pct`
+    compare against the previous comparable period in the same
+    series; quarterly and annual figures are never compared.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    observation_id: str = Field(min_length=1)
+    symbol: str = Field(min_length=1)
+    metric: str = Field(min_length=1)
+    period_id: str = Field(min_length=1)
+    period_end: date
+    period_type: ReportingPeriodType
+    consolidation: ConsolidationScope
+    observation_type: FinancialObservationType
+    value: Decimal | None = None
+    previous_value: Decimal | None = None
+    delta: Decimal | None = None
+    delta_pct: Decimal | None = None
+    derivation: str | None = None
+    notes: tuple[str, ...] = ()
+    published_at: datetime | None = None
+    available_at: datetime | None = None
+    provenance_id: str | None = None
+
+    @field_validator("published_at", "available_at")
+    @classmethod
+    def _require_aware_timestamp(
+        cls,
+        value: datetime | None,
+    ) -> datetime | None:
+        if value is not None and value.tzinfo is None:
+            raise ValueError("timestamp must be timezone-aware")
+        return value
+
+
+class DeepFinancialSeries(BaseModel):
+    """
+    One comparable series of reporting periods.
+
+    Comparability requires the same period type and consolidation
+    scope; quarterly and annual figures must never be compared
+    directly, so each series is analyzed independently.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    series_id: str = Field(min_length=1)
+    symbol: str = Field(min_length=1)
+    period_type: ReportingPeriodType
+    consolidation: ConsolidationScope
+    period_count: int = Field(ge=0)
+    period_ends: tuple[date, ...] = ()
+    metrics: tuple[str, ...] = ()
+
+
+class DeepFinancialInsights(BaseModel):
+    """
+    Deep, deterministic view of a company's reporting history.
+
+    Observations are produced only from reported figures. Derived
+    values carry an explicit `derivation` so every number can be
+    reproduced and audited. Nothing here is a prediction.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    symbol: str = Field(min_length=1)
+    as_of: datetime
+    series: tuple[DeepFinancialSeries, ...] = ()
+    observations: tuple[DeepMetricObservation, ...] = ()
+    comparability_notes: tuple[str, ...] = ()
+    financial_type_counts: dict[str, int] = Field(default_factory=dict)
+
+    @field_validator("as_of")
+    @classmethod
+    def _require_aware_timestamp(cls, value: datetime) -> datetime:
+        if value.tzinfo is None:
+            raise ValueError("as_of must be timezone-aware")
+        return value
+
+
+class SourceStatus(BaseModel):
+    """
+    Status of one source in an intelligence snapshot.
+
+    Describes the *source*, not the company: how much evidence it
+    contributes, how fresh it is, and whether provenance survives.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    source_name: str = Field(min_length=1)
+    source_type: str = Field(min_length=1)
+    item_count: int = Field(ge=0)
+    categories: tuple[str, ...] = ()
+    latest_published_at: datetime | None = None
+    latest_available_at: datetime | None = None
+    days_since_latest_published: int | None = None
+    stale: bool = False
+    provenance_completeness: bool = False
+    notes: tuple[str, ...] = ()
+
+    @field_validator("latest_published_at", "latest_available_at")
+    @classmethod
+    def _require_aware_timestamp(
+        cls,
+        value: datetime | None,
+    ) -> datetime | None:
+        if value is not None and value.tzinfo is None:
+            raise ValueError("timestamp must be timezone-aware")
+        return value
+
+
+class DerivedObservation(BaseModel):
+    """
+    One hidden / less-obvious observation derived from evidence.
+
+    These observations never invent facts: they state what the
+    evidence set deterministically implies (e.g. two claims on the
+    same topic coexist without auto-resolution, or a derived metric
+    diverges from a reported claim). The derivation is explicit.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    observation_id: str = Field(min_length=1)
+    symbol: str = Field(min_length=1)
+    label: str = Field(min_length=1)
+    semantic_category: SemanticCategory
+    description: str = Field(min_length=1)
+    derivation: str = Field(min_length=1)
+    source_ids: tuple[str, ...] = ()
+    provenance_ids: tuple[str, ...] = ()
+    related_item_ids: tuple[str, ...] = ()
+    as_of: datetime
+
+    @field_validator("as_of")
+    @classmethod
+    def _require_aware_timestamp(cls, value: datetime) -> datetime:
+        if value.tzinfo is None:
+            raise ValueError("as_of must be timezone-aware")
+        return value
+
+
+class HiddenInformationInsights(BaseModel):
+    """
+    Aggregate hidden / less-obvious information for a company.
+
+    Every observation is derived deterministically from the recorded
+    evidence; labels come from the semantic vocabulary. No inference
+    is upgraded to a fact and no claim is resolved automatically.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    symbol: str = Field(min_length=1)
+    as_of: datetime
+    observations: tuple[DerivedObservation, ...] = ()
+    notes: tuple[str, ...] = ()
+
+    @field_validator("as_of")
+    @classmethod
+    def _require_aware_timestamp(cls, value: datetime) -> datetime:
+        if value.tzinfo is None:
+            raise ValueError("as_of must be timezone-aware")
+        return value
+
+
 class ConflictSide(BaseModel):
     """One side of an evidence conflict."""
 
@@ -333,7 +510,15 @@ class EvidenceLink(BaseModel):
 
 
 class IntelChange(BaseModel):
-    """One change detected between two intelligence snapshots."""
+    """
+    One change detected between two intelligence snapshots.
+
+    The change record carries the current item's semantic category,
+    category, event type, and timestamps so a "what changed" report
+    can explain *what* the change is about without re-resolving the
+    item. `previous_title` preserves the previous version's title
+    when an item was renamed.
+    """
 
     model_config = ConfigDict(extra="forbid")
 
@@ -346,11 +531,21 @@ class IntelChange(BaseModel):
     current_checksum: str | None = None
     as_of: datetime
 
-    @field_validator("as_of")
+    semantic_category: SemanticCategory | None = None
+    intel_category: IntelCategory | None = None
+    event_type: BusinessEventType | None = None
+    previous_title: str | None = None
+    published_at: datetime | None = None
+    available_at: datetime | None = None
+
+    @field_validator("as_of", "published_at", "available_at")
     @classmethod
-    def _require_aware_timestamp(cls, value: datetime) -> datetime:
-        if value.tzinfo is None:
-            raise ValueError("as_of must be timezone-aware")
+    def _require_aware_timestamp(
+        cls,
+        value: datetime | None,
+    ) -> datetime | None:
+        if value is not None and value.tzinfo is None:
+            raise ValueError("timestamp must be timezone-aware")
         return value
 
 
@@ -562,6 +757,8 @@ class QualityStatus(BaseModel):
     source_id_count: int = Field(ge=0)
     provenance_id_count: int = Field(ge=0)
     insufficient_evidence_notes: tuple[str, ...] = ()
+    provider_failures: tuple[str, ...] = ()
+    stale_source_count: int = Field(ge=0)
     notes: tuple[str, ...] = ()
 
 
@@ -615,6 +812,10 @@ class CompanyIntelligenceSnapshot(BaseModel):
 
     financial_intelligence: FinancialIntelligence | None = None
 
+    deep_financial_insights: DeepFinancialInsights | None = None
+    source_statuses: tuple[SourceStatus, ...] = ()
+    hidden_information: HiddenInformationInsights | None = None
+
     timeline: CompanyTimeline | None = None
     status: CompanyResearchStatus | None = None
 
@@ -633,6 +834,8 @@ class CompanyIntelligenceSnapshot(BaseModel):
 
     insufficient_evidence_notes: tuple[str, ...] = ()
     notes: tuple[str, ...] = ()
+
+    provider_failures: tuple[str, ...] = ()
 
     @field_validator("as_of", "captured_at")
     @classmethod
@@ -677,18 +880,24 @@ __all__ = [
     "ConflictSide",
     "CorporateIntelItem",
     "CoverageStatus",
+    "DeepFinancialInsights",
+    "DeepFinancialSeries",
+    "DeepMetricObservation",
+    "DerivedObservation",
     "EvidenceConflict",
     "EvidenceLink",
     "FinancialIntelligence",
     "FinancialPeriod",
     "FinancialStatement",
     "FreshnessStatus",
+    "HiddenInformationInsights",
     "IntelCandidate",
     "IntelChange",
     "QualityStatus",
     "SegmentResult",
     "SnapshotDiff",
     "SourceRef",
+    "SourceStatus",
     "TimelineEntry",
     "UpdateEngineStatus",
 ]

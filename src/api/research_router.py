@@ -21,6 +21,9 @@ from src.api.contracts import (
     CompanyRankingsContract,
     CompanyResearchContract,
     CompanyTimelineContract,
+    CompanyDeepFinancialInsightsContract,
+    CompanySourceStatusesContract,
+    CompanyHiddenInformationContract,
     UniverseRankingsContract,
 )
 from src.api.errors import (
@@ -33,9 +36,12 @@ from src.api.recorded_research import (
 )
 from src.api.serializers import (
     company_rankings_contract,
+    deep_financial_insights_contract,
     discovery_item,
+    hidden_information_contract,
     intelligence_contract,
     research_contract,
+    source_statuses_contract,
     timeline_contract,
     universe_rankings_contract,
 )
@@ -332,6 +338,87 @@ def create_research_router(
                 symbol: service.company_name(symbol)
                 for symbol in selected
             },
+        )
+
+    @router.get(
+        "/companies/{symbol}/deep-financial-insights",
+        response_model=CompanyDeepFinancialInsightsContract,
+    )
+    def company_deep_financial_insights(
+        symbol: str,
+        as_of: str | None = Query(
+            default=None,
+            description=(
+                "Optional point-in-time timestamp (ISO 8601, "
+                "timezone-aware). Defaults to the recorded as_of."
+            ),
+        ),
+    ) -> dict:
+        normalized = service.validate_company(symbol)
+        captured_at = parse_as_of(as_of)
+
+        result = service.run(
+            normalized,
+            as_of=captured_at,
+        )
+
+        return deep_financial_insights_contract(
+            result,
+            company_name=service.company_name(normalized),
+        )
+
+    @router.get(
+        "/companies/{symbol}/source-statuses",
+        response_model=CompanySourceStatusesContract,
+    )
+    def company_source_statuses(
+        symbol: str,
+        as_of: str | None = Query(
+            default=None,
+            description=(
+                "Optional point-in-time timestamp (ISO 8601, "
+                "timezone-aware). Defaults to the recorded as_of."
+            ),
+        ),
+    ) -> dict:
+        normalized = service.validate_company(symbol)
+        captured_at = parse_as_of(as_of)
+
+        result = service.run(
+            normalized,
+            as_of=captured_at,
+        )
+
+        return source_statuses_contract(
+            result,
+            company_name=service.company_name(normalized),
+        )
+
+    @router.get(
+        "/companies/{symbol}/hidden-information",
+        response_model=CompanyHiddenInformationContract,
+    )
+    def company_hidden_information(
+        symbol: str,
+        as_of: str | None = Query(
+            default=None,
+            description=(
+                "Optional point-in-time timestamp (ISO 8601, "
+                "timezone-aware). Defaults to the recorded as_of."
+            ),
+        ),
+    ) -> dict:
+        normalized = service.validate_company(symbol)
+        captured_at = parse_as_of(as_of)
+
+        result = service.run(
+            normalized,
+            as_of=captured_at,
+        )
+
+        return hidden_information_contract(
+            result,
+            company_name=service.company_name(normalized),
         )
 
     return router

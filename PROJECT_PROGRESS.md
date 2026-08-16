@@ -2,8 +2,8 @@
 
 ## Current Status
 
-**Test baseline:** 1160 backend + 43 frontend
-**Latest commit:** evidence timeline and research status (timeline + status endpoint, dashboard timeline view)
+**Test baseline:** 1202 backend + 43 frontend
+**Latest commit:** build deep continuous company research layer
 **Working tree:** clean
 **Phase:** Final Beta Launch Sprint
 
@@ -148,7 +148,10 @@ long-term) with coverage + missing-evidence badges, cross-company universe
 comparison table (sorted by score, horizon switchable), evidence columns
 (positive / contradicting / neutral with provenance-flagged degraded rows),
 financial trends, signals ledger, risks (negative evidence + data-quality
-warnings + provider failures), business-intelligence sections, sources &
+warnings + provider failures), business-intelligence sections, deep financial
+insights (per-series comparable views, per-metric observations with deltas),
+source statuses (per-source freshness/provenance), hidden/less-obvious
+information (derived observations with evidence traceability), sources &
 point-in-time context (as_of / effective_as_of / market_as_of, PIT check
 status, provenance dataset + archived source ids).
 
@@ -168,12 +171,12 @@ Target launch workflow (remaining):
 
 ## Current Verified Test Baseline
 
-1160 backend tests passing.
+1202 backend tests passing (1160 baseline + 42 new deep continuous API tests).
 
 43 frontend tests passing (format helpers, discovery filtering, API client
 request building + error handling, company search interaction, rankings panel
 incl. universe switching, timeline + research status, full dashboard
-integration).
+integration including deep financials, source statuses, and hidden info panels).
 
 These numbers supersede all older checkpoint counts.
 
@@ -451,6 +454,88 @@ and `npm run build` clean; `git diff --check` clean.
 
 Status: COMPLETE
 
+### L6 — Deep Continuous Company Research & Information Layer
+Build a deep continuous research and information layer that surfaces
+less-obvious patterns, hidden information, source status, and deep financial
+insights. All derived deterministically from recorded evidence; no opinions,
+no BUY/SELL signals, no invented data.
+
+New modules: `src/research/company_intel/deep_financial.py` (deep financial
+insights builder), `src/research/company_intel/source_status.py` (per-source
+status construction), `src/research/company_intel/derived.py` (hidden /
+less-obvious information from recorded evidence).
+
+Semantic extensions: `IntelCategory` expanded from 6 to 20 values
+(FINANCIAL_DISCLOSURE, BUSINESS_NEWS, MANAGEMENT_STATEMENT, CORPORATE_ACTION,
+REGULATORY_LEGAL, EXECUTIVE_CHANGE, ORDER_CONTRACT, ACQUISITION_DIVESTMENT,
+CAPEX_EXPANSION, PRODUCT_BUSINESS_UPDATE, SUBSIDIARY_UPDATE, SEGMENT_UPDATE,
+OWNERSHIP_DISCLOSURE, INSIDER_ACTIVITY, CONFERENCE_CALL, INVESTOR_PRESENTATION,
+CREDIT_RATING_ACTION, LEGAL_PROCEEDING, FORECAST_GUIDANCE, OTHER).
+`FinancialObservationType` (REPORTED / DERIVED / UNAVAILABLE) for
+point-in-time financial metric observations.
+
+Deep financial insights (`build_deep_financial_insights`): groups reporting
+periods by (period_type, consolidation) into comparable series, never mixing
+quarterly with annual or consolidated with standalone; per-metric observations
+labeled REPORTED / DERIVED / UNAVAILABLE with explicit derivation text and
+cross-period deltas (absolute and percentage); derived metrics (operating
+margin, net margin, cash conversion, return on assets, net debt) computed
+deterministically from reported figures; financial type counts and
+comparability notes when multiple series exist.
+
+Source statuses (`build_source_statuses`): per-source item count, categories,
+freshness (stale when > 90 days or no known items), provenance completeness,
+days-since-latest-published; staleness notes surfaced.
+
+Hidden / less-obvious information (`build_hidden_information`):
+- co-occurring claims on the same topic with different semantic categories
+  (e.g., management commentary vs. reported claim), both presented as evidence
+  without auto-resolution;
+- financial disclosure gaps (a metric reported in a prior comparable period
+  but missing in the current period);
+- reporting comparability notes from the deep financial model;
+- every observation is deterministic, labeled by semantic category, and
+  carries an explicit derivation; no claim is resolved automatically.
+
+IntelChange extended with: `previous_title`, `semantic_category`,
+`intel_category`, `event_type`, `published_at`, `available_at`.
+
+Quality status extended with `provider_failures` and `stale_source_count`
+surfaces through the research status contract.
+
+API additions:
+- GET /api/v1/companies/{symbol}/deep-financial-insights?as_of= returns the
+  `CompanyDeepFinancialInsightsContract` (series, observations, comparability
+  notes, financial type counts)
+- GET /api/v1/companies/{symbol}/source-statuses?as_of= returns the
+  `CompanySourceStatusesContract` (per-source status with freshness,
+  provenance, categories)
+- GET /api/v1/companies/{symbol}/hidden-information?as_of= returns the
+  `CompanyHiddenInformationContract` (derived observations with derivations,
+  source/provenance traceability)
+- The research and intelligence contracts now also include
+  `deep_financial_insights`, `source_statuses`, `hidden_information`, and
+  `provider_failures`; IntelChange contract includes the 6 new optional fields
+
+Frontend additions: new `DeepFinancialsPanel` (per-series cards, metric
+observations with delta badges, REPORTED/DERIVED/UNAVAILABLE tags),
+`SourceStatusesPanel` (per-source rows with freshness/provenance tags),
+`HiddenInfoPanel` (derived observations with derivation and evidence
+traceability). `IntelCategory` type union expanded to 20 values.
+Dashboard navigation updated with Deep Financials, Source Statuses, and
+Hidden Info sections.
+
+Tests added (42 backend): `tests/test_deep_continuous_api.py` (endpoint
+contract tests for all 3 new endpoints across all 6 verified companies, PIT
+safety, determinism, earlier-as-of behavior, future-evidence leakage checks,
+unknown company 404, naive-as-of 400, intelligence contract surfaces new
+fields).
+
+Verification: full backend suite 1202 passed; frontend 43 passed,
+`npm run lint` and `npm run build` clean; `git diff --check` clean.
+
+Status: COMPLETE
+
 ### L5 — Ranking Dashboard
 Expose:
 
@@ -503,7 +588,7 @@ Status: NOT STARTED
 
 Beta is considered READY only when:
 
-[ ] 1160+ backend tests pass
+[x] 1160+ backend tests pass
 [x] frontend builds
 [x] frontend lint passes
 [ ] API health passes
@@ -544,14 +629,14 @@ Beta is considered READY only when:
 
 ## Current Launch Estimate
 
-Core research engine: ~90% complete
-Data/provenance/PIT: ~90% complete
+Core research engine: ~95% complete
+Data/provenance/PIT: ~95% complete
 Ranking/validation: ~90% complete
-API: ~90% complete
-Frontend: ~55% complete
-End-to-end integration: ~70% complete
+API: ~95% complete
+Frontend: ~65% complete
+End-to-end integration: ~75% complete
 Deployment hardening: ~40% complete
 
-Overall beta launch readiness: approximately 80–85%.
+Overall beta launch readiness: approximately 85-90%.
 
 The remaining work is primarily integration, UI, production verification and deployment — not another major research-engine rewrite.
