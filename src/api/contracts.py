@@ -293,15 +293,224 @@ class CompanyDiscoveryResponse(BaseModel):
     results: list[CompanyDiscoveryItem]
 
 
+class ContractIntelSource(BaseModel):
+    """Source reference for one company-intelligence item."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    source_name: str = Field(min_length=1)
+    source_type: str = Field(min_length=1)
+    source_url: str | None = None
+    reliability_tier: int = Field(ge=1, le=6)
+    provenance_id: str | None = None
+
+
+class ContractIntelItem(BaseModel):
+    """One company-intelligence item in the API contract."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    item_id: str = Field(min_length=1)
+    symbol: str = Field(min_length=1)
+    kind: str
+    semantic_category: str
+    verification_status: str
+    event_type: str | None = None
+    topic: str | None = None
+    title: str = Field(min_length=1)
+    description: str = ""
+    stance: str
+    direction: str
+
+    published_at: str | None = None
+    available_at: str | None = None
+    effective_at: str | None = None
+
+    source: ContractIntelSource
+    related_entities: list[str] = []
+    relevance: str | None = None
+    confidence: str | None = None
+    provenance_id: str | None = None
+    checksum: str = ""
+
+
+class ContractSegment(BaseModel):
+    """One segment result in a financial statement."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    segment_name: str = Field(min_length=1)
+    revenue: str | None = None
+    profit: str | None = None
+    note: str | None = None
+
+
+class ContractFinancialStatement(BaseModel):
+    """One normalized financial statement in the API contract."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    statement_id: str = Field(min_length=1)
+    symbol: str = Field(min_length=1)
+    statement_type: str
+    period_type: str
+    consolidation: str
+    period_start: str | None = None
+    period_end: str
+    published_at: str | None = None
+    available_at: str | None = None
+    source_name: str | None = None
+    source_type: str | None = None
+    source_url: str | None = None
+    provenance_id: str | None = None
+    currency: str | None = None
+    items: dict[str, str] = {}
+    segments: list[ContractSegment] = []
+    notes: list[str] = []
+
+
+class ContractFinancialPeriod(BaseModel):
+    """One reporting period with normalized metrics."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    period_id: str = Field(min_length=1)
+    symbol: str = Field(min_length=1)
+    period_start: str | None = None
+    period_end: str
+    period_type: str
+    consolidation: str
+    published_at: str | None = None
+    available_at: str | None = None
+    source_name: str | None = None
+    source_type: str | None = None
+    source_url: str | None = None
+    provenance_id: str | None = None
+    currency: str | None = None
+    metrics: dict[str, str] = {}
+    segments: list[ContractSegment] = []
+    statements: list[ContractFinancialStatement] = []
+
+
+class ContractFinancialIntelligence(BaseModel):
+    """Descriptive summary of a company's reporting history."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    symbol: str = Field(min_length=1)
+    as_of: str
+
+    period_count: int = 0
+    quarterly_count: int = 0
+    semiannual_count: int = 0
+    annual_count: int = 0
+    unknown_period_count: int = 0
+    consolidated_count: int = 0
+    standalone_count: int = 0
+    unknown_consolidation_count: int = 0
+    latest_period_end: str | None = None
+    earliest_period_end: str | None = None
+    coverage: dict[str, int] = {}
+    periods: list[ContractFinancialPeriod] = []
+    notes: list[str] = []
+
+
+class ContractConflictSide(BaseModel):
+    """One side of an evidence conflict."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    item_id: str = Field(min_length=1)
+    title: str = Field(min_length=1)
+    semantic_category: str
+    verification_status: str
+    stance: str
+    direction: str
+    source_name: str = Field(min_length=1)
+    excerpt: str = Field(min_length=1)
+
+
+class ContractEvidenceConflict(BaseModel):
+    """One surfaced evidence conflict."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    conflict_id: str = Field(min_length=1)
+    symbol: str = Field(min_length=1)
+    topic: str = Field(min_length=1)
+    description: str = Field(min_length=1)
+    management_involved: bool = False
+    first: ContractConflictSide
+    second: ContractConflictSide
+    as_of: str
+
+
+class ContractIntelChange(BaseModel):
+    """One change detected between two intelligence snapshots."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    change_type: str
+    item_id: str = Field(min_length=1)
+    kind: str
+    title: str = Field(min_length=1)
+    description: str = Field(min_length=1)
+    previous_checksum: str | None = None
+    current_checksum: str | None = None
+    as_of: str
+
+
+class CompanyIntelligenceContract(BaseModel):
+    """Deep company intelligence response contract."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    company: dict[str, object]
+
+    as_of: str
+
+    financial_intelligence: ContractFinancialIntelligence | None = None
+
+    business_events: list[ContractIntelItem] = []
+    management_commentary: list[ContractIntelItem] = []
+    risk_intelligence: list[ContractIntelItem] = []
+    indirect_intelligence: list[ContractIntelItem] = []
+    financial_intelligence_items: list[ContractIntelItem] = []
+    other_intelligence: list[ContractIntelItem] = []
+
+    conflicts: list[ContractEvidenceConflict] = []
+    changes: list[ContractIntelChange] = []
+
+    item_count: int = 0
+    source_ids: list[str] = []
+    provenance_ids: list[str] = []
+
+    coverage: dict[str, int] = {}
+    semantic_summary: dict[str, int] = {}
+    status_summary: dict[str, int] = {}
+
+    insufficient_evidence_notes: list[str] = []
+    notes: list[str] = []
+
+
 __all__ = [
     "CompanyDiscoveryItem",
     "CompanyDiscoveryResponse",
+    "CompanyIntelligenceContract",
     "CompanyRankingsContract",
     "CompanyResearchContract",
     "ContractAssessment",
+    "ContractConflictSide",
     "ContractDataQuality",
     "ContractEvidence",
+    "ContractEvidenceConflict",
     "ContractEvidenceSummary",
+    "ContractFinancialIntelligence",
+    "ContractFinancialPeriod",
+    "ContractFinancialStatement",
+    "ContractIntelChange",
+    "ContractIntelItem",
+    "ContractIntelSource",
     "ContractIntelligence",
     "ContractIntelligenceSection",
     "ContractNarrative",
@@ -309,6 +518,7 @@ __all__ = [
     "ContractProvenance",
     "ContractProvenanceRecord",
     "ContractRanking",
+    "ContractSegment",
     "ContractSignal",
     "UniverseRankingsContract",
 ]

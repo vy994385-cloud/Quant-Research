@@ -741,3 +741,69 @@ def test_all_companies_reject_naive_and_future_sources(tmp_path):
             candidate.available_at <= AS_OF
             for candidate in candidates
         )
+
+
+# ---------------------------------------------------------------------
+# Deep company intelligence
+# ---------------------------------------------------------------------
+
+
+def test_every_company_builds_an_intelligence_snapshot(multi_result):
+    for result in multi_result.results:
+        intelligence = result.intelligence
+
+        assert intelligence is not None
+        assert intelligence.company == result.company
+        assert intelligence.as_of == AS_OF
+        assert intelligence.item_count >= 5
+        assert intelligence.source_ids
+
+        financial = intelligence.financial_intelligence
+        assert financial is not None
+        assert financial.period_count >= 1
+
+        assert all(
+            item.is_known_at(AS_OF)
+            for item in intelligence.items
+        )
+
+
+def test_intelligence_pit_checks_pass_for_every_company(multi_result):
+    for company, checks in multi_result.pit_checks.items():
+        assert checks["intelligence_items_known_at_as_of"] is True
+        assert checks["no_future_intelligence_items"] is True
+        assert checks["financial_periods_known_at_as_of"] is True
+
+
+def test_no_future_intelligence_items(multi_result):
+    for result in multi_result.results:
+        intelligence = result.intelligence
+
+        assert all(
+            item.available_at is not None
+            and item.available_at <= AS_OF
+            for item in intelligence.items
+        )
+
+        periods = (
+            intelligence.financial_intelligence.periods
+            if intelligence.financial_intelligence is not None
+            else ()
+        )
+
+        assert all(
+            period.is_known_at(AS_OF)
+            for period in periods
+        )
+
+
+def test_intelligence_snapshot_contains_no_conclusion(multi_result):
+    for result in multi_result.results:
+        intelligence = result.intelligence
+
+        for item in intelligence.items:
+            assert item.semantic_category.value != "CONCLUSION"
+
+        assert intelligence.coverage
+        assert intelligence.semantic_summary
+        assert intelligence.status_summary

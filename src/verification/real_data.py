@@ -69,6 +69,16 @@ from src.research.acquisition.runner import (
 )
 from src.research.acquisition.validator import SourceValidator
 from src.research.company_engine import run_company_research
+from src.research.company_intel import (
+    CompanyIntelligenceSnapshot,
+    PeriodicUpdateEngine,
+    RecordedIntelSourceProvider,
+    build_company_intelligence_snapshot,
+    derived_metric_items,
+    financial_periods_from_snapshots,
+    financial_periods_to_items,
+    intel_items_from_observations,
+)
 from src.research.provenance import DataProvenance
 from src.research.raw_archive import RawArchive
 from src.research.raw_record import RawRecord
@@ -315,6 +325,8 @@ class RealDataVerificationResult:
 
     analysis: object | None = None
 
+    intelligence: CompanyIntelligenceSnapshot | None = None
+
     def evidence_ids(self) -> list[str]:
         return [
             item.evidence_id
@@ -327,6 +339,38 @@ class RealDataVerificationResult:
             for item in self.evidence_items
             if item.evidence_type == EvidenceType.ACQUIRED
         ]
+
+    def _intelligence_artifact_summary(self) -> dict[str, object]:
+        if self.intelligence is None:
+            return {}
+
+        financial = self.intelligence.financial_intelligence
+
+        return {
+            "item_count": self.intelligence.item_count,
+            "financial_period_count": (
+                financial.period_count
+                if financial is not None
+                else 0
+            ),
+            "conflict_count": len(self.intelligence.conflicts),
+            "evidence_link_count": len(
+                self.intelligence.evidence_links
+            ),
+            "change_count": len(self.intelligence.changes),
+            "coverage": self.intelligence.coverage,
+            "semantic_summary": (
+                self.intelligence.semantic_summary
+            ),
+            "status_summary": self.intelligence.status_summary,
+            "source_ids": list(self.intelligence.source_ids),
+            "provenance_ids": list(
+                self.intelligence.provenance_ids
+            ),
+            "insufficient_evidence_notes": list(
+                self.intelligence.insufficient_evidence_notes
+            ),
+        }
 
     def to_artifact(self) -> dict[str, object]:
         return {
@@ -347,6 +391,9 @@ class RealDataVerificationResult:
             "acquired_evidence_ids": self.acquired_evidence_ids(),
             "archived_source_ids": list(self.archived_source_ids),
             "pit_checks": self.pit_checks,
+            "intelligence": (
+                self._intelligence_artifact_summary()
+            ),
             "provenance": {
                 "market": {
                     "source": self.market_provenance.source,
@@ -490,6 +537,89 @@ def _build_pit_checks(
     }
 
 
+def _build_intelligence_snapshot(
+    *,
+    company: str,
+    captured_at: datetime,
+    observations: tuple,
+    financial_snapshots: list[FinancialSnapshot],
+    provenance_ids: tuple[str, ...],
+    fixture_dir: Path,
+) -> CompanyIntelligenceSnapshot:
+    """
+    Build the deep company intelligence snapshot for one company.
+
+    Combines:
+    - financial periods derived from the recorded financial snapshots;
+    - intelligence items derived from acquisition observations;
+    - recorded intel feed items replayed from {company}_intel.json
+      (skipped when the fixture is absent).
+
+    Everything is filtered to the point-in-time `captured_at`.
+    """
+
+    intel_items: list = []
+
+    intel_path = (
+        fixture_dir / f"{company.strip().upper().lower()}_intel.json"
+    )
+
+    if intel_path.exists():
+        provider = RecordedIntelSourceProvider.from_json(intel_path)
+
+        update = PeriodicUpdateEngine(
+            providers=[provider],
+        ).run(
+            company,
+            as_of=captured_at,
+        )
+
+        intel_items.extend(update.items)
+
+    observation_items = intel_items_from_observations(
+        observations,
+        as_of=captured_at,
+    )
+
+    periods = financial_periods_from_snapshots(
+        financial_snapshots,
+        as_of=captured_at,
+        default_available_at=captured_at,
+    )
+
+    period_items = financial_periods_to_items(
+        periods,
+        as_of=captured_at,
+        provenance_id=(
+            provenance_ids[1] if len(provenance_ids) > 1 else None
+        ),
+    )
+
+    metric_items = derived_metric_items(
+        periods,
+        as_of=captured_at,
+        provenance_id=(
+            provenance_ids[1] if len(provenance_ids) > 1 else None
+        ),
+    )
+
+    items = [
+        *observation_items,
+        *period_items,
+        *metric_items,
+        *intel_items,
+    ]
+
+    return build_company_intelligence_snapshot(
+        symbol=company,
+        as_of=captured_at,
+        captured_at=captured_at,
+        items=items,
+        financial_periods=periods,
+        provenance_ids=provenance_ids,
+    )
+
+
 def _run_verification_path(
     *,
     company: str,
@@ -585,6 +715,38 @@ def _run_verification_path(
         archived_source_ids=archived_source_ids,
     )
 
+    intelligence = _build_intelligence_snapshot(
+        company=normalized,
+        captured_at=captured_at,
+        observations=acquisition.observations,
+        financial_snapshots=list(
+            base_result.financial_snapshots
+        ),
+        provenance_ids=(
+            base_result.market_provenance.record_id or "",
+            base_result.financial_provenance.record_id or "",
+        ),
+        fixture_dir=fixture_dir,
+    )
+
+    pit_checks["intelligence_items_known_at_as_of"] = all(
+        item.is_known_at(captured_at)
+        for item in intelligence.items
+    )
+    pit_checks["no_future_intelligence_items"] = not any(
+        item.available_at is not None
+        and item.available_at > captured_at
+        for item in intelligence.items
+    )
+    pit_checks["financial_periods_known_at_as_of"] = all(
+        period.is_known_at(captured_at)
+        for period in (
+            intelligence.financial_intelligence.periods
+            if intelligence.financial_intelligence is not None
+            else ()
+        )
+    )
+
     return RealDataVerificationResult(
         company=normalized,
         sector=COMPANY_SECTORS[normalized],
@@ -606,6 +768,7 @@ def _run_verification_path(
         context_result=base_result.context_result,
         feature_snapshot=base_result.feature_snapshot,
         pit_checks=pit_checks,
+        intelligence=intelligence,
     )
 
 

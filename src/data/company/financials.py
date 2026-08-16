@@ -1,7 +1,12 @@
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_validator,
+)
 
 
 class FinancialSnapshot(BaseModel):
@@ -17,6 +22,32 @@ class FinancialSnapshot(BaseModel):
     symbol: str = Field(min_length=1)
 
     period_end: date
+
+    period_start: date | None = None
+
+    # Optional reporting-period metadata. Plain strings keep this
+    # data-layer model decoupled from research-layer enums.
+    period_type: str | None = None
+    consolidation: str | None = None
+
+    # Point-in-time metadata. `published_at` is when the company
+    # reported the numbers; `available_at` is when the platform
+    # could first know about them (defaults to the archival time).
+    published_at: datetime | None = None
+    available_at: datetime | None = None
+
+    source_name: str | None = None
+    source_type: str | None = None
+    source_url: str | None = None
+
+    currency: str | None = None
+
+    @field_validator("published_at", "available_at")
+    @classmethod
+    def _require_aware_timestamp(cls, value: datetime | None) -> datetime | None:
+        if value is not None and value.tzinfo is None:
+            raise ValueError("timestamp must be timezone-aware")
+        return value
 
     revenue: Decimal | None = None
     operating_profit: Decimal | None = None

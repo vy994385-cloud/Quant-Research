@@ -581,9 +581,280 @@ def discovery_item(
     }
 
 
+def _intel_item(item) -> dict:
+    source = item.source
+
+    return {
+        "item_id": item.item_id,
+        "symbol": item.symbol,
+        "kind": item.kind.value,
+        "semantic_category": item.semantic_category.value,
+        "verification_status": item.verification_status.value,
+        "event_type": (
+            item.event_type.value
+            if item.event_type is not None
+            else None
+        ),
+        "topic": item.topic,
+        "title": item.title,
+        "description": item.description,
+        "stance": item.stance.value,
+        "direction": item.direction.value,
+        "published_at": _utc_iso(item.published_at),
+        "available_at": _utc_iso(item.available_at),
+        "effective_at": _utc_iso(item.effective_at),
+        "source": {
+            "source_name": source.source_name,
+            "source_type": source.source_type,
+            "source_url": source.source_url,
+            "reliability_tier": source.reliability_tier,
+            "provenance_id": source.provenance_id,
+        },
+        "related_entities": list(item.related_entities),
+        "relevance": item.relevance,
+        "confidence": (
+            _str(item.confidence)
+            if item.confidence is not None
+            else None
+        ),
+        "provenance_id": item.provenance_id,
+        "checksum": item.checksum,
+    }
+
+
+def _intel_segment(segment) -> dict:
+    return {
+        "segment_name": segment.segment_name,
+        "revenue": (
+            _str(segment.revenue)
+            if segment.revenue is not None
+            else None
+        ),
+        "profit": (
+            _str(segment.profit)
+            if segment.profit is not None
+            else None
+        ),
+        "note": segment.note,
+    }
+
+
+def _intel_statement(statement) -> dict:
+    return {
+        "statement_id": statement.statement_id,
+        "symbol": statement.symbol,
+        "statement_type": statement.statement_type.value,
+        "period_type": statement.period_type.value,
+        "consolidation": statement.consolidation.value,
+        "period_start": (
+            statement.period_start.isoformat()
+            if statement.period_start is not None
+            else None
+        ),
+        "period_end": statement.period_end.isoformat(),
+        "published_at": _utc_iso(statement.published_at),
+        "available_at": _utc_iso(statement.available_at),
+        "source_name": statement.source_name,
+        "source_type": statement.source_type,
+        "source_url": statement.source_url,
+        "provenance_id": statement.provenance_id,
+        "currency": statement.currency,
+        "items": {
+            name: _str(value)
+            for name, value in statement.items.items()
+        },
+        "segments": [
+            _intel_segment(segment)
+            for segment in statement.segments
+        ],
+        "notes": list(statement.notes),
+    }
+
+
+def _intel_period(period) -> dict:
+    return {
+        "period_id": period.period_id,
+        "symbol": period.symbol,
+        "period_start": (
+            period.period_start.isoformat()
+            if period.period_start is not None
+            else None
+        ),
+        "period_end": period.period_end.isoformat(),
+        "period_type": period.period_type.value,
+        "consolidation": period.consolidation.value,
+        "published_at": _utc_iso(period.published_at),
+        "available_at": _utc_iso(period.available_at),
+        "source_name": period.source_name,
+        "source_type": period.source_type,
+        "source_url": period.source_url,
+        "provenance_id": period.provenance_id,
+        "currency": period.currency,
+        "metrics": {
+            name: _str(value)
+            for name, value in period.metrics.items()
+        },
+        "segments": [
+            _intel_segment(segment)
+            for segment in period.segments
+        ],
+        "statements": [
+            _intel_statement(statement)
+            for statement in period.statements
+        ],
+    }
+
+
+def _intel_financial(financial) -> dict | None:
+    if financial is None:
+        return None
+
+    return {
+        "symbol": financial.symbol,
+        "as_of": _utc_iso(financial.as_of),
+        "period_count": financial.period_count,
+        "quarterly_count": financial.quarterly_count,
+        "semiannual_count": financial.semiannual_count,
+        "annual_count": financial.annual_count,
+        "unknown_period_count": financial.unknown_period_count,
+        "consolidated_count": financial.consolidated_count,
+        "standalone_count": financial.standalone_count,
+        "unknown_consolidation_count": (
+            financial.unknown_consolidation_count
+        ),
+        "latest_period_end": (
+            financial.latest_period_end.isoformat()
+            if financial.latest_period_end is not None
+            else None
+        ),
+        "earliest_period_end": (
+            financial.earliest_period_end.isoformat()
+            if financial.earliest_period_end is not None
+            else None
+        ),
+        "coverage": dict(financial.coverage),
+        "periods": [
+            _intel_period(period)
+            for period in financial.periods
+        ],
+        "notes": list(financial.notes),
+    }
+
+
+def _intel_conflict_side(side) -> dict:
+    return {
+        "item_id": side.item_id,
+        "title": side.title,
+        "semantic_category": side.semantic_category.value,
+        "verification_status": side.verification_status.value,
+        "stance": side.stance.value,
+        "direction": side.direction.value,
+        "source_name": side.source_name,
+        "excerpt": side.excerpt,
+    }
+
+
+def _intel_conflict(conflict) -> dict:
+    return {
+        "conflict_id": conflict.conflict_id,
+        "symbol": conflict.symbol,
+        "topic": conflict.topic,
+        "description": conflict.description,
+        "management_involved": conflict.management_involved,
+        "first": _intel_conflict_side(conflict.first),
+        "second": _intel_conflict_side(conflict.second),
+        "as_of": _utc_iso(conflict.as_of),
+    }
+
+
+def _intel_change(change) -> dict:
+    return {
+        "change_type": change.change_type.value,
+        "item_id": change.item_id,
+        "kind": change.kind.value,
+        "title": change.title,
+        "description": change.description,
+        "previous_checksum": change.previous_checksum,
+        "current_checksum": change.current_checksum,
+        "as_of": _utc_iso(change.as_of),
+    }
+
+
+def intelligence_contract(
+    result,
+    *,
+    company_name: str | None,
+) -> dict:
+    """Serialize the deep company intelligence snapshot."""
+    intelligence = result.intelligence
+
+    if intelligence is None:
+        raise ValueError(
+            "result does not contain a company intelligence snapshot"
+        )
+
+    financial = intelligence.financial_intelligence
+
+    return {
+        "company": {
+            "symbol": result.company,
+            "company_name": company_name,
+            "sector": result.sector,
+            "as_of": _utc_iso(result.as_of),
+        },
+        "as_of": _utc_iso(intelligence.as_of),
+        "financial_intelligence": _intel_financial(financial),
+        "business_events": [
+            _intel_item(item)
+            for item in intelligence.business_events
+        ],
+        "management_commentary": [
+            _intel_item(item)
+            for item in intelligence.management_commentary
+        ],
+        "risk_intelligence": [
+            _intel_item(item)
+            for item in intelligence.risk_intelligence
+        ],
+        "indirect_intelligence": [
+            _intel_item(item)
+            for item in intelligence.indirect_intelligence
+        ],
+        "financial_intelligence_items": [
+            _intel_item(item)
+            for item in intelligence.financial_intelligence_items
+        ],
+        "other_intelligence": [
+            _intel_item(item)
+            for item in intelligence.other_intelligence
+        ],
+        "conflicts": [
+            _intel_conflict(conflict)
+            for conflict in intelligence.conflicts
+        ],
+        "changes": [
+            _intel_change(change)
+            for change in intelligence.changes
+        ],
+        "item_count": intelligence.item_count,
+        "source_ids": list(intelligence.source_ids),
+        "provenance_ids": list(intelligence.provenance_ids),
+        "coverage": dict(intelligence.coverage),
+        "semantic_summary": dict(
+            intelligence.semantic_summary
+        ),
+        "status_summary": dict(intelligence.status_summary),
+        "insufficient_evidence_notes": list(
+            intelligence.insufficient_evidence_notes
+        ),
+        "notes": list(intelligence.notes),
+    }
+
+
 __all__ = [
     "company_rankings_contract",
     "discovery_item",
+    "intelligence_contract",
     "research_contract",
     "universe_rankings_contract",
 ]

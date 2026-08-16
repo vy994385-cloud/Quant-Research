@@ -2,9 +2,9 @@
 
 ## Current Status
 
-**Test baseline:** 1004 backend + 39 frontend
+**Test baseline:** 1104 backend + 39 frontend
 **Latest commit:** build frontend research dashboard
-**Working tree:** clean at last verified checkpoint
+**Working tree:** deep company intelligence foundation (pending commit)
 **Phase:** Final Beta Launch Sprint
 
 ## Product
@@ -82,6 +82,11 @@ REAL DATA
   SUNPHARMA, M&M across 5 sectors; recorded market/financials/sources fixtures;
   per-company point-in-time + provenance checks; provider failure isolation with
   graceful degradation under missing/stale/failed/partial/conflicting sources)
+- deep company intelligence foundation (`src/research/company_intel/`): semantic
+  vocabulary, verification statuses, point-in-time financial intelligence,
+  evidence conflicts (surfaced, never auto-resolved), deterministic change
+  detection between snapshots, and a provider-driven periodic update engine
+  (validate → dedupe → archive → extract) with provider failure isolation
 
 ### Ranking
 - horizon-specific ranking
@@ -126,6 +131,10 @@ REAL DATA
   ids surfacing through API serialization
 - data-quality contract: market validation status, accepted/rejected
   records, financial coverage, feature statuses, warnings, provider failures
+- company intelligence contract: GET /api/v1/companies/{symbol}/intelligence?as_of=
+  (semantic categories, verification statuses, financial periods/statements,
+  evidence conflicts with both sides, changes, coverage/summary, source +
+  provenance ids, insufficient-evidence notes; point-in-time pure)
 
 ### Frontend
 The v1 research dashboard (L4) is now the default UI: modular React 19 + Vite +
@@ -159,7 +168,7 @@ Target launch workflow (remaining):
 
 ## Current Verified Test Baseline
 
-1004 backend tests passing.
+1104 backend tests passing.
 
 39 frontend tests passing (format helpers, discovery filtering, API client
 request building + error handling, company search interaction, rankings panel
@@ -306,6 +315,85 @@ YYYY-MM-DD); universe comparison covers the recorded six-company universe.
 
 Status: COMPLETE
 
+### Deep Company Intelligence Foundation (Continuous Intelligence)
+Build the evidence-based intelligence layer on top of the verified research
+path: point-in-time financial intelligence, semantic classification,
+verification statuses, evidence conflicts, change detection, and a
+provider-driven periodic update engine. Deliberately contains no scores, no
+recommendations, and no predictions of future returns.
+
+New module: `src/research/company_intel/` (`semantics.py`, `models.py`,
+`build.py`, `evidence.py`, `change.py`, `sources.py`, `update.py`).
+
+- semantics: SemanticCategory (FACT / DERIVED_METRIC / OBSERVATION /
+  MANAGEMENT_COMMENTARY / REPORTED_CLAIM / ALLEGATION / CONCLUSION),
+  VerificationStatus (CONFIRMED / REPORTED / ALLEGED / UNVERIFIED /
+  CONTRADICTED / RESOLVED), ChangeType (NEW / UPDATED / UNCHANGED / RESOLVED /
+  CONFLICTING), IntelKind, direction, stance, relationship, reporting period
+  type, consolidation scope, financial statement type
+- a claim is never silently upgraded to a fact; management statements are
+  MANAGEMENT_COMMENTARY, unproven allegations are ALLEGATION; the canonical
+  unsupported-conclusion message is "Insufficient evidence for a firm conclusion."
+- point-in-time financial intelligence: `financial_periods_from_snapshots` PIT
+  filters recorded financial snapshots, preserves standalone vs consolidated
+  scope and explicit period types, and infers quarterly/semi-annual/annual from
+  median reporting intervals; Income / Balance / Cash-Flow statements are
+  normalized per period; `build_financial_intelligence` produces a descriptive
+  coverage summary with notes when quarterly+annual or consolidated+standalone
+  periods would otherwise be compared
+- snapshot builder (`build_company_intelligence_snapshot`): point-in-time pure
+  (future items excluded), deduplicated by item id, deterministic semantic
+  classification + checksums, split into business events / management commentary /
+  risk / indirect / financial / other intelligence, evidence conflict + link
+  detection, change detection vs a previous snapshot, coverage/semantic/status
+  summaries, source + provenance ids, insufficient-evidence notes
+- evidence conflicts (`detect_evidence_conflicts`): explicit `conflicts_with`
+  declarations plus supportive-vs-contrary stance pairs on the same topic;
+  same-source pairs are skipped; every conflict is surfaced with both sides and
+  their provenance and is never auto-resolved (notes state this explicitly)
+- conclusion gate (`conclusion_gate`): a CONCLUSION survives only with >=2
+  CONFIRMED items at reliability tier <=2 from >=2 distinct sources, and a
+  conclusion never counts as its own support; otherwise it is excluded with the
+  canonical insufficient-evidence note
+- change detection (`detect_changes`): NEW / UPDATED (checksum diff) /
+  UNCHANGED / RESOLVED / CONFLICTING; items that disappear are ignored because
+  snapshots are cumulative PIT views
+- periodic update engine (`PeriodicUpdateEngine`): providers return
+  `IntelCandidate` objects; the engine validates (company match, aware
+  timestamps, available_at <= as_of), deduplicates by content identity
+  (company/source/URL/normalized title/published ts), archives raw records via
+  RawArchive, extracts items, and isolates provider failures (run marked
+  DEGRADED, remaining providers still processed). `RecordedIntelSourceProvider`
+  replays committed fixtures network-free.
+- recorded intel fixtures for all six verified companies
+  (`fixtures/real_data/*_intel.json`), generated deterministically by
+  `scripts/build_intel_fixtures.py`; each fixture includes a future-dated
+  contamination candidate that is rejected at the recorded as_of
+- integrated into `src/verification/real_data.py`: each company result now
+  carries a `CompanyIntelligenceSnapshot` (intel feed + acquisition observations
+  + financial periods/items with provenance), and three new PIT checks
+  (`intelligence_items_known_at_as_of`, `no_future_intelligence_items`,
+  `financial_periods_known_at_as_of`) are added to the multi-company verification
+- API: `GET /api/v1/companies/{symbol}/intelligence?as_of=` returns the
+  `CompanyIntelligenceContract` (items, financial intelligence, conflicts with
+  both sides, changes, summaries, source + provenance ids); unknown company 404,
+  naive-with-time as_of 400, date-only as_of accepted
+
+Tests added (100): `tests/research/company_intel/` (semantics, financial
+periods/statements, snapshot build/dedup/PIT, conclusions/insufficient evidence,
+conflicts/links, change detection, sources/extractor/dedupe, update engine
+isolation/degraded/archive, observations) + `tests/test_intelligence_api.py`
+(endpoint contract for every verified company, TCS conflict, determinism,
+404/400, earlier-as_of PIT purity, no future items) + intelligence assertions in
+`tests/test_multi_company_verification.py`.
+
+Verification: full backend suite 1104 passed; recorded TCS snapshot yields 29
+items across business/management/risk/indirect/financial/other with 4 annual
+periods and one management-involved evidence conflict on demand_environment; all
+PIT checks pass for every company.
+
+Status: COMPLETE
+
 ### L5 — Ranking Dashboard
 Expose:
 
@@ -358,7 +446,7 @@ Status: NOT STARTED
 
 Beta is considered READY only when:
 
-[ ] 1004+ backend tests pass
+[ ] 1104+ backend tests pass
 [x] frontend builds
 [x] frontend lint passes
 [ ] API health passes
