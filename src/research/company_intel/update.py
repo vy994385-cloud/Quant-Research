@@ -9,6 +9,7 @@ not stop the others, and the run is marked DEGRADED.
 
 from __future__ import annotations
 
+from collections import Counter
 from datetime import datetime
 from typing import Sequence
 
@@ -18,6 +19,7 @@ from src.research.company_intel.models import (
     CorporateIntelItem,
     UpdateEngineStatus,
 )
+from src.research.company_intel.semantics import default_intel_category
 from src.research.company_intel.sources import (
     IntelExtractor,
     IntelSourceProvider,
@@ -47,6 +49,8 @@ class PeriodicUpdateResult(BaseModel):
     rejected_count: int = Field(ge=0)
     deduplicated_count: int = Field(ge=0)
     extracted_count: int = Field(ge=0)
+
+    category_summary: dict[str, int] = Field(default_factory=dict)
 
     items: tuple[CorporateIntelItem, ...] = ()
     rejected_reasons: tuple[str, ...] = ()
@@ -126,6 +130,15 @@ class PeriodicUpdateEngine:
             deduplicate_candidates(accepted)
         )
 
+        category_counts: Counter[str] = Counter()
+
+        for candidate in deduplicated:
+            category = candidate.intel_category or default_intel_category(
+                candidate.kind,
+                candidate.event_type,
+            )
+            category_counts[category.value] += 1
+
         archive_failures: list[str] = []
 
         if self._archive is not None:
@@ -198,6 +211,7 @@ class PeriodicUpdateEngine:
             rejected_count=len(rejected),
             deduplicated_count=deduplicated_count,
             extracted_count=len(ordered_items),
+            category_summary=dict(category_counts),
             items=ordered_items,
             rejected_reasons=tuple(
                 sorted(rejected)

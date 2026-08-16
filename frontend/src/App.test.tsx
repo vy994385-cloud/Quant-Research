@@ -76,6 +76,13 @@ describe("App", () => {
     // Intelligence
     expect(screen.getByText("Business quality")).toBeInTheDocument()
 
+    // Timeline + research status
+    expect(screen.getByText("Company evidence timeline")).toBeInTheDocument()
+    expect(
+      screen.getByText("TCS ANNUAL financials for the period ending 2026-03-31"),
+    ).toBeInTheDocument()
+    expect(screen.getByText("Freshness")).toBeInTheDocument()
+
     // Sources, provenance, and point-in-time
     expect(screen.getByText("Point-in-time context")).toBeInTheDocument()
     expect(screen.getByText("PIT CHECKS PASSED")).toBeInTheDocument()

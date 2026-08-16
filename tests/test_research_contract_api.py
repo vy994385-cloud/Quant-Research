@@ -176,6 +176,47 @@ def test_tcs_research_contract_is_complete(client):
     }
     assert payload["research_score"]["total"]
 
+    assert payload["timeline"]["company"] == "TCS"
+    assert payload["timeline"]["entries"]
+    assert payload["timeline"]["counts"]
+
+    status = payload["research_status"]
+
+    assert status["company"] == "TCS"
+    assert status["freshness"]["stale"] in (True, False)
+    assert status["coverage"]["item_count"] == len(
+        payload["timeline"]["entries"]
+    )
+    assert status["quality"]["conflict_count"] >= 0
+
+
+def test_research_timeline_is_point_in_time_pure(client):
+    response = client.get(
+        "/api/v1/companies/TCS/research"
+        "?as_of=2026-04-01"
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+
+    timeline = payload["timeline"]
+    status = payload["research_status"]
+
+    assert timeline is not None
+    assert status is not None
+
+    assert timeline["as_of"] == "2026-04-01T00:00:00+00:00"
+
+    for entry in timeline["entries"]:
+        available = datetime.fromisoformat(entry["available_at"])
+        assert available <= datetime.fromisoformat(
+            timeline["as_of"]
+        )
+
+    assert status["coverage"]["item_count"] == len(
+        timeline["entries"]
+    )
+
 
 @pytest.mark.parametrize("company", VERIFIED_COMPANIES)
 def test_research_for_every_verified_company(client, company):

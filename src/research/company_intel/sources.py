@@ -193,6 +193,17 @@ class IntelSourceValidator:
                     f"candidate {field_name} must be timezone-aware",
                 )
 
+        if (
+            candidate.published_at is not None
+            and candidate.available_at is not None
+            and candidate.published_at > candidate.available_at
+        ):
+            return (
+                False,
+                "candidate published_at is after available_at; "
+                "publication order is broken",
+            )
+
         return True, ""
 
 
@@ -299,6 +310,7 @@ class IntelExtractor:
             description=candidate.body or candidate.title,
             stance=candidate.stance,
             direction=candidate.direction,
+            intel_category=candidate.intel_category,
             published_at=candidate.published_at,
             available_at=candidate.available_at,
             effective_at=candidate.effective_at,

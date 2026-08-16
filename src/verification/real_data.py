@@ -71,6 +71,7 @@ from src.research.acquisition.validator import SourceValidator
 from src.research.company_engine import run_company_research
 from src.research.company_intel import (
     CompanyIntelligenceSnapshot,
+    CompanyTimeline,
     PeriodicUpdateEngine,
     RecordedIntelSourceProvider,
     build_company_intelligence_snapshot,
@@ -345,6 +346,8 @@ class RealDataVerificationResult:
             return {}
 
         financial = self.intelligence.financial_intelligence
+        timeline = self.intelligence.timeline
+        status = self.intelligence.status
 
         return {
             "item_count": self.intelligence.item_count,
@@ -369,6 +372,45 @@ class RealDataVerificationResult:
             ),
             "insufficient_evidence_notes": list(
                 self.intelligence.insufficient_evidence_notes
+            ),
+            "timeline": (
+                {
+                    "entry_count": len(timeline.entries),
+                    "counts": timeline.counts,
+                    "latest_at": (
+                        timeline.latest_at.isoformat()
+                        if timeline.latest_at is not None
+                        else None
+                    ),
+                    "earliest_at": (
+                        timeline.earliest_at.isoformat()
+                        if timeline.earliest_at is not None
+                        else None
+                    ),
+                }
+                if timeline is not None
+                else None
+            ),
+            "research_status": (
+                {
+                    "stale": status.freshness.stale,
+                    "days_since_latest_published": (
+                        status.freshness.days_since_latest_published
+                    ),
+                    "item_count": status.coverage.item_count,
+                    "missing_categories": list(
+                        status.coverage.missing_categories
+                    ),
+                    "conflict_count": status.quality.conflict_count,
+                    "evidence_link_count": (
+                        status.quality.evidence_link_count
+                    ),
+                    "deduplicated_count": (
+                        status.quality.deduplicated_count
+                    ),
+                }
+                if status is not None
+                else None
             ),
         }
 
@@ -535,6 +577,21 @@ def _build_pit_checks(
             for source_id in item.source_ids
         ),
     }
+
+
+def _timeline_is_chronological(timeline: CompanyTimeline) -> bool:
+    """Entries must be sorted by the same deterministic key used to
+    build the timeline: (timeline_at, entry_id)."""
+    keys = [
+        (
+            entry.timeline_at.isoformat()
+            if entry.timeline_at is not None
+            else "",
+            entry.entry_id,
+        )
+        for entry in timeline.entries
+    ]
+    return keys == sorted(keys)
 
 
 def _build_intelligence_snapshot(
@@ -745,6 +802,30 @@ def _run_verification_path(
             if intelligence.financial_intelligence is not None
             else ()
         )
+    )
+
+    timeline = intelligence.timeline
+
+    pit_checks["timeline_entries_known_at_as_of"] = (
+        all(
+            entry.available_at is not None
+            and entry.available_at <= captured_at
+            for entry in timeline.entries
+        )
+        if timeline is not None
+        else True
+    )
+    pit_checks["no_future_timeline_entries"] = not any(
+        entry.timeline_at is not None
+        and entry.timeline_at > captured_at
+        for entry in (
+            timeline.entries if timeline is not None else ()
+        )
+    )
+    pit_checks["timeline_is_chronological"] = (
+        _timeline_is_chronological(timeline)
+        if timeline is not None
+        else True
     )
 
     return RealDataVerificationResult(

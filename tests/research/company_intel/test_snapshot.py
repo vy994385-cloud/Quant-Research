@@ -228,3 +228,55 @@ def test_snapshot_is_deterministic():
     )
 
     assert first == second
+
+
+def test_snapshot_builds_timeline():
+    items = [
+        make_item(
+            item_id="a",
+            kind=IntelKind.BUSINESS_EVENT,
+            available_at=ts(2026, 7, 1),
+        ),
+        make_item(
+            item_id="b",
+            kind=IntelKind.FINANCIAL_PERIOD,
+            available_at=ts(2026, 6, 1),
+        ),
+    ]
+
+    snapshot = build_company_intelligence_snapshot(
+        symbol="TCS",
+        as_of=AS_OF,
+        items=items,
+    )
+
+    assert snapshot.timeline is not None
+    assert [entry.entry_id for entry in snapshot.timeline.entries] == [
+        "timeline:b",
+        "timeline:a",
+    ]
+    assert snapshot.timeline.counts == {
+        "FINANCIAL_DISCLOSURE": 1,
+        "BUSINESS_NEWS": 1,
+    }
+
+
+def test_snapshot_builds_research_status():
+    items = [
+        make_item(
+            item_id="a",
+            kind=IntelKind.BUSINESS_EVENT,
+            available_at=ts(2026, 7, 1),
+        ),
+    ]
+
+    snapshot = build_company_intelligence_snapshot(
+        symbol="TCS",
+        as_of=AS_OF,
+        items=items,
+    )
+
+    assert snapshot.status is not None
+    assert snapshot.status.coverage.item_count == 1
+    assert snapshot.status.freshness.stale is False
+    assert snapshot.status.quality.conflict_count == 0

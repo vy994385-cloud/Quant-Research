@@ -488,6 +488,16 @@ def research_contract(
         "signals": _signals(result),
         "data_quality": _data_quality(result),
         "provenance": _provenance(result),
+        "timeline": _intel_timeline(
+            result.intelligence.timeline
+            if result.intelligence is not None
+            else None
+        ),
+        "research_status": _intel_research_status(
+            result.intelligence.status
+            if result.intelligence is not None
+            else None
+        ),
         "rankings": rankings,
         "research_score": research_score,
     }
@@ -600,6 +610,12 @@ def _intel_item(item) -> dict:
         "description": item.description,
         "stance": item.stance.value,
         "direction": item.direction.value,
+        "intel_category": (
+            item.intel_category.value
+            if item.intel_category is not None
+            else None
+        ),
+        "derivation": item.derivation,
         "published_at": _utc_iso(item.published_at),
         "available_at": _utc_iso(item.available_at),
         "effective_at": _utc_iso(item.effective_at),
@@ -654,6 +670,7 @@ def _intel_statement(statement) -> dict:
         "period_end": statement.period_end.isoformat(),
         "published_at": _utc_iso(statement.published_at),
         "available_at": _utc_iso(statement.available_at),
+        "effective_at": _utc_iso(statement.effective_at),
         "source_name": statement.source_name,
         "source_type": statement.source_type,
         "source_url": statement.source_url,
@@ -667,6 +684,7 @@ def _intel_statement(statement) -> dict:
             _intel_segment(segment)
             for segment in statement.segments
         ],
+        "subsidiaries": list(statement.subsidiaries),
         "notes": list(statement.notes),
     }
 
@@ -685,6 +703,7 @@ def _intel_period(period) -> dict:
         "consolidation": period.consolidation.value,
         "published_at": _utc_iso(period.published_at),
         "available_at": _utc_iso(period.available_at),
+        "effective_at": _utc_iso(period.effective_at),
         "source_name": period.source_name,
         "source_type": period.source_type,
         "source_url": period.source_url,
@@ -698,6 +717,7 @@ def _intel_period(period) -> dict:
             _intel_segment(segment)
             for segment in period.segments
         ],
+        "subsidiaries": list(period.subsidiaries),
         "statements": [
             _intel_statement(statement)
             for statement in period.statements
@@ -722,6 +742,9 @@ def _intel_financial(financial) -> dict | None:
         "unknown_consolidation_count": (
             financial.unknown_consolidation_count
         ),
+        "statement_count": financial.statement_count,
+        "segment_count": financial.segment_count,
+        "subsidiary_count": financial.subsidiary_count,
         "latest_period_end": (
             financial.latest_period_end.isoformat()
             if financial.latest_period_end is not None
@@ -777,6 +800,124 @@ def _intel_change(change) -> dict:
         "previous_checksum": change.previous_checksum,
         "current_checksum": change.current_checksum,
         "as_of": _utc_iso(change.as_of),
+    }
+
+
+def _intel_timeline_entry(entry) -> dict:
+    source = entry.source
+
+    return {
+        "entry_id": entry.entry_id,
+        "symbol": entry.symbol,
+        "kind": entry.kind.value,
+        "intel_category": entry.intel_category.value,
+        "semantic_category": entry.semantic_category.value,
+        "verification_status": entry.verification_status.value,
+        "event_type": (
+            entry.event_type.value
+            if entry.event_type is not None
+            else None
+        ),
+        "topic": entry.topic,
+        "title": entry.title,
+        "description": entry.description,
+        "stance": entry.stance.value,
+        "direction": entry.direction.value,
+        "published_at": _utc_iso(entry.published_at),
+        "available_at": _utc_iso(entry.available_at),
+        "effective_at": _utc_iso(entry.effective_at),
+        "timeline_at": _utc_iso(entry.timeline_at),
+        "source": {
+            "source_name": source.source_name,
+            "source_type": source.source_type,
+            "source_url": source.source_url,
+            "reliability_tier": source.reliability_tier,
+            "provenance_id": source.provenance_id,
+        },
+        "provenance_id": entry.provenance_id,
+        "checksum": entry.checksum,
+    }
+
+
+def _intel_timeline(timeline) -> dict | None:
+    if timeline is None:
+        return None
+
+    return {
+        "company": timeline.company,
+        "as_of": _utc_iso(timeline.as_of),
+        "entries": [
+            _intel_timeline_entry(entry)
+            for entry in timeline.entries
+        ],
+        "counts": dict(timeline.counts),
+        "latest_at": _utc_iso(timeline.latest_at),
+        "earliest_at": _utc_iso(timeline.earliest_at),
+        "notes": list(timeline.notes),
+    }
+
+
+def _intel_research_status(status) -> dict | None:
+    if status is None:
+        return None
+
+    freshness = status.freshness
+    coverage = status.coverage
+    quality = status.quality
+
+    return {
+        "company": status.company,
+        "as_of": _utc_iso(status.as_of),
+        "freshness": {
+            "latest_published_at": _utc_iso(
+                freshness.latest_published_at
+            ),
+            "latest_available_at": _utc_iso(
+                freshness.latest_available_at
+            ),
+            "latest_effective_at": _utc_iso(
+                freshness.latest_effective_at
+            ),
+            "oldest_published_at": _utc_iso(
+                freshness.oldest_published_at
+            ),
+            "oldest_available_at": _utc_iso(
+                freshness.oldest_available_at
+            ),
+            "oldest_effective_at": _utc_iso(
+                freshness.oldest_effective_at
+            ),
+            "days_since_latest_published": (
+                freshness.days_since_latest_published
+            ),
+            "days_since_latest_available": (
+                freshness.days_since_latest_available
+            ),
+            "stale": freshness.stale,
+            "notes": list(freshness.notes),
+        },
+        "coverage": {
+            "item_count": coverage.item_count,
+            "by_kind": dict(coverage.by_kind),
+            "by_category": dict(coverage.by_category),
+            "by_semantic": dict(coverage.by_semantic),
+            "by_status": dict(coverage.by_status),
+            "missing_categories": list(
+                coverage.missing_categories
+            ),
+            "notes": list(coverage.notes),
+        },
+        "quality": {
+            "conflict_count": quality.conflict_count,
+            "evidence_link_count": quality.evidence_link_count,
+            "deduplicated_count": quality.deduplicated_count,
+            "source_id_count": quality.source_id_count,
+            "provenance_id_count": quality.provenance_id_count,
+            "insufficient_evidence_notes": list(
+                quality.insufficient_evidence_notes
+            ),
+            "notes": list(quality.notes),
+        },
     }
 
 
@@ -836,6 +977,10 @@ def intelligence_contract(
             _intel_change(change)
             for change in intelligence.changes
         ],
+        "timeline": _intel_timeline(intelligence.timeline),
+        "research_status": _intel_research_status(
+            intelligence.status
+        ),
         "item_count": intelligence.item_count,
         "source_ids": list(intelligence.source_ids),
         "provenance_ids": list(intelligence.provenance_ids),
@@ -851,10 +996,36 @@ def intelligence_contract(
     }
 
 
+def timeline_contract(
+    result,
+    *,
+    company_name: str | None,
+) -> dict:
+    """Serialize a company's evidence timeline response."""
+
+    intelligence = result.intelligence
+
+    if intelligence is None or intelligence.timeline is None:
+        raise ValueError(
+            "result does not contain a company timeline"
+        )
+
+    return {
+        "company": {
+            "symbol": result.company,
+            "company_name": company_name,
+            "sector": result.sector,
+            "as_of": _utc_iso(result.as_of),
+        },
+        "timeline": _intel_timeline(intelligence.timeline),
+    }
+
+
 __all__ = [
     "company_rankings_contract",
     "discovery_item",
     "intelligence_contract",
     "research_contract",
+    "timeline_contract",
     "universe_rankings_contract",
 ]

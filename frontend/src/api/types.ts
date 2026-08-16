@@ -157,6 +157,95 @@ export interface ResearchScore {
   components: Record<string, string>
 }
 
+export type IntelCategory =
+  | "FINANCIAL_DISCLOSURE"
+  | "BUSINESS_NEWS"
+  | "MANAGEMENT_STATEMENT"
+  | "CORPORATE_ACTION"
+  | "REGULATORY_LEGAL"
+  | "OTHER"
+
+export interface TimelineSource {
+  source_name: string
+  source_type: string
+  source_url: string | null
+  reliability_tier: number
+  provenance_id: string | null
+}
+
+export interface TimelineEntry {
+  entry_id: string
+  symbol: string
+  kind: string
+  intel_category: IntelCategory
+  semantic_category: string
+  verification_status: string
+  event_type: string | null
+  topic: string | null
+  title: string
+  description: string
+  stance: string
+  direction: string
+  published_at: string | null
+  available_at: string | null
+  effective_at: string | null
+  timeline_at: string | null
+  source: TimelineSource
+  provenance_id: string | null
+  checksum: string
+}
+
+export interface CompanyTimeline {
+  company: string
+  as_of: string
+  entries: TimelineEntry[]
+  counts: Record<string, number>
+  latest_at: string | null
+  earliest_at: string | null
+  notes: string[]
+}
+
+export interface ResearchFreshness {
+  latest_published_at: string | null
+  latest_available_at: string | null
+  latest_effective_at: string | null
+  oldest_published_at: string | null
+  oldest_available_at: string | null
+  oldest_effective_at: string | null
+  days_since_latest_published: number | null
+  days_since_latest_available: number | null
+  stale: boolean
+  notes: string[]
+}
+
+export interface ResearchCoverage {
+  item_count: number
+  by_kind: Record<string, number>
+  by_category: Record<string, number>
+  by_semantic: Record<string, number>
+  by_status: Record<string, number>
+  missing_categories: string[]
+  notes: string[]
+}
+
+export interface ResearchQuality {
+  conflict_count: number
+  evidence_link_count: number
+  deduplicated_count: number
+  source_id_count: number
+  provenance_id_count: number
+  insufficient_evidence_notes: string[]
+  notes: string[]
+}
+
+export interface ResearchStatus {
+  company: string
+  as_of: string
+  freshness: ResearchFreshness
+  coverage: ResearchCoverage
+  quality: ResearchQuality
+}
+
 export interface CompanyResearch {
   company: {
     symbol: string
@@ -172,8 +261,20 @@ export interface CompanyResearch {
   signals: ContractSignal[]
   data_quality: DataQuality
   provenance: Provenance
+  timeline: CompanyTimeline | null
+  research_status: ResearchStatus | null
   rankings: Record<string, Ranking>
   research_score: ResearchScore
+}
+
+export interface CompanyTimelineResponse {
+  company: {
+    symbol: string
+    company_name: string | null
+    sector: string | null
+    as_of: string
+  }
+  timeline: CompanyTimeline
 }
 
 export interface CompanyRankings {

@@ -6,6 +6,7 @@ import pytest
 
 from src.research.company_intel import (
     RecordedIntelSourceProvider,
+    build_company_intelligence_snapshot,
     candidate_to_raw_record,
     deduplicate_candidates,
 )
@@ -15,6 +16,7 @@ from src.research.company_intel.sources import (
     IntelSourceValidator,
 )
 from src.research.company_intel.semantics import (
+    IntelCategory,
     IntelKind,
     SemanticCategory,
     VerificationStatus,
@@ -347,6 +349,93 @@ def test_extractor_rejects_future_candidate():
     )
 
     assert item is None
+
+
+def test_validator_rejects_published_after_available():
+    validator = IntelSourceValidator()
+
+    candidate = make_candidate(candidate_id="a")
+    candidate = candidate.model_copy(
+        update={"published_at": ts(2026, 8, 11)}
+    )
+
+    valid, reason = validator.validate(
+        candidate,
+        company="TCS",
+        as_of=AS_OF,
+    )
+
+    assert valid is False
+    assert "publication order is broken" in reason
+
+
+def test_validator_accepts_published_before_available():
+    validator = IntelSourceValidator()
+
+    candidate = make_candidate(candidate_id="a")
+    candidate = candidate.model_copy(
+        update={
+            "published_at": ts(2026, 7, 1),
+            "available_at": ts(2026, 7, 2),
+        }
+    )
+
+    valid, reason = validator.validate(
+        candidate,
+        company="TCS",
+        as_of=AS_OF,
+    )
+
+    assert valid is True
+
+
+def test_extractor_carries_explicit_intel_category():
+    extractor = IntelExtractor()
+
+    candidate = make_candidate(
+        candidate_id="category",
+        available_at=ts(2026, 7, 1),
+    ).model_copy(
+        update={"intel_category": IntelCategory.REGULATORY_LEGAL}
+    )
+
+    item = extractor.extract(
+        candidate,
+        company="TCS",
+        as_of=AS_OF,
+    )
+
+    assert item is not None
+    assert item.intel_category == IntelCategory.REGULATORY_LEGAL
+
+
+def test_extractor_leaves_category_defaulting_to_snapshot():
+    extractor = IntelExtractor()
+
+    item = extractor.extract(
+        make_candidate(
+            candidate_id="commentary",
+            available_at=ts(2026, 7, 1),
+            kind=IntelKind.MANAGEMENT_COMMENTARY,
+        ),
+        company="TCS",
+        as_of=AS_OF,
+    )
+
+    assert item is not None
+    assert item.intel_category is None
+
+    snapshot = build_company_intelligence_snapshot(
+        symbol="TCS",
+        as_of=AS_OF,
+        items=[item],
+    )
+
+    assert snapshot.timeline is not None
+    assert (
+        snapshot.timeline.entries[0].intel_category
+        == IntelCategory.MANAGEMENT_STATEMENT
+    )
 
 
 def test_extractor_rejects_company_mismatch():

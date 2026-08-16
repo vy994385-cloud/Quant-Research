@@ -246,6 +246,61 @@ def test_engine_deduplicates_between_providers():
     assert result.extracted_count == 1
 
 
+def test_engine_category_summary_uses_default_category():
+    from src.research.company_intel.semantics import (
+        IntelKind,
+    )
+
+    engine = PeriodicUpdateEngine(
+        providers=[
+            _provider(
+                make_candidate(
+                    candidate_id="commentary",
+                    title="Management commentary",
+                    available_at=ts(2026, 7, 1),
+                    kind=IntelKind.MANAGEMENT_COMMENTARY,
+                ),
+                make_candidate(
+                    candidate_id="period",
+                    title="Annual financials",
+                    available_at=ts(2026, 7, 1),
+                    kind=IntelKind.FINANCIAL_PERIOD,
+                ),
+            )
+        ],
+    )
+
+    result = engine.run("TCS", as_of=AS_OF)
+
+    assert result.category_summary == {
+        "MANAGEMENT_STATEMENT": 1,
+        "FINANCIAL_DISCLOSURE": 1,
+    }
+
+
+def test_engine_category_summary_uses_explicit_category():
+    from src.research.company_intel.semantics import (
+        IntelCategory,
+        IntelKind,
+    )
+
+    candidate = make_candidate(
+        candidate_id="period",
+        available_at=ts(2026, 7, 1),
+        kind=IntelKind.FINANCIAL_PERIOD,
+    ).model_copy(
+        update={"intel_category": IntelCategory.CORPORATE_ACTION}
+    )
+
+    engine = PeriodicUpdateEngine(providers=[_provider(candidate)])
+
+    result = engine.run("TCS", as_of=AS_OF)
+
+    assert result.category_summary == {
+        "CORPORATE_ACTION": 1,
+    }
+
+
 def _provider(*candidates: IntelCandidate) -> IntelSourceProvider:
     from src.research.company_intel import (
         RecordedIntelSourceProvider,

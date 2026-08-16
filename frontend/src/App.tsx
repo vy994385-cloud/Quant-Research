@@ -13,6 +13,7 @@ import {
   Activity,
   AlertTriangle,
   BarChart3,
+  Clock,
   Database,
   FileSearch,
   LineChart,
@@ -33,6 +34,7 @@ import SignalsPanel from "./components/SignalsPanel"
 import SourcesPanel from "./components/SourcesPanel"
 import { DegradedAlerts, ErrorState, LoadingState } from "./components/States"
 import TrendsPanel from "./components/TrendsPanel"
+import TimelinePanel from "./components/TimelinePanel"
 import "./App.css"
 
 const navigation = [
@@ -43,6 +45,7 @@ const navigation = [
   { id: "signals", label: "Signals", icon: Activity },
   { id: "risks", label: "Risks", icon: AlertTriangle },
   { id: "intelligence", label: "Intelligence", icon: Sparkles },
+  { id: "timeline", label: "Timeline", icon: Clock },
   { id: "sources", label: "Sources & PIT", icon: Database },
 ]
 
@@ -187,6 +190,7 @@ function App() {
               <SignalsPanel data={research} />
               <RisksPanel data={research} />
               <IntelligencePanel data={research} />
+              <TimelinePanel data={research} />
               <SourcesPanel data={research} />
             </>
           )}

@@ -245,6 +245,9 @@ class CompanyResearchContract(BaseModel):
     data_quality: ContractDataQuality
     provenance: ContractProvenance
 
+    timeline: ContractTimeline | None = None
+    research_status: ContractResearchStatus | None = None
+
     rankings: dict[str, ContractRanking] = {}
     research_score: dict[str, object] = {}
 
@@ -322,6 +325,9 @@ class ContractIntelItem(BaseModel):
     stance: str
     direction: str
 
+    intel_category: str | None = None
+    derivation: str | None = None
+
     published_at: str | None = None
     available_at: str | None = None
     effective_at: str | None = None
@@ -359,6 +365,7 @@ class ContractFinancialStatement(BaseModel):
     period_end: str
     published_at: str | None = None
     available_at: str | None = None
+    effective_at: str | None = None
     source_name: str | None = None
     source_type: str | None = None
     source_url: str | None = None
@@ -366,6 +373,7 @@ class ContractFinancialStatement(BaseModel):
     currency: str | None = None
     items: dict[str, str] = {}
     segments: list[ContractSegment] = []
+    subsidiaries: list[str] = []
     notes: list[str] = []
 
 
@@ -382,6 +390,7 @@ class ContractFinancialPeriod(BaseModel):
     consolidation: str
     published_at: str | None = None
     available_at: str | None = None
+    effective_at: str | None = None
     source_name: str | None = None
     source_type: str | None = None
     source_url: str | None = None
@@ -389,6 +398,7 @@ class ContractFinancialPeriod(BaseModel):
     currency: str | None = None
     metrics: dict[str, str] = {}
     segments: list[ContractSegment] = []
+    subsidiaries: list[str] = []
     statements: list[ContractFinancialStatement] = []
 
 
@@ -408,6 +418,9 @@ class ContractFinancialIntelligence(BaseModel):
     consolidated_count: int = 0
     standalone_count: int = 0
     unknown_consolidation_count: int = 0
+    statement_count: int = 0
+    segment_count: int = 0
+    subsidiary_count: int = 0
     latest_period_end: str | None = None
     earliest_period_end: str | None = None
     coverage: dict[str, int] = {}
@@ -481,6 +494,9 @@ class CompanyIntelligenceContract(BaseModel):
     conflicts: list[ContractEvidenceConflict] = []
     changes: list[ContractIntelChange] = []
 
+    timeline: "ContractTimeline | None" = None
+    research_status: "ContractResearchStatus | None" = None
+
     item_count: int = 0
     source_ids: list[str] = []
     provenance_ids: list[str] = []
@@ -493,14 +509,124 @@ class CompanyIntelligenceContract(BaseModel):
     notes: list[str] = []
 
 
+class ContractTimelineEntry(BaseModel):
+    """One chronological entry in a company evidence timeline."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    entry_id: str = Field(min_length=1)
+    symbol: str = Field(min_length=1)
+    kind: str
+    intel_category: str
+    semantic_category: str
+    verification_status: str
+    event_type: str | None = None
+    topic: str | None = None
+    title: str = Field(min_length=1)
+    description: str = ""
+    stance: str
+    direction: str
+
+    published_at: str | None = None
+    available_at: str | None = None
+    effective_at: str | None = None
+    timeline_at: str | None = None
+
+    source: ContractIntelSource
+    provenance_id: str | None = None
+    checksum: str = ""
+
+
+class ContractTimeline(BaseModel):
+    """A company's evidence timeline at one point in time."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    company: str = Field(min_length=1)
+    as_of: str
+    entries: list[ContractTimelineEntry] = []
+    counts: dict[str, int] = {}
+    latest_at: str | None = None
+    earliest_at: str | None = None
+    notes: list[str] = []
+
+
+class ContractFreshness(BaseModel):
+    """Freshness of the intelligence knowable at as_of."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    latest_published_at: str | None = None
+    latest_available_at: str | None = None
+    latest_effective_at: str | None = None
+    oldest_published_at: str | None = None
+    oldest_available_at: str | None = None
+    oldest_effective_at: str | None = None
+    days_since_latest_published: int | None = None
+    days_since_latest_available: int | None = None
+    stale: bool = False
+    notes: list[str] = []
+
+
+class ContractCoverage(BaseModel):
+    """Coverage of the intelligence dimensions for a company."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    item_count: int = 0
+    by_kind: dict[str, int] = {}
+    by_category: dict[str, int] = {}
+    by_semantic: dict[str, int] = {}
+    by_status: dict[str, int] = {}
+    missing_categories: list[str] = []
+    notes: list[str] = []
+
+
+class ContractQuality(BaseModel):
+    """Data-quality status of an intelligence snapshot."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    conflict_count: int = 0
+    evidence_link_count: int = 0
+    deduplicated_count: int = 0
+    source_id_count: int = 0
+    provenance_id_count: int = 0
+    insufficient_evidence_notes: list[str] = []
+    notes: list[str] = []
+
+
+class ContractResearchStatus(BaseModel):
+    """Aggregate research status for a company at as_of."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    company: str = Field(min_length=1)
+    as_of: str
+    freshness: ContractFreshness
+    coverage: ContractCoverage
+    quality: ContractQuality
+
+
+class CompanyTimelineContract(BaseModel):
+    """Timeline response for one company at one point in time."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    company: dict[str, object]
+    timeline: ContractTimeline
+
+
 __all__ = [
     "CompanyDiscoveryItem",
     "CompanyDiscoveryResponse",
     "CompanyIntelligenceContract",
     "CompanyRankingsContract",
     "CompanyResearchContract",
+    "CompanyTimelineContract",
     "ContractAssessment",
     "ContractConflictSide",
+    "ContractCoverage",
     "ContractDataQuality",
     "ContractEvidence",
     "ContractEvidenceConflict",
@@ -508,6 +634,7 @@ __all__ = [
     "ContractFinancialIntelligence",
     "ContractFinancialPeriod",
     "ContractFinancialStatement",
+    "ContractFreshness",
     "ContractIntelChange",
     "ContractIntelItem",
     "ContractIntelSource",
@@ -517,8 +644,12 @@ __all__ = [
     "ContractPointInTime",
     "ContractProvenance",
     "ContractProvenanceRecord",
+    "ContractQuality",
     "ContractRanking",
+    "ContractResearchStatus",
     "ContractSegment",
     "ContractSignal",
+    "ContractTimeline",
+    "ContractTimelineEntry",
     "UniverseRankingsContract",
 ]

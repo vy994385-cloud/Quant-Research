@@ -93,6 +93,32 @@ class IntelKind(str, Enum):
     OTHER = "OTHER"
 
 
+class IntelCategory(str, Enum):
+    """
+    High-level category of a piece of company intelligence.
+
+    Categories describe where the information comes from, not its
+    investment meaning.
+
+    - FINANCIAL_DISCLOSURE: regulated financial disclosures and
+      figures derived deterministically from them.
+    - BUSINESS_NEWS:        discrete business events and developments.
+    - MANAGEMENT_STATEMENT: statements made by company management.
+    - CORPORATE_ACTION:     dividends, buybacks, M&A, and
+      shareholder / board actions.
+    - REGULATORY_LEGAL:     regulatory, compliance, legal, and
+      credit-related developments.
+    - OTHER:                anything else that is still evidence-based.
+    """
+
+    FINANCIAL_DISCLOSURE = "FINANCIAL_DISCLOSURE"
+    BUSINESS_NEWS = "BUSINESS_NEWS"
+    MANAGEMENT_STATEMENT = "MANAGEMENT_STATEMENT"
+    CORPORATE_ACTION = "CORPORATE_ACTION"
+    REGULATORY_LEGAL = "REGULATORY_LEGAL"
+    OTHER = "OTHER"
+
+
 class IntelDirection(str, Enum):
     """
     Directional coloring of an item.
@@ -214,6 +240,54 @@ def insufficient_evidence_message() -> str:
     return _INSUFFICIENT_EVIDENCE
 
 
+def default_intel_category(
+    kind: IntelKind,
+    event_type: BusinessEventType | None,
+) -> IntelCategory:
+    """
+    Deterministic default category for an item without an explicit one.
+
+    The classifier uses only the item kind and event type. It never
+    invents facts, opinions, or investment meaning.
+    """
+
+    if kind == IntelKind.MANAGEMENT_COMMENTARY:
+        return IntelCategory.MANAGEMENT_STATEMENT
+
+    if kind == IntelKind.FINANCIAL_PERIOD:
+        return IntelCategory.FINANCIAL_DISCLOSURE
+
+    if kind == IntelKind.INDIRECT_INTELLIGENCE:
+        return IntelCategory.BUSINESS_NEWS
+
+    if event_type == BusinessEventType.EARNINGS:
+        return IntelCategory.FINANCIAL_DISCLOSURE
+
+    if event_type in {
+        BusinessEventType.REGULATORY,
+        BusinessEventType.CREDIT_ACTION,
+    }:
+        return IntelCategory.REGULATORY_LEGAL
+
+    if event_type in {
+        BusinessEventType.DIVIDEND,
+        BusinessEventType.BUYBACK,
+        BusinessEventType.MERGER_ACQUISITION,
+        BusinessEventType.BOARD_MEETING,
+        BusinessEventType.SHAREHOLDER_MEETING,
+        BusinessEventType.MANAGEMENT_CHANGE,
+    }:
+        return IntelCategory.CORPORATE_ACTION
+
+    if kind in {
+        IntelKind.BUSINESS_EVENT,
+        IntelKind.RISK_DEVELOPMENT,
+    }:
+        return IntelCategory.BUSINESS_NEWS
+
+    return IntelCategory.OTHER
+
+
 __all__ = [
     "BusinessEventType",
     "ChangeType",
@@ -222,10 +296,12 @@ __all__ = [
     "EvidenceRelationship",
     "EvidenceStance",
     "FinancialStatementType",
+    "IntelCategory",
     "IntelDirection",
     "IntelKind",
     "ReportingPeriodType",
     "SemanticCategory",
     "VerificationStatus",
+    "default_intel_category",
     "insufficient_evidence_message",
 ]

@@ -1,8 +1,12 @@
 from __future__ import annotations
 
 from datetime import date, datetime, timezone
+from decimal import Decimal
 
-from src.data.company.financials import FinancialSnapshot
+from src.data.company.financials import (
+    FinancialSnapshot,
+    SegmentResult,
+)
 from src.research.company_intel import (
     build_financial_intelligence,
     derived_metric_items,
@@ -364,3 +368,150 @@ def test_derived_metric_items_are_derived_metrics():
 
     assert "operating margin" in margin.title
     assert "0.2" in margin.description
+
+
+def test_segments_and_subsidiaries_are_preserved():
+    snapshot = _snapshot(period_end=date(2026, 3, 31)).model_copy(
+        update={
+            "segments": (
+                SegmentResult(
+                    segment_name="Banking",
+                    revenue=Decimal("50"),
+                    profit=Decimal("10"),
+                ),
+                SegmentResult(
+                    segment_name="Software",
+                    revenue=Decimal("50"),
+                    profit=Decimal("10"),
+                ),
+            ),
+            "subsidiaries": ("tcs-digital",),
+        }
+    )
+
+    periods = financial_periods_from_snapshots(
+        [snapshot],
+        as_of=AS_OF,
+    )
+
+    period = periods[0]
+
+    assert len(period.segments) == 2
+    assert period.segments[0].segment_name == "Banking"
+    assert period.subsidiaries == ("tcs-digital",)
+
+    statements = period.statements
+
+    assert all(
+        statement.subsidiaries == ("tcs-digital",)
+        for statement in statements
+    )
+
+    income = [
+        statement
+        for statement in statements
+        if statement.statement_type
+        == FinancialStatementType.INCOME_STATEMENT
+    ][0]
+
+    assert len(income.segments) == 2
+
+
+def test_effective_at_is_carried_to_period_and_statements():
+    snapshot = _snapshot(
+        period_end=date(2026, 3, 31),
+        period_type="ANNUAL",
+    ).model_copy(
+        update={
+            "published_at": ts(2026, 4, 30),
+            "effective_at": ts(2026, 3, 31),
+        }
+    )
+
+    periods = financial_periods_from_snapshots(
+        [snapshot],
+        as_of=AS_OF,
+    )
+
+    period = periods[0]
+
+    assert period.published_at == ts(2026, 4, 30)
+    assert period.effective_at == ts(2026, 3, 31)
+
+    assert all(
+        statement.effective_at == ts(2026, 3, 31)
+        for statement in period.statements
+    )
+
+
+def test_extra_line_items_are_bucketed_by_statement_type():
+    snapshot = _snapshot(period_end=date(2026, 3, 31)).model_copy(
+        update={
+            "items": {
+                "gross_profit": Decimal("40"),
+                "inventory": Decimal("60"),
+                "capex": Decimal("5"),
+                "mystery_metric": Decimal("7"),
+            }
+        }
+    )
+
+    periods = financial_periods_from_snapshots(
+        [snapshot],
+        as_of=AS_OF,
+    )
+
+    statements = periods[0].statements
+
+    buckets = {
+        statement.statement_type: statement
+        for statement in statements
+    }
+
+    assert "gross_profit" in buckets[
+        FinancialStatementType.INCOME_STATEMENT
+    ].items
+    assert "inventory" in buckets[
+        FinancialStatementType.BALANCE_SHEET
+    ].items
+    assert "capex" in buckets[
+        FinancialStatementType.CASH_FLOW_STATEMENT
+    ].items
+
+    other = buckets[FinancialStatementType.OTHER]
+
+    assert "mystery_metric" in other.items
+    assert other.statement_id.endswith("-OT")
+
+
+def test_financial_intelligence_counts_segments_and_subsidiaries():
+    snapshot = _snapshot(period_end=date(2026, 3, 31)).model_copy(
+        update={
+            "segments": (
+                SegmentResult(
+                    segment_name="Banking",
+                    revenue=Decimal("50"),
+                ),
+            ),
+            "subsidiaries": ("tcs-digital",),
+        }
+    )
+
+    periods = financial_periods_from_snapshots(
+        [snapshot],
+        as_of=AS_OF,
+    )
+
+    summary = build_financial_intelligence(
+        "TCS",
+        periods,
+        as_of=AS_OF,
+    )
+
+    assert summary.statement_count == 1
+    assert summary.segment_count == 1
+    assert summary.subsidiary_count == 1
+    assert any(
+        "Business-segment detail" in note
+        for note in summary.notes
+    )

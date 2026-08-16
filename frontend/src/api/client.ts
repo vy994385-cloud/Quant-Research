@@ -10,6 +10,7 @@
 import type {
   CompanyRankings,
   CompanyResearch,
+  CompanyTimelineResponse,
   DiscoveryResponse,
   UniverseRankings,
 } from "./types"
@@ -100,6 +101,16 @@ export function fetchResearch(
 ): Promise<CompanyResearch> {
   return request<CompanyResearch>(
     `/api/v1/companies/${encodeURIComponent(symbol)}/research`,
+    { as_of: asOf },
+  )
+}
+
+export function fetchTimeline(
+  symbol: string,
+  asOf?: string,
+): Promise<CompanyTimelineResponse> {
+  return request<CompanyTimelineResponse>(
+    `/api/v1/companies/${encodeURIComponent(symbol)}/timeline`,
     { as_of: asOf },
   )
 }

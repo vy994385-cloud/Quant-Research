@@ -20,6 +20,7 @@ from src.api.contracts import (
     CompanyIntelligenceContract,
     CompanyRankingsContract,
     CompanyResearchContract,
+    CompanyTimelineContract,
     UniverseRankingsContract,
 )
 from src.api.errors import (
@@ -35,6 +36,7 @@ from src.api.serializers import (
     discovery_item,
     intelligence_contract,
     research_contract,
+    timeline_contract,
     universe_rankings_contract,
 )
 
@@ -233,6 +235,33 @@ def create_research_router(
         )
 
         return intelligence_contract(
+            result,
+            company_name=service.company_name(normalized),
+        )
+
+    @router.get(
+        "/companies/{symbol}/timeline",
+        response_model=CompanyTimelineContract,
+    )
+    def company_timeline(
+        symbol: str,
+        as_of: str | None = Query(
+            default=None,
+            description=(
+                "Optional point-in-time timestamp (ISO 8601, "
+                "timezone-aware). Defaults to the recorded as_of."
+            ),
+        ),
+    ) -> dict:
+        normalized = service.validate_company(symbol)
+        captured_at = parse_as_of(as_of)
+
+        result = service.run(
+            normalized,
+            as_of=captured_at,
+        )
+
+        return timeline_contract(
             result,
             company_name=service.company_name(normalized),
         )

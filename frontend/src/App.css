@@ -189,3 +189,18 @@ button, input { font: inherit; }
   .pit-grid { grid-template-columns: 1fr; }
   .as-of-bar { padding: 10px 15px; }
 }
+
+/* timeline & research status */
+.timeline-status-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.status-card { display: grid; grid-template-columns: auto 1fr; gap: 12px 14px; align-items: start; }
+.status-card-icon { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 6px; background: #eaf2fd; color: #1d5eaf; }
+.timeline-panel { margin-top: 14px; }
+.timeline-counts { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.timeline-entry-head { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.timeline-entry-head strong { margin-right: auto; }
+.timeline-meta { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 6px; color: #8592a4; font-size: 10px; }
+.timeline-status-notes { grid-column: 1 / -1; display: grid; gap: 7px; }
+.timeline-status-note { font-size: 11px; line-height: 1.5; color: #6b5a25; background: #fff8ea; border-left: 2px solid #d9a23f; padding: 8px 10px; }
+@media (max-width: 850px) {
+  .timeline-status-grid { grid-template-columns: 1fr; }
+}

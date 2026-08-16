@@ -9,6 +9,23 @@ from pydantic import (
 )
 
 
+class SegmentResult(BaseModel):
+    """
+    One business-segment result inside a financial snapshot.
+
+    Segment data is preserved verbatim from the provider and never
+    cross-checked or adjusted here; enrichment happens in the
+    research layer.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    segment_name: str = Field(min_length=1)
+    revenue: Decimal | None = None
+    profit: Decimal | None = None
+    note: str | None = None
+
+
 class FinancialSnapshot(BaseModel):
     """
     Normalized financial information for a reporting period.
@@ -33,8 +50,11 @@ class FinancialSnapshot(BaseModel):
     # Point-in-time metadata. `published_at` is when the company
     # reported the numbers; `available_at` is when the platform
     # could first know about them (defaults to the archival time).
+    # `effective_at` is when the numbers first became applicable
+    # (e.g. the balance-sheet date), when the provider knows it.
     published_at: datetime | None = None
     available_at: datetime | None = None
+    effective_at: datetime | None = None
 
     source_name: str | None = None
     source_type: str | None = None
@@ -42,12 +62,22 @@ class FinancialSnapshot(BaseModel):
 
     currency: str | None = None
 
-    @field_validator("published_at", "available_at")
+    @field_validator("published_at", "available_at", "effective_at")
     @classmethod
     def _require_aware_timestamp(cls, value: datetime | None) -> datetime | None:
         if value is not None and value.tzinfo is None:
             raise ValueError("timestamp must be timezone-aware")
         return value
+
+    # Free-form line items not covered by the typed fields above.
+    # Keys are normalized snake_case metric names; values are the
+    # reported figures. `extra="forbid"` keeps provider payloads
+    # explicit rather than silently capturing unknown keys.
+    items: dict[str, Decimal] = Field(default_factory=dict)
+
+    segments: tuple[SegmentResult, ...] = ()
+
+    subsidiaries: tuple[str, ...] = ()
 
     revenue: Decimal | None = None
     operating_profit: Decimal | None = None

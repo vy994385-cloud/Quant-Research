@@ -20,6 +20,8 @@ from pydantic import (
     model_validator,
 )
 
+from src.data.company.financials import SegmentResult
+
 from src.research.company_intel.semantics import (
     BusinessEventType,
     ChangeType,
@@ -27,6 +29,7 @@ from src.research.company_intel.semantics import (
     EvidenceRelationship,
     EvidenceStance,
     FinancialStatementType,
+    IntelCategory,
     IntelDirection,
     IntelKind,
     ReportingPeriodType,
@@ -68,6 +71,13 @@ class CorporateIntelItem(BaseModel):
     description: str = ""
     stance: EvidenceStance = EvidenceStance.NEUTRAL
     direction: IntelDirection = IntelDirection.UNKNOWN
+
+    intel_category: IntelCategory | None = None
+
+    # Present only for deterministic derived observations. The
+    # derivation text records the exact formula / basis so the
+    # observation can be reproduced and audited.
+    derivation: str | None = None
 
     published_at: datetime | None = None
     available_at: datetime | None = None
@@ -125,17 +135,6 @@ class CorporateIntelItem(BaseModel):
         return self.available_at <= as_of
 
 
-class SegmentResult(BaseModel):
-    """One segment result inside a financial statement."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    segment_name: str = Field(min_length=1)
-    revenue: Decimal | None = None
-    profit: Decimal | None = None
-    note: str | None = None
-
-
 class FinancialStatement(BaseModel):
     """
     A normalized financial statement for one reporting period.
@@ -155,6 +154,7 @@ class FinancialStatement(BaseModel):
     period_end: date
     published_at: datetime | None = None
     available_at: datetime | None = None
+    effective_at: datetime | None = None
     source_name: str | None = None
     source_type: str | None = None
     source_url: str | None = None
@@ -162,9 +162,10 @@ class FinancialStatement(BaseModel):
     currency: str | None = None
     items: dict[str, Decimal] = Field(default_factory=dict)
     segments: tuple[SegmentResult, ...] = ()
+    subsidiaries: tuple[str, ...] = ()
     notes: tuple[str, ...] = ()
 
-    @field_validator("published_at", "available_at")
+    @field_validator("published_at", "available_at", "effective_at")
     @classmethod
     def _require_aware_timestamp(
         cls,
@@ -205,6 +206,7 @@ class FinancialPeriod(BaseModel):
     consolidation: ConsolidationScope = ConsolidationScope.UNKNOWN
     published_at: datetime | None = None
     available_at: datetime | None = None
+    effective_at: datetime | None = None
     source_name: str | None = None
     source_type: str | None = None
     source_url: str | None = None
@@ -212,9 +214,10 @@ class FinancialPeriod(BaseModel):
     currency: str | None = None
     metrics: dict[str, Decimal] = Field(default_factory=dict)
     segments: tuple[SegmentResult, ...] = ()
+    subsidiaries: tuple[str, ...] = ()
     statements: tuple[FinancialStatement, ...] = ()
 
-    @field_validator("published_at", "available_at")
+    @field_validator("published_at", "available_at", "effective_at")
     @classmethod
     def _require_aware_timestamp(
         cls,
@@ -257,6 +260,9 @@ class FinancialIntelligence(BaseModel):
     consolidated_count: int = Field(ge=0)
     standalone_count: int = Field(ge=0)
     unknown_consolidation_count: int = Field(ge=0)
+    statement_count: int = Field(ge=0)
+    segment_count: int = Field(ge=0)
+    subsidiary_count: int = Field(ge=0)
     latest_period_end: date | None = None
     earliest_period_end: date | None = None
     coverage: dict[str, int] = Field(default_factory=dict)
@@ -408,6 +414,7 @@ class IntelCandidate(BaseModel):
     topic: str | None = None
     stance: EvidenceStance = EvidenceStance.NEUTRAL
     direction: IntelDirection = IntelDirection.UNKNOWN
+    intel_category: IntelCategory | None = None
     related_entities: tuple[str, ...] = ()
     relevance: str | None = None
     confidence: Decimal | None = Field(default=None, ge=0, le=1)
@@ -422,6 +429,164 @@ class IntelCandidate(BaseModel):
     ) -> datetime | None:
         if value is not None and value.tzinfo is None:
             raise ValueError("timestamp must be timezone-aware")
+        return value
+
+
+class TimelineEntry(BaseModel):
+    """
+    One chronological entry in a company evidence timeline.
+
+    `timeline_at` is the canonical date used for ordering: the
+    published date when known, otherwise the effective date, and
+    finally the available date. Entries mirror their source item
+    verbatim; no new information is added here.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    entry_id: str = Field(min_length=1)
+    symbol: str = Field(min_length=1)
+    kind: IntelKind
+    intel_category: IntelCategory
+    semantic_category: SemanticCategory
+    verification_status: VerificationStatus
+    event_type: BusinessEventType | None = None
+    topic: str | None = None
+    title: str = Field(min_length=1)
+    description: str = ""
+    direction: IntelDirection = IntelDirection.UNKNOWN
+    stance: EvidenceStance = EvidenceStance.NEUTRAL
+
+    published_at: datetime | None = None
+    available_at: datetime | None = None
+    effective_at: datetime | None = None
+    timeline_at: datetime | None = None
+
+    source: SourceRef
+    provenance_id: str | None = None
+    checksum: str = ""
+
+    @field_validator("published_at", "available_at", "effective_at", "timeline_at")
+    @classmethod
+    def _require_aware_timestamp(
+        cls,
+        value: datetime | None,
+    ) -> datetime | None:
+        if value is not None and value.tzinfo is None:
+            raise ValueError("timestamp must be timezone-aware")
+        return value
+
+
+class CompanyTimeline(BaseModel):
+    """
+    A company's evidence timeline at one point in time.
+
+    Entries are point-in-time pure: every entry was knowable at
+    `as_of`. Ordering is deterministic and never editorialized.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    company: str = Field(min_length=1)
+    as_of: datetime
+    entries: tuple[TimelineEntry, ...] = ()
+    counts: dict[str, int] = Field(default_factory=dict)
+    latest_at: datetime | None = None
+    earliest_at: datetime | None = None
+    notes: tuple[str, ...] = ()
+
+    @field_validator("as_of")
+    @classmethod
+    def _require_aware_timestamp(cls, value: datetime) -> datetime:
+        if value.tzinfo is None:
+            raise ValueError("as_of must be timezone-aware")
+        return value
+
+
+class FreshnessStatus(BaseModel):
+    """How fresh the intelligence is that is knowable at `as_of`."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    latest_published_at: datetime | None = None
+    latest_available_at: datetime | None = None
+    latest_effective_at: datetime | None = None
+    oldest_published_at: datetime | None = None
+    oldest_available_at: datetime | None = None
+    oldest_effective_at: datetime | None = None
+    days_since_latest_published: int | None = None
+    days_since_latest_available: int | None = None
+    stale: bool = False
+    notes: tuple[str, ...] = ()
+
+    @field_validator(
+        "latest_published_at",
+        "latest_available_at",
+        "latest_effective_at",
+        "oldest_published_at",
+        "oldest_available_at",
+        "oldest_effective_at",
+    )
+    @classmethod
+    def _require_aware_timestamp(
+        cls,
+        value: datetime | None,
+    ) -> datetime | None:
+        if value is not None and value.tzinfo is None:
+            raise ValueError("timestamp must be timezone-aware")
+        return value
+
+
+class CoverageStatus(BaseModel):
+    """Coverage of the intelligence dimensions for a company."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    item_count: int = Field(ge=0)
+    by_kind: dict[str, int] = Field(default_factory=dict)
+    by_category: dict[str, int] = Field(default_factory=dict)
+    by_semantic: dict[str, int] = Field(default_factory=dict)
+    by_status: dict[str, int] = Field(default_factory=dict)
+    missing_categories: tuple[str, ...] = ()
+    notes: tuple[str, ...] = ()
+
+
+class QualityStatus(BaseModel):
+    """Data-quality status of an intelligence snapshot."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    conflict_count: int = Field(ge=0)
+    evidence_link_count: int = Field(ge=0)
+    deduplicated_count: int = Field(ge=0)
+    source_id_count: int = Field(ge=0)
+    provenance_id_count: int = Field(ge=0)
+    insufficient_evidence_notes: tuple[str, ...] = ()
+    notes: tuple[str, ...] = ()
+
+
+class CompanyResearchStatus(BaseModel):
+    """
+    Aggregate freshness, coverage, and data-quality status of a
+    company's research at one point in time.
+
+    Descriptive only: statuses never grade the company or its
+    prospects, they describe the research itself.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    company: str = Field(min_length=1)
+    as_of: datetime
+    freshness: FreshnessStatus
+    coverage: CoverageStatus
+    quality: QualityStatus
+
+    @field_validator("as_of")
+    @classmethod
+    def _require_aware_timestamp(cls, value: datetime) -> datetime:
+        if value.tzinfo is None:
+            raise ValueError("as_of must be timezone-aware")
         return value
 
 
@@ -449,6 +614,9 @@ class CompanyIntelligenceSnapshot(BaseModel):
     other_intelligence: tuple[CorporateIntelItem, ...] = ()
 
     financial_intelligence: FinancialIntelligence | None = None
+
+    timeline: CompanyTimeline | None = None
+    status: CompanyResearchStatus | None = None
 
     conflicts: tuple[EvidenceConflict, ...] = ()
     evidence_links: tuple[EvidenceLink, ...] = ()
@@ -504,17 +672,23 @@ class UpdateEngineStatus(str, Enum):
 
 __all__ = [
     "CompanyIntelligenceSnapshot",
+    "CompanyResearchStatus",
+    "CompanyTimeline",
     "ConflictSide",
     "CorporateIntelItem",
+    "CoverageStatus",
     "EvidenceConflict",
     "EvidenceLink",
     "FinancialIntelligence",
     "FinancialPeriod",
     "FinancialStatement",
+    "FreshnessStatus",
     "IntelCandidate",
     "IntelChange",
+    "QualityStatus",
     "SegmentResult",
     "SnapshotDiff",
     "SourceRef",
+    "TimelineEntry",
     "UpdateEngineStatus",
 ]

@@ -30,16 +30,20 @@ from src.research.company_intel.models import (
     FinancialStatement,
     SourceRef,
 )
+from src.research.company_intel.quality import build_research_status
 from src.research.company_intel.semantics import (
     BusinessEventType,
     ConsolidationScope,
     FinancialStatementType,
+    IntelCategory,
     IntelDirection,
     IntelKind,
     ReportingPeriodType,
     SemanticCategory,
     VerificationStatus,
+    default_intel_category,
 )
+from src.research.company_intel.timeline import build_timeline
 
 _METRIC_FIELDS = (
     "revenue",
@@ -63,6 +67,90 @@ _BALANCE_FIELDS = (
     "receivables",
     "payables",
 )
+
+# Free-form `items` from a provider are classified deterministically
+# into a statement bucket. Unknown metrics fall through to OTHER.
+# Names are matched in normalized form (lowercase, underscores
+# removed) so provider variants like "gross_profit"/"grossProfit"
+# classify identically.
+_EXTRA_INCOME_FIELDS = frozenset(
+    name.replace("_", "")
+    for name in {
+        "gross_profit",
+        "operating_expenses",
+        "depreciation",
+        "amortization",
+        "depreciation_amortization",
+        "other_income",
+        "interest_expense",
+        "finance_cost",
+        "tax_expense",
+        "income_tax",
+        "ebitda",
+        "ebit",
+        "research_development",
+        "selling_general_admin",
+        "other_operating_income",
+        "other_operating_expense",
+        "operating_income",
+    }
+)
+
+_EXTRA_BALANCE_FIELDS = frozenset(
+    name.replace("_", "")
+    for name in {
+        "inventory",
+        "current_assets",
+        "current_liabilities",
+        "total_equity",
+        "shareholders_equity",
+        "book_value",
+        "property_plant_equipment",
+        "intangible_assets",
+        "goodwill",
+        "short_term_debt",
+        "long_term_debt",
+        "investments",
+        "other_current_assets",
+        "other_non_current_assets",
+        "other_current_liabilities",
+        "other_non_current_liabilities",
+        "other_liabilities",
+        "deferred_tax",
+        "cash_equivalents",
+    }
+)
+
+_EXTRA_CASH_FIELDS = frozenset(
+    name.replace("_", "")
+    for name in {
+        "capex",
+        "capital_expenditure",
+        "investing_cash_flow",
+        "financing_cash_flow",
+        "net_change_in_cash",
+        "dividends_paid",
+        "stock_buybacks",
+        "debt_repayment",
+        "debt_issuance",
+    }
+)
+
+
+def _classify_line_item(name: str) -> FinancialStatementType:
+    """Deterministic statement bucket for a free-form line item."""
+    normalized = name.lower().replace("_", "")
+
+    if normalized in _EXTRA_INCOME_FIELDS:
+        return FinancialStatementType.INCOME_STATEMENT
+
+    if normalized in _EXTRA_BALANCE_FIELDS:
+        return FinancialStatementType.BALANCE_SHEET
+
+    if normalized in _EXTRA_CASH_FIELDS:
+        return FinancialStatementType.CASH_FLOW_STATEMENT
+
+    return FinancialStatementType.OTHER
 
 _EXPLICIT_SEMANTIC_CATEGORIES = {
     SemanticCategory.CONCLUSION,
@@ -289,6 +377,52 @@ def _statements_from_snapshot(
         ),
     )
 
+    standard_metric_names = set(_METRIC_FIELDS)
+
+    extra_by_type: dict[FinancialStatementType, dict[str, Decimal]] = {}
+
+    for name, value in snapshot.items.items():
+        if name in standard_metric_names or value is None:
+            continue
+
+        statement_type = _classify_line_item(name)
+        extra_by_type.setdefault(statement_type, {})[name] = value
+
+    def _statement(
+        suffix: str,
+        statement_type: FinancialStatementType,
+        items: dict[str, Decimal],
+        *,
+        carry_segments: bool,
+    ) -> FinancialStatement:
+        return FinancialStatement(
+            statement_id=base + suffix,
+            symbol=snapshot.symbol,
+            statement_type=statement_type,
+            period_type=period_type,
+            consolidation=consolidation,
+            period_start=snapshot.period_start,
+            period_end=snapshot.period_end,
+            published_at=snapshot.published_at,
+            available_at=available,
+            effective_at=snapshot.effective_at,
+            source_name=(
+                snapshot.source_name or source_name
+            ),
+            source_type=(
+                snapshot.source_type or source_type
+            ),
+            source_url=(
+                snapshot.source_url or source_url
+            ),
+            currency=snapshot.currency,
+            items=items,
+            segments=(
+                snapshot.segments if carry_segments else ()
+            ),
+            subsidiaries=snapshot.subsidiaries,
+        )
+
     statements: list[FinancialStatement] = []
 
     for suffix, fields, statement_type in groups:
@@ -298,57 +432,46 @@ def _statements_from_snapshot(
             if (value := getattr(snapshot, field)) is not None
         }
 
+        for name, value in extra_by_type.get(statement_type, {}).items():
+            items.setdefault(name, value)
+
         if not items:
             continue
 
         statements.append(
-            FinancialStatement(
-                statement_id=base + suffix,
-                symbol=snapshot.symbol,
-                statement_type=statement_type,
-                period_type=period_type,
-                consolidation=consolidation,
-                period_start=snapshot.period_start,
-                period_end=snapshot.period_end,
-                published_at=snapshot.published_at,
-                available_at=available,
-                source_name=(
-                    snapshot.source_name or source_name
+            _statement(
+                suffix,
+                statement_type,
+                items,
+                carry_segments=(
+                    statement_type
+                    == FinancialStatementType.INCOME_STATEMENT
                 ),
-                source_type=(
-                    snapshot.source_type or source_type
-                ),
-                source_url=(
-                    snapshot.source_url or source_url
-                ),
-                currency=snapshot.currency,
-                items=items,
             )
         )
 
-    if not statements:
+    extra_other = extra_by_type.get(
+        FinancialStatementType.OTHER,
+        {},
+    )
+
+    if not statements and not extra_other:
         statements.append(
-            FinancialStatement(
-                statement_id=base,
-                symbol=snapshot.symbol,
-                statement_type=FinancialStatementType.OTHER,
-                period_type=period_type,
-                consolidation=consolidation,
-                period_start=snapshot.period_start,
-                period_end=snapshot.period_end,
-                published_at=snapshot.published_at,
-                available_at=available,
-                source_name=(
-                    snapshot.source_name or source_name
-                ),
-                source_type=(
-                    snapshot.source_type or source_type
-                ),
-                source_url=(
-                    snapshot.source_url or source_url
-                ),
-                currency=snapshot.currency,
-                items={},
+            _statement(
+                "",
+                FinancialStatementType.OTHER,
+                {},
+                carry_segments=True,
+            )
+        )
+
+    if extra_other:
+        statements.append(
+            _statement(
+                "-OT",
+                FinancialStatementType.OTHER,
+                extra_other,
+                carry_segments=True,
             )
         )
 
@@ -437,6 +560,7 @@ def financial_periods_from_snapshots(
                 consolidation=consolidation,
                 published_at=snapshot.published_at,
                 available_at=available,
+                effective_at=snapshot.effective_at,
                 source_name=(
                     snapshot.source_name or source_name
                 ),
@@ -449,6 +573,8 @@ def financial_periods_from_snapshots(
                 provenance_id=None,
                 currency=snapshot.currency,
                 metrics=metrics,
+                segments=snapshot.segments,
+                subsidiaries=snapshot.subsidiaries,
                 statements=statements,
             )
         )
@@ -503,6 +629,10 @@ def build_financial_intelligence(
         else None
     )
 
+    statement_count = _count(lambda p: len(p.statements) > 0)
+    segment_count = _count(lambda p: len(p.segments) > 0)
+    subsidiary_count = _count(lambda p: len(p.subsidiaries) > 0)
+
     notes: list[str] = []
 
     if (
@@ -521,6 +651,12 @@ def build_financial_intelligence(
         notes.append(
             "Both consolidated and standalone reporting periods are present. "
             "The consolidation scope must be preserved when comparing periods."
+        )
+
+    if segment_count:
+        notes.append(
+            "Business-segment detail is available for some reporting "
+            "periods."
         )
 
     if not ordered:
@@ -553,6 +689,9 @@ def build_financial_intelligence(
         unknown_consolidation_count=_count(
             lambda p: p.consolidation == ConsolidationScope.UNKNOWN
         ),
+        statement_count=statement_count,
+        segment_count=segment_count,
+        subsidiary_count=subsidiary_count,
         latest_period_end=latest,
         earliest_period_end=earliest,
         coverage=dict(coverage),
@@ -612,6 +751,7 @@ def financial_periods_to_items(
                 kind=IntelKind.FINANCIAL_PERIOD,
                 semantic_category=SemanticCategory.FACT,
                 verification_status=VerificationStatus.CONFIRMED,
+                intel_category=IntelCategory.FINANCIAL_DISCLOSURE,
                 topic="financial_reporting",
                 title=(
                     f"{period.symbol} {period.period_type.value} financials "
@@ -621,6 +761,7 @@ def financial_periods_to_items(
                 direction=IntelDirection.NEUTRAL,
                 published_at=period.published_at,
                 available_at=period.available_at,
+                effective_at=period.effective_at,
                 source=SourceRef(
                     source_name=period.source_name or source_name,
                     source_type=period.source_type or source_type,
@@ -677,6 +818,11 @@ def derived_metric_items(
                     kind=IntelKind.FINANCIAL_PERIOD,
                     semantic_category=SemanticCategory.DERIVED_METRIC,
                     verification_status=VerificationStatus.CONFIRMED,
+                    intel_category=IntelCategory.FINANCIAL_DISCLOSURE,
+                    derivation=(
+                        "revenue: reported value for "
+                        f"{period.period_id}"
+                    ),
                     topic="financial_metrics",
                     title=(
                         f"{period.symbol} {period.period_type.value} revenue "
@@ -689,6 +835,7 @@ def derived_metric_items(
                     direction=IntelDirection.NEUTRAL,
                     published_at=period.published_at,
                     available_at=period.available_at,
+                    effective_at=period.effective_at,
                     source=SourceRef(
                         source_name=period.source_name or source_name,
                         source_type=period.source_type or source_type,
@@ -710,6 +857,12 @@ def derived_metric_items(
                     kind=IntelKind.FINANCIAL_PERIOD,
                     semantic_category=SemanticCategory.DERIVED_METRIC,
                     verification_status=VerificationStatus.CONFIRMED,
+                    intel_category=IntelCategory.FINANCIAL_DISCLOSURE,
+                    derivation=(
+                        "operating_profit("
+                        f"{period.period_id}) / revenue("
+                        f"{period.period_id})"
+                    ),
                     topic="financial_metrics",
                     title=(
                         f"{period.symbol} {period.period_type.value} "
@@ -725,6 +878,7 @@ def derived_metric_items(
                     direction=IntelDirection.NEUTRAL,
                     published_at=period.published_at,
                     available_at=period.available_at,
+                    effective_at=period.effective_at,
                     source=SourceRef(
                         source_name=period.source_name or source_name,
                         source_type=period.source_type or source_type,
@@ -814,8 +968,15 @@ def _reclassify(
     item: CorporateIntelItem,
     category: SemanticCategory,
 ) -> CorporateIntelItem:
+    intel_category = item.intel_category or default_intel_category(
+        item.kind,
+        item.event_type,
+    )
     reclassified = item.model_copy(
-        update={"semantic_category": category}
+        update={
+            "semantic_category": category,
+            "intel_category": intel_category,
+        }
     )
     checksum = item_checksum(reclassified)
     return reclassified.model_copy(
@@ -1012,6 +1173,22 @@ def build_company_intelligence_snapshot(
             "evidence gate was not satisfied."
         )
 
+    timeline = build_timeline(
+        surviving,
+        symbol=symbol,
+        as_of=as_of,
+    )
+
+    status = build_research_status(
+        company=symbol,
+        as_of=as_of,
+        items=surviving,
+        conflicts=conflicts,
+        evidence_links=evidence_links,
+        deduplicated_count=max(0, candidate_count - len(classified)),
+        insufficient_evidence_notes=list(insufficient),
+    )
+
     return CompanyIntelligenceSnapshot(
         company=symbol,
         as_of=as_of,
@@ -1023,6 +1200,8 @@ def build_company_intelligence_snapshot(
         financial_intelligence_items=financial_items,
         other_intelligence=other_intelligence,
         financial_intelligence=financial_intelligence,
+        timeline=timeline,
+        status=status,
         conflicts=conflicts,
         evidence_links=evidence_links,
         changes=changes,

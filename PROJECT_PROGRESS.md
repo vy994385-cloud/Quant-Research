@@ -2,9 +2,9 @@
 
 ## Current Status
 
-**Test baseline:** 1104 backend + 39 frontend
-**Latest commit:** build frontend research dashboard
-**Working tree:** deep company intelligence foundation (pending commit)
+**Test baseline:** 1160 backend + 43 frontend
+**Latest commit:** evidence timeline and research status (timeline + status endpoint, dashboard timeline view)
+**Working tree:** clean
 **Phase:** Final Beta Launch Sprint
 
 ## Product
@@ -168,11 +168,12 @@ Target launch workflow (remaining):
 
 ## Current Verified Test Baseline
 
-1104 backend tests passing.
+1160 backend tests passing.
 
-39 frontend tests passing (format helpers, discovery filtering, API client
+43 frontend tests passing (format helpers, discovery filtering, API client
 request building + error handling, company search interaction, rankings panel
-incl. universe switching, full dashboard integration).
+incl. universe switching, timeline + research status, full dashboard
+integration).
 
 These numbers supersede all older checkpoint counts.
 
@@ -394,6 +395,62 @@ PIT checks pass for every company.
 
 Status: COMPLETE
 
+### L5 — Continuous Company Research & Evidence Expansion
+Add a chronological evidence timeline and a descriptive research-status view
+(freshness / coverage / data quality) for each company, backed by the company
+intelligence layer. Deliberately descriptive: statuses describe the *research
+itself*, never the company's prospects, and the timeline never adds an opinion.
+
+New modules: `src/research/company_intel/timeline.py` (timeline construction),
+`src/research/company_intel/quality.py` (freshness/coverage/quality statuses).
+
+- `IntelCategory` (FINANCIAL_DISCLOSURE / BUSINESS_NEWS /
+  MANAGEMENT_STATEMENT / CORPORATE_ACTION / REGULATORY_LEGAL / OTHER):
+  describes where information comes from, not its investment meaning;
+  `default_intel_category(kind, event_type)` assigns it deterministically and
+  never invents facts; candidates may carry an explicit `intel_category`
+  (extractor preserves it verbatim), and the default is applied at snapshot
+  build
+- evidence timeline (`build_timeline`): point-in-time pure, deterministic
+  ordering by `timeline_at` (published → effective → available), tie-broken by
+  entry id; entries mirror their source item verbatim with source/provenance/
+  checksum and per-category counts
+- research status (`build_research_status`): freshness (latest/oldest
+  published/available/effective, days-since, stale when no known items, no
+  latest published, or > 90 days), coverage (counts by kind/category/semantic/
+  status, missing categories), quality (conflicts, evidence links,
+  deduplication, source/provenance counts, insufficient-evidence notes)
+- financial intelligence: snapshots/statements/periods now carry
+  `effective_at`, segments and subsidiaries (preserved verbatim from the
+  provider), free-form `items` are bucketed into statements by deterministic
+  normalized-name classification (underscore-insensitive), and coverage notes
+  when segment detail exists; derived metrics record their exact derivation
+  text for auditability
+- update engine: `PeriodicUpdateResult.category_summary` reports the
+  deduplicated candidate categories; validator rejects candidates whose
+  `published_at` is after `available_at`
+- API: `GET /api/v1/companies/{symbol}/timeline?as_of=` returns the
+  `CompanyTimelineContract`; the research and intelligence contracts now also
+  include `timeline` and `research_status`; real-data verification records
+  timeline/research-status summaries and three new PIT checks
+  (`timeline_entries_known_at_as_of`, `no_future_timeline_entries`,
+  `timeline_is_chronological`)
+- Frontend: new `Timeline` dashboard view — `TimelinePanel` renders the
+  freshness/coverage/quality status cards with notes plus the chronological
+  evidence timeline (category + verification tags, provenance); `fetchTimeline`
+  client; types/fixtures updated
+
+Tests added (52 backend + 4 frontend): `tests/research/company_intel/test_timeline.py`
+(10), `tests/research/company_intel/test_quality.py` (12), `tests/test_timeline_api.py`
+(14), plus extensions to test_snapshot / test_financial_periods / test_sources /
+test_update_engine / test_research_contract_api / test_multi_company_verification;
+frontend `TimelinePanel.test.tsx` (4) + App integration assertions.
+
+Verification: full backend suite 1160 passed; frontend 43 passed, `npm run lint`
+and `npm run build` clean; `git diff --check` clean.
+
+Status: COMPLETE
+
 ### L5 — Ranking Dashboard
 Expose:
 
@@ -446,7 +503,7 @@ Status: NOT STARTED
 
 Beta is considered READY only when:
 
-[ ] 1104+ backend tests pass
+[ ] 1160+ backend tests pass
 [x] frontend builds
 [x] frontend lint passes
 [ ] API health passes

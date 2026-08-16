@@ -807,3 +807,59 @@ def test_intelligence_snapshot_contains_no_conclusion(multi_result):
         assert intelligence.coverage
         assert intelligence.semantic_summary
         assert intelligence.status_summary
+
+
+def test_timeline_pit_checks_pass_for_every_company(multi_result):
+    for company, checks in multi_result.pit_checks.items():
+        assert checks["timeline_entries_known_at_as_of"] is True
+        assert checks["no_future_timeline_entries"] is True
+        assert checks["timeline_is_chronological"] is True
+
+
+def test_every_company_builds_a_chronological_timeline(multi_result):
+    for result in multi_result.results:
+        intelligence = result.intelligence
+
+        assert intelligence is not None
+        assert intelligence.timeline is not None
+
+        timeline = intelligence.timeline
+        assert timeline.company == result.company
+
+        stamps = [
+            entry.timeline_at
+            for entry in timeline.entries
+            if entry.timeline_at is not None
+        ]
+
+        assert stamps == sorted(stamps)
+
+        assert all(
+            entry.symbol == result.company
+            for entry in timeline.entries
+        )
+        assert all(
+            entry.available_at is not None
+            and entry.available_at <= AS_OF
+            for entry in timeline.entries
+        )
+
+
+def test_every_company_builds_research_status(multi_result):
+    for result in multi_result.results:
+        intelligence = result.intelligence
+
+        assert intelligence is not None
+        assert intelligence.status is not None
+
+        status = intelligence.status
+        timeline = intelligence.timeline
+
+        assert status.company == result.company
+        assert status.coverage.item_count == (
+            len(timeline.entries)
+            if timeline is not None
+            else 0
+        )
+        assert status.freshness.stale is False
+        assert status.quality.conflict_count >= 0
