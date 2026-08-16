@@ -2,8 +2,8 @@
 
 ## Current Status
 
-**Test baseline:** 1004 passed
-**Latest commit:** build production research api contract
+**Test baseline:** 1004 backend + 39 frontend
+**Latest commit:** build frontend research dashboard
 **Working tree:** clean at last verified checkpoint
 **Phase:** Final Beta Launch Sprint
 
@@ -128,24 +128,44 @@ REAL DATA
   records, financial coverage, feature statuses, warnings, provider failures
 
 ### Frontend
-Current frontend exists but remains the major productization area.
+The v1 research dashboard (L4) is now the default UI: modular React 19 + Vite +
+TypeScript app consuming only the /api/v1 contract, replacing the legacy
+monolithic stock view. Zero network/invention in tests; client is covered by
+component + integration tests against recorded fixtures.
 
-Target launch workflow:
+Views: company search (keyboard navigable), research overview with research
+score / confidence / evidence coverage, horizon rankings (intraday / swing /
+long-term) with coverage + missing-evidence badges, cross-company universe
+comparison table (sorted by score, horizon switchable), evidence columns
+(positive / contradicting / neutral with provenance-flagged degraded rows),
+financial trends, signals ledger, risks (negative evidence + data-quality
+warnings + provider failures), business-intelligence sections, sources &
+point-in-time context (as_of / effective_as_of / market_as_of, PIT check
+status, provenance dataset + archived source ids).
 
-SEARCH COMPANY
-→ COMPANY RESEARCH
-→ EVIDENCE
-→ RISKS
-→ TRENDS
-→ FUTURE READINESS
-→ RANKING
-→ VALIDATION
+Degraded/error handling: structured loading and error states surface the
+`{"error": {"code", "message", "details"}}` contract verbatim (code + details
+shown, network failures labeled), and a "Degraded research context" banner
+aggregates PIT failures, provider_failures, financial_data_missing, and
+market_rejected_records with drill-downs in Risks/Sources.
+
+Point-in-time UX: header as-of picker re-runs research with `as_of=YYYY-MM-DD`;
+every panel displays its effective as-of; full timestamps are rendered as
+locale strings; date-only as-of is parsed without timezone drift.
+
+Target launch workflow (remaining):
+- L5 ranking dashboard
+- L6 backtest/validation UI
 
 ## Current Verified Test Baseline
 
-1004 tests passing.
+1004 backend tests passing.
 
-This number supersedes all older checkpoint counts.
+39 frontend tests passing (format helpers, discovery filtering, API client
+request building + error handling, company search interaction, rankings panel
+incl. universe switching, full dashboard integration).
+
+These numbers supersede all older checkpoint counts.
 
 ## Final Beta Launch Work
 
@@ -260,7 +280,31 @@ Build production-quality UI for:
 - ranking
 - data/provenance information
 
-Status: IN PROGRESS
+Done (`frontend/`): search command bar with keyboard navigation (fetchDiscovery
+via /api/v1/companies), header with as-of picker + refresh, overview (score
+donut, metrics, strengths/weaknesses, confidence, evidence coverage, thesis +
+conflict + research_ready), horizon rankings with coverage badges and missing
+evidence, universe comparison table (/api/v1/rankings/{horizon}), evidence
+columns, financial trends, signals ledger, risks + data-quality warnings +
+provider failures, intelligence sections, sources + PIT context
+(as_of/effective_as_of/market_as_of, PIT checks, provenance dataset + archived
+source ids). Structured loading/error states surface the error contract
+(code + details + network fallback); degraded alerts banner aggregates
+provider_failures / PIT failures / financial_data_missing /
+market_rejected_records.
+
+Test infra: vitest + @testing-library/react (jsdom), recorded fixtures only.
+39 frontend tests: format, discovery filter, API client (query building, error
+mapping incl. /health status check), company search interaction, rankings
+(universe switch + horizon), full App integration (empty → select → dashboard,
+loading, structured error, degraded banner). `npm test`, `npm run lint`,
+`npm run build` all green.
+
+Known frontend limitations: no live data-refresh polling; as-of picker is
+date-only (the API accepts full ISO via query string, but the picker sends
+YYYY-MM-DD); universe comparison covers the recorded six-company universe.
+
+Status: COMPLETE
 
 ### L5 — Ranking Dashboard
 Expose:
@@ -315,8 +359,8 @@ Status: NOT STARTED
 Beta is considered READY only when:
 
 [ ] 1004+ backend tests pass
-[ ] frontend builds
-[ ] frontend lint passes
+[x] frontend builds
+[x] frontend lint passes
 [ ] API health passes
 [ ] real company lookup works
 [ ] research report is generated
@@ -359,10 +403,10 @@ Core research engine: ~90% complete
 Data/provenance/PIT: ~90% complete
 Ranking/validation: ~90% complete
 API: ~90% complete
-Frontend: ~20–30% complete
-End-to-end integration: ~60–70% complete
+Frontend: ~55% complete
+End-to-end integration: ~70% complete
 Deployment hardening: ~40% complete
 
-Overall beta launch readiness: approximately 75–80%.
+Overall beta launch readiness: approximately 80–85%.
 
 The remaining work is primarily integration, UI, production verification and deployment — not another major research-engine rewrite.
