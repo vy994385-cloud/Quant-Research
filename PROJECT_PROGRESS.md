@@ -2,9 +2,9 @@
 
 ## Current Status
 
-**Test baseline:** 977 passed  
-**Latest commit:** verify live-data providers and multi-company research readiness  
-**Working tree:** clean at last verified checkpoint  
+**Test baseline:** 1004 passed
+**Latest commit:** build production research api contract
+**Working tree:** clean at last verified checkpoint
 **Phase:** Final Beta Launch Sprint
 
 ## Product
@@ -117,6 +117,15 @@ REAL DATA
 - CORS configuration
 - process-local research cache
 - deterministic demo research dataset
+- production research API contract (v1): structured error contract,
+  company discovery, company research, company rankings, universe rankings
+- point-in-time contract: as_of / effective_as_of / market_as_of,
+  evidence counts, future-evidence exclusion, discovered/accepted/rejected
+  source counts, pit checks, notes
+- provenance contract: market/financials dataset records + archived source
+  ids surfacing through API serialization
+- data-quality contract: market validation status, accepted/rejected
+  records, financial coverage, feature statuses, warnings, provider failures
 
 ### Frontend
 Current frontend exists but remains the major productization area.
@@ -134,7 +143,7 @@ SEARCH COMPANY
 
 ## Current Verified Test Baseline
 
-977 tests passing.
+1004 tests passing.
 
 This number supersedes all older checkpoint counts.
 
@@ -179,7 +188,61 @@ Real-data research verification is DONE for six recorded companies:
 
 Status: COMPLETE
 
-### L3 — Frontend Research Dashboard
+### L3 — Production Research API and Product Contract
+Build a clean, stable, deterministic API contract for the research product,
+backed by the recorded verification path (no network, no invented evidence).
+
+Endpoints added (`src/api/research_router.py`):
+- GET /api/v1/companies — company discovery (symbol, company_name, sector,
+  research_available) derived from the verification registry
+- GET /api/v1/companies/{symbol}/research?as_of= — full research contract
+- GET /api/v1/companies/{symbol}/rankings?as_of= — all-horizon rankings
+- GET /api/v1/rankings/{horizon}?as_of=&symbols= — universe rankings sorted
+  by score desc (horizons: INTRADAY, SWING, LONG_TERM; as_of ISO 8601,
+  Z/date-only accepted, naive-with-time rejected; comma-separated symbol subset)
+
+Response contract (`src/api/contracts.py`) exposes: company identity,
+assessment (conclusion/confidence/thesis/conflict/direction/research_ready),
+point-in-time context (as_of/effective_as_of/market_as_of, evidence included,
+acquired evidence, future evidence excluded, sources discovered/accepted/
+rejected, pit_checks_passed, notes), intelligence sections, positive/negative/
+neutral evidence, narrative, signals, data-quality status/warnings, provenance,
+rankings, research score.
+
+Structured error contract (`src/api/errors.py`):
+`{"error": {"code", "message", "details"}}` — codes unknown_company (404),
+research_data_unavailable (404), invalid_as_of (400), invalid_horizon (400),
+malformed_request (400). No tracebacks or implementation details are exposed.
+
+Point-in-time guarantee: the API never leaks future evidence. A contaminated
+run (include_future_sources=True) still serializes with zero evidence past
+as_of, pit_checks_passed true, and future_source_rejected true; regression
+tests prove no future/naive observation can pass through serialization.
+
+Tests added (`tests/test_research_contract_api.py`, 27 tests): successful TCS
+research, research for every verified company, explicit as_of, deterministic
+repeated requests, unknown company, invalid as_of (format + naive), unavailable
+research data, unknown symbol in universe, future-evidence leak regression,
+provenance surviving serialization, missing/failed source degradation, company
+rankings, universe rankings (subset + ordering), company discovery, and error
+body hygiene.
+
+New modules: `src/api/errors.py`, `src/api/contracts.py`,
+`src/api/recorded_research.py`, `src/api/serializers.py`,
+`src/api/research_router.py`. Existing live API routes are untouched; the
+contract routes live under /api/v1 alongside them. `main.py` now registers the
+error handlers and the research router (app version 0.3.0).
+
+Known limitations: as_of is restricted to dates covered by the recorded
+fixtures; research_data_unavailable surfaces when no market data exists at the
+requested as_of; archived_sources contains company-intelligence records while
+market/financial evidence resolves through the dataset-level provenance
+records; `+hh:mm` offsets in query strings must be URL-encoded (`+` decodes to
+space), so Z is the recommended suffix.
+
+Status: COMPLETE
+
+### L4 — Frontend Research Dashboard
 Build production-quality UI for:
 
 - company search
@@ -199,7 +262,7 @@ Build production-quality UI for:
 
 Status: IN PROGRESS
 
-### L4 — Ranking Dashboard
+### L5 — Ranking Dashboard
 Expose:
 
 - Intraday
@@ -213,7 +276,7 @@ Expose:
 
 Status: IN PROGRESS
 
-### L5 — Backtest / Validation UI
+### L6 — Backtest / Validation UI
 Expose:
 
 - historical return
@@ -228,7 +291,7 @@ Expose:
 
 Status: IN PROGRESS
 
-### L6 — Production Hardening
+### L7 — Production Hardening
 Run:
 
 - full pytest
@@ -242,8 +305,8 @@ Run:
 
 Status: IN PROGRESS
 
-### L7 — Beta Deployment
-Deploy backend + frontend only after L1-L6 pass.
+### L8 — Beta Deployment
+Deploy backend + frontend only after L1-L7 pass.
 
 Status: NOT STARTED
 
@@ -251,7 +314,7 @@ Status: NOT STARTED
 
 Beta is considered READY only when:
 
-[ ] 977+ backend tests pass
+[ ] 1004+ backend tests pass
 [ ] frontend builds
 [ ] frontend lint passes
 [ ] API health passes
@@ -292,12 +355,12 @@ Beta is considered READY only when:
 
 ## Current Launch Estimate
 
-Core research engine: ~90% complete  
-Data/provenance/PIT: ~90% complete  
-Ranking/validation: ~90% complete  
-API: ~75–85% complete  
-Frontend: ~20–30% complete  
-End-to-end integration: ~60–70% complete  
+Core research engine: ~90% complete
+Data/provenance/PIT: ~90% complete
+Ranking/validation: ~90% complete
+API: ~90% complete
+Frontend: ~20–30% complete
+End-to-end integration: ~60–70% complete
 Deployment hardening: ~40% complete
 
 Overall beta launch readiness: approximately 75–80%.

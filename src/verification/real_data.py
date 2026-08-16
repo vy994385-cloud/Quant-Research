@@ -313,6 +313,8 @@ class RealDataVerificationResult:
 
     pit_checks: dict[str, object] = field(default_factory=dict)
 
+    analysis: object | None = None
+
     def evidence_ids(self) -> list[str]:
         return [
             item.evidence_id
@@ -591,6 +593,7 @@ def _run_verification_path(
         archive_root=archive_root,
         report=report,
         base_report=base_result.report,
+        analysis=base_result.analysis,
         market_ingestion=base_result.market_ingestion,
         financial_record_count=len(
             base_result.financial_snapshots

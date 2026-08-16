@@ -37,11 +37,14 @@ from src.api.schemas import (
     StockUniverseResponse,
 )
 
+from src.api.errors import register_api_error_handlers
+from src.api.research_router import create_research_router
+
 import os
 
 app = FastAPI(
     title="Quant Research API",
-    version="0.2.0",
+    version="0.3.0",
     description=(
         "Research and company-intelligence API. "
         "Provides descriptive analytical evidence, "
@@ -66,6 +69,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+register_api_error_handlers(app)
+
+app.include_router(create_research_router())
 
 
 # ---------------------------------------------------------------------
@@ -163,7 +170,7 @@ def health() -> dict:
     return {
         "status": "ok",
         "service": "quant-research-api",
-        "version": "0.2.0",
+        "version": "0.3.0",
         "providers": {
             "market": "yahoo_finance",
             "financials": "yahoo_finance",
