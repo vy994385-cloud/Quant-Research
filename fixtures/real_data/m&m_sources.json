@@ -1,0 +1,62 @@
+{
+  "company": "M&M",
+  "captured_at": "2026-08-16T00:00:00+00:00",
+  "note": "Recorded research source candidates for Mahindra & Mahindra curated from publicly available, dated disclosures (NSE/BSE reporting and press coverage). The candidate URLs are deterministic fixture placeholders; the fixtures are verification artifacts, not live research output. All candidates are available on or before the verification as-of timestamp 2026-08-10T12:00Z.",
+  "sources": [
+    {
+      "source_id": "mm-q1fy27-results",
+      "source_name": "M&M Exchange Filing",
+      "source_type": "REGULATORY",
+      "url": "https://example.invalid/mm-q1fy27-results",
+      "title": "M&M Q1 FY27 results: revenue and net profit, tractor and auto segment performance",
+      "published_at": "2026-08-06T16:30:00+05:30",
+      "available_at": "2026-08-06T16:30:00+05:30",
+      "reliability_tier": 1,
+      "categories": ["material_events", "business_model"]
+    },
+    {
+      "source_id": "mm-ev-launches",
+      "source_name": "Autocar Professional",
+      "source_type": "NEWS",
+      "url": "https://example.invalid/mm-ev-launches",
+      "title": "M&M launches electric SUV products with connected car AI technology, strengthening its competitive position",
+      "published_at": "2026-06-15T12:00:00+05:30",
+      "available_at": "2026-06-15T12:00:00+05:30",
+      "reliability_tier": 2,
+      "categories": ["products", "ai_technology", "transformation"]
+    },
+    {
+      "source_id": "mm-tractor-demand",
+      "source_name": "ET Auto",
+      "source_type": "NEWS",
+      "url": "https://example.invalid/mm-tractor-demand",
+      "title": "M&M tractor segment sees strong customer demand and market share gains",
+      "published_at": "2026-07-05T11:30:00+05:30",
+      "available_at": "2026-07-05T11:30:00+05:30",
+      "reliability_tier": 2,
+      "categories": ["customers", "competitive_position"]
+    },
+    {
+      "source_id": "mm-ev-capex",
+      "source_name": "BloombergQuint",
+      "source_type": "NEWS",
+      "url": "https://example.invalid/mm-ev-capex",
+      "title": "M&M management outlines electric-vehicle capex and capital allocation plan",
+      "published_at": "2026-02-28T10:00:00+05:30",
+      "available_at": "2026-02-28T10:00:00+05:30",
+      "reliability_tier": 2,
+      "categories": ["capital_allocation"]
+    },
+    {
+      "source_id": "mm-leadership-auto",
+      "source_name": "Business Standard",
+      "source_type": "NEWS",
+      "url": "https://example.invalid/mm-leadership-auto",
+      "title": "M&M announces leadership appointments in automotive and farm equipment businesses",
+      "published_at": "2026-04-08T09:00:00+05:30",
+      "available_at": "2026-04-08T09:00:00+05:30",
+      "reliability_tier": 2,
+      "categories": ["management"]
+    }
+  ]
+}

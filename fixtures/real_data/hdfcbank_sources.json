@@ -1,0 +1,62 @@
+{
+  "company": "HDFCBANK",
+  "captured_at": "2026-08-16T00:00:00+00:00",
+  "note": "Recorded research source candidates for HDFC Bank curated from publicly available, dated disclosures (NSE/BSE reporting and press coverage). The candidate URLs are deterministic fixture placeholders; the fixtures are verification artifacts, not live research output. All candidates are available on or before the verification as-of timestamp 2026-08-10T12:00Z.",
+  "sources": [
+    {
+      "source_id": "hdfcbank-q1fy27-results",
+      "source_name": "HDFC Bank Exchange Filing",
+      "source_type": "REGULATORY",
+      "url": "https://example.invalid/hdfcbank-q1fy27-results",
+      "title": "HDFC Bank Q1 FY27 results: net profit and revenue growth, asset quality stable",
+      "published_at": "2026-07-18T15:00:00+05:30",
+      "available_at": "2026-07-18T15:00:00+05:30",
+      "reliability_tier": 1,
+      "categories": ["material_events", "business_model"]
+    },
+    {
+      "source_id": "hdfcbank-deposits-customers",
+      "source_name": "The Financial Express",
+      "source_type": "NEWS",
+      "url": "https://example.invalid/hdfcbank-deposits-customers",
+      "title": "HDFC Bank grows customer deposits and loan book, deepening market share in retail banking",
+      "published_at": "2026-06-05T10:30:00+05:30",
+      "available_at": "2026-06-05T10:30:00+05:30",
+      "reliability_tier": 2,
+      "categories": ["customers", "competitive_position"]
+    },
+    {
+      "source_id": "hdfcbank-digital-banking",
+      "source_name": "YourStory",
+      "source_type": "NEWS",
+      "url": "https://example.invalid/hdfcbank-digital-banking",
+      "title": "HDFC Bank launches digital banking products and platform with AI, cloud technology for customers",
+      "published_at": "2026-02-15T09:00:00+05:30",
+      "available_at": "2026-02-15T09:00:00+05:30",
+      "reliability_tier": 2,
+      "categories": ["ai_technology", "products", "innovation"]
+    },
+    {
+      "source_id": "hdfcbank-capital-bonds",
+      "source_name": "BloombergQuint",
+      "source_type": "NEWS",
+      "url": "https://example.invalid/hdfcbank-capital-bonds",
+      "title": "HDFC Bank board approves AT1 capital issuance, management details tier-1 capital and cash position",
+      "published_at": "2026-04-10T17:00:00+05:30",
+      "available_at": "2026-04-10T17:00:00+05:30",
+      "reliability_tier": 2,
+      "categories": ["capital_allocation", "risks"]
+    },
+    {
+      "source_id": "hdfcbank-management-outlook",
+      "source_name": "Mint",
+      "source_type": "NEWS",
+      "url": "https://example.invalid/hdfcbank-management-outlook",
+      "title": "HDFC Bank leadership commentary on banking industry outlook, credit growth and digital strategy",
+      "published_at": "2026-07-20T12:30:00+05:30",
+      "available_at": "2026-07-20T12:30:00+05:30",
+      "reliability_tier": 2,
+      "categories": ["management", "industry"]
+    }
+  ]
+}

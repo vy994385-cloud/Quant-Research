@@ -2,25 +2,40 @@
 Real-data research verification.
 
 Proves that the existing research pipeline can produce a trustworthy,
-reproducible research result for a real company from real recorded
+reproducible research result for real companies from real recorded
 market, financial, and company-disclosure evidence while preserving
 strict point-in-time integrity.
 
 The recorded fixtures are NOT invented. They were captured from the
 allowed existing provider architecture:
 
-- tcs_market.csv      : real TCS + ^NSEI daily OHLCV bars replayed
-                        from the raw archive captured from the Yahoo
-                        Finance provider (see
-                        scripts/capture_real_data_fixtures.py).
-- tcs_financials.json : real TCS annual financials captured from the
-                        Yahoo Finance fundamentals provider.
-- tcs_sources.json    : real, dated TCS disclosures curated from
-                        public NSE/BSE reporting and press coverage,
-                        plus one deliberately future-dated candidate
-                        used to verify the point-in-time gate.
+- {company}_market.csv      : real daily OHLCV bars for the company
+                              plus the ^NSEI benchmark, captured from
+                              the Yahoo Finance market provider (see
+                              scripts/capture_real_data_fixtures.py and
+                              scripts/capture_multi_company_fixtures.py).
+- {company}_financials.json : real annual financials captured from the
+                              Yahoo Finance fundamentals provider.
+- {company}_sources.json    : real, dated company disclosures curated
+                              from public NSE/BSE reporting and press
+                              coverage, plus (for TCS) one deliberately
+                              future-dated candidate used to verify the
+                              point-in-time gate.
+
+Companies span several sectors of the Indian market:
+
+- TCS       information technology
+- RELIANCE  energy / conglomerate
+- INFY      information technology
+- HDFCBANK  banking / financials
+- SUNPHARMA pharmaceuticals / healthcare
+- M&M       automobiles
 
 No scraping is introduced and no provenance layer is bypassed.
+
+The same verification path also exercises graceful degradation when
+research sources are missing, stale, failed, conflicting, or only
+partially available.
 """
 
 from __future__ import annotations
@@ -42,6 +57,7 @@ from src.research.acquisition.evidence import (
     research_observations_to_evidence,
 )
 from src.research.acquisition.models import (
+    ResearchCategory,
     ResearchQuestion,
     SourceCandidate,
 )
@@ -72,18 +88,44 @@ DEFAULT_AS_OF = datetime(
 )
 
 MARKET_SOURCE_ID = "yahoo_finance_chart_recorded"
-SOURCE_ARCHIVE_SOURCE_ID = "tcs_recorded_sources"
 
 BENCHMARK_SYMBOL = "^NSEI"
+
+COMPANY_SECTORS: dict[str, str] = {
+    "TCS": "information technology",
+    "RELIANCE": "energy / conglomerate",
+    "INFY": "information technology",
+    "HDFCBANK": "banking / financials",
+    "SUNPHARMA": "pharmaceuticals / healthcare",
+    "M&M": "automobiles",
+}
+
+COMPANIES: tuple[str, ...] = tuple(
+    sorted(COMPANY_SECTORS)
+)
 
 
 def _as_utc(value: datetime) -> datetime:
     return value.astimezone(timezone.utc)
 
 
+def _fixture_names(company: str) -> tuple[str, str, str]:
+    prefix = company.strip().upper().lower()
+
+    return (
+        f"{prefix}_market.csv",
+        f"{prefix}_financials.json",
+        f"{prefix}_sources.json",
+    )
+
+
+def _source_archive_source_id(company: str) -> str:
+    return f"{company.strip().upper().lower()}_recorded_sources"
+
+
 class RecordedMarketDataProvider(MarketDataProvider):
     """
-    Replays the recorded real TCS/^NSEI OHLCV fixture through the
+    Replays the recorded real OHLCV fixture through the
     existing CSV adapter.
 
     Exposes a source_name so the raw archive records honest
@@ -113,7 +155,7 @@ class RecordedMarketDataProvider(MarketDataProvider):
 
 class RecordedFinancialProvider:
     """
-    Replays the recorded real TCS annual financials fixture.
+    Replays the recorded real annual financials fixture.
     """
 
     def __init__(
@@ -147,9 +189,61 @@ class RecordedFinancialProvider:
         ]
 
 
-class RecordedResearchSourceProvider(ResearchSourceProvider):
+class StaticSourcesProvider(ResearchSourceProvider):
     """
-    Replays recorded real TCS source candidates.
+    Replays an explicit list of recorded source candidates.
+
+    Honors the point-in-time contract exactly like the recorded
+    fixture provider: a candidate without a timezone-aware
+    available_at or available after `as_of` is never returned
+    unless `include_future=True` is set (in which case the
+    downstream SourceValidator gate must reject it).
+    """
+
+    def __init__(
+        self,
+        sources: list[SourceCandidate],
+        *,
+        categories: dict[str, frozenset[str]] | None = None,
+        include_future: bool = False,
+    ) -> None:
+        self._sources = list(sources)
+        self._categories = categories
+        self._include_future = include_future
+
+    def search(
+        self,
+        company: str,
+        question: ResearchQuestion,
+        as_of: datetime,
+    ) -> list[SourceCandidate]:
+        if as_of.tzinfo is None or as_of.utcoffset() is None:
+            raise ValueError("as_of must be timezone-aware")
+
+        results: list[SourceCandidate] = []
+
+        for source in self._sources:
+            if self._categories is not None:
+                if question.category.value not in self._categories[
+                    source.source_id
+                ]:
+                    continue
+
+            if not self._include_future:
+                if source.available_at is None:
+                    continue
+
+                if source.available_at > as_of:
+                    continue
+
+            results.append(source)
+
+        return results
+
+
+class RecordedResearchSourceProvider(StaticSourcesProvider):
+    """
+    Replays recorded real source candidates loaded from a fixture.
 
     By default the provider honors the point-in-time contract and
     never returns a candidate that was unavailable after `as_of`.
@@ -169,48 +263,24 @@ class RecordedResearchSourceProvider(ResearchSourceProvider):
             Path(sources_json).read_text(encoding="utf-8")
         )
 
-        self._include_future = include_future
-
-        self._sources: list[SourceCandidate] = []
-        self._categories: dict[str, frozenset[str]] = {}
+        sources: list[SourceCandidate] = []
+        categories: dict[str, frozenset[str]] = {}
 
         for entry in data["sources"]:
-            categories = frozenset(
+            categories_fixture = frozenset(
                 entry.pop("categories", [])
             )
 
             source = SourceCandidate.model_validate(entry)
 
-            self._sources.append(source)
-            self._categories[source.source_id] = categories
+            sources.append(source)
+            categories[source.source_id] = categories_fixture
 
-    def search(
-        self,
-        company: str,
-        question: ResearchQuestion,
-        as_of: datetime,
-    ) -> list[SourceCandidate]:
-        if as_of.tzinfo is None or as_of.utcoffset() is None:
-            raise ValueError("as_of must be timezone-aware")
-
-        results: list[SourceCandidate] = []
-
-        for source in self._sources:
-            if question.category.value not in self._categories[
-                source.source_id
-            ]:
-                continue
-
-            if not self._include_future:
-                if source.available_at is None:
-                    continue
-
-                if source.available_at > as_of:
-                    continue
-
-            results.append(source)
-
-        return results
+        super().__init__(
+            sources,
+            categories=categories,
+            include_future=include_future,
+        )
 
 
 @dataclass(frozen=True)
@@ -220,6 +290,7 @@ class RealDataVerificationResult:
     """
 
     company: str
+    sector: str
     as_of: datetime
     fixture_dir: Path
     archive_root: Path
@@ -258,6 +329,7 @@ class RealDataVerificationResult:
     def to_artifact(self) -> dict[str, object]:
         return {
             "company": self.company,
+            "sector": self.sector,
             "as_of": _as_utc(self.as_of).isoformat(),
             "market_archive_records": len(
                 self.market_ingestion.accepted
@@ -348,13 +420,13 @@ def _archive_sources(
 
     for source in sources:
         record = RawRecord(
-            source_id=SOURCE_ARCHIVE_SOURCE_ID,
+            source_id=_source_archive_source_id(company),
             record_id=source.source_id,
             retrieved_at=as_of,
             published_at=source.published_at,
             available_at=source.available_at,
             payload=source.model_dump(mode="json"),
-            dataset_id="tcs_recorded_sources",
+            dataset_id=f"{company.lower()}_recorded_sources",
             request_metadata={
                 "company": company,
                 "as_of": as_of.isoformat(),
@@ -367,16 +439,68 @@ def _archive_sources(
     return tuple(archived)
 
 
-def run_real_data_verification(
+def _build_pit_checks(
     *,
-    company: str = DEFAULT_COMPANY,
-    as_of: datetime | None = None,
-    archive_root: str | Path,
-    fixture_dir: str | Path | None = None,
-    include_future_sources: bool = False,
+    company: str,
+    captured_at: datetime,
+    base_result,
+    acquisition: AcquisitionResult,
+    evidence_items: tuple[EvidenceItem, ...],
+    archived_source_ids: tuple[str, ...],
+) -> dict[str, object]:
+    market_bars = list(base_result.market_ingestion.accepted)
+
+    return {
+        "market_bars_all_known_at_as_of": all(
+            bar.trading_date <= captured_at.date()
+            for bar in market_bars
+        ),
+        "market_records_available_on_or_before_as_of": (
+            base_result.market_provenance.available_at
+            is not None
+            and base_result.market_provenance.available_at
+            <= captured_at
+        ),
+        "financial_period_ends_on_or_before_as_of": all(
+            snapshot.period_end <= captured_at.date()
+            for snapshot in base_result.financial_snapshots
+        ),
+        "accepted_sources_known_at_as_of": all(
+            source.available_at is not None
+            and source.available_at <= captured_at
+            for source in acquisition.sources
+        ),
+        "future_source_rejected": not any(
+            source.available_at is not None
+            and source.available_at > captured_at
+            for source in acquisition.sources
+        ),
+        "all_evidence_known_at_as_of": all(
+            item.observation_at <= captured_at
+            for item in evidence_items
+        ),
+        "every_acquired_evidence_resolves_to_archived_source": all(
+            source_id in archived_source_ids
+            for item in evidence_items
+            if item.evidence_type == EvidenceType.ACQUIRED
+            for source_id in item.source_ids
+        ),
+    }
+
+
+def _run_verification_path(
+    *,
+    company: str,
+    captured_at: datetime,
+    fixture_dir: Path,
+    archive_root: Path,
+    market_provider: MarketDataProvider,
+    financial_provider,
+    source_provider: ResearchSourceProvider,
 ) -> RealDataVerificationResult:
     """
-    Run the complete real-data research path and return the result.
+    Run the complete real-data research path for one company and
+    return the result.
 
     Path verified:
 
@@ -391,50 +515,16 @@ def run_real_data_verification(
 
     normalized = company.strip().upper()
 
-    if not normalized:
-        raise ValueError("company cannot be empty")
-
-    if normalized != DEFAULT_COMPANY:
-        raise ValueError(
-            "the recorded fixtures only cover the real company "
-            f"{DEFAULT_COMPANY}; received {normalized}. "
-            "Record a fixture for the requested company first."
-        )
-
-    captured_at = as_of or DEFAULT_AS_OF
-
-    if captured_at.tzinfo is None:
-        raise ValueError("as_of must be timezone-aware")
-
-    fixtures = Path(
-        fixture_dir or DEFAULT_FIXTURE_DIR
-    )
-
-    archive_root_path = Path(archive_root)
-
-    market_provider = RecordedMarketDataProvider(
-        fixtures / "tcs_market.csv"
-    )
-
-    financial_provider = RecordedFinancialProvider(
-        fixtures / "tcs_financials.json"
-    )
-
     service = RealCompanyResearchService(
         market_provider=market_provider,
         financial_provider=financial_provider,
-        archive_root=archive_root_path,
+        archive_root=archive_root,
         benchmark_symbol=BENCHMARK_SYMBOL,
     )
 
     base_result = service.run(
         normalized,
         retrieved_at=captured_at,
-    )
-
-    source_provider = RecordedResearchSourceProvider(
-        fixtures / "tcs_sources.json",
-        include_future=include_future_sources,
     )
 
     runner = ResearchAcquisitionRunner(
@@ -450,7 +540,7 @@ def run_real_data_verification(
         extracted_at=captured_at,
     )
 
-    archive = RawArchive(archive_root_path)
+    archive = RawArchive(archive_root)
 
     archived_source_ids = _archive_sources(
         archive,
@@ -484,51 +574,21 @@ def run_real_data_verification(
         acquired_observations=acquisition.observations,
     )
 
-    market_bars = list(base_result.market_ingestion.accepted)
-
-    pit_checks = {
-        "market_bars_all_known_at_as_of": all(
-            bar.trading_date <= captured_at.date()
-            for bar in market_bars
-        ),
-        "market_records_available_on_or_before_as_of": (
-            base_result.market_provenance.available_at
-            is not None
-            and base_result.market_provenance.available_at
-            <= captured_at
-        ),
-        "financial_period_ends_on_or_before_as_of": all(
-            snapshot.period_end <= captured_at.date()
-            for snapshot in base_result.financial_snapshots
-        ),
-        "accepted_sources_known_at_as_of": all(
-            source.available_at is not None
-            and source.available_at <= captured_at
-            for source in acquisition.sources
-        ),
-        "future_source_rejected": (
-            not any(
-                source.source_id == "tcs-future-event-fixture"
-                for source in acquisition.sources
-            )
-        ),
-        "all_evidence_known_at_as_of": all(
-            item.observation_at <= captured_at
-            for item in evidence_items
-        ),
-        "every_acquired_evidence_resolves_to_archived_source": all(
-            source_id in archived_source_ids
-            for item in evidence_items
-            if item.evidence_type == EvidenceType.ACQUIRED
-            for source_id in item.source_ids
-        ),
-    }
+    pit_checks = _build_pit_checks(
+        company=normalized,
+        captured_at=captured_at,
+        base_result=base_result,
+        acquisition=acquisition,
+        evidence_items=evidence_items,
+        archived_source_ids=archived_source_ids,
+    )
 
     return RealDataVerificationResult(
         company=normalized,
+        sector=COMPANY_SECTORS[normalized],
         as_of=captured_at,
-        fixture_dir=fixtures,
-        archive_root=archive_root_path,
+        fixture_dir=fixture_dir,
+        archive_root=archive_root,
         report=report,
         base_report=base_result.report,
         market_ingestion=base_result.market_ingestion,
@@ -546,14 +606,462 @@ def run_real_data_verification(
     )
 
 
+def run_real_data_verification(
+    *,
+    company: str = DEFAULT_COMPANY,
+    as_of: datetime | None = None,
+    archive_root: str | Path,
+    fixture_dir: str | Path | None = None,
+    include_future_sources: bool = False,
+) -> RealDataVerificationResult:
+    """
+    Run the complete real-data research path for a recorded company
+    and return the result.
+    """
+
+    normalized = company.strip().upper()
+
+    if not normalized:
+        raise ValueError("company cannot be empty")
+
+    if normalized not in COMPANY_SECTORS:
+        raise ValueError(
+            "the recorded fixtures only cover the real companies "
+            f"{', '.join(COMPANIES)}; received {normalized}. "
+            "Record a fixture for the requested company first."
+        )
+
+    captured_at = as_of or DEFAULT_AS_OF
+
+    if captured_at.tzinfo is None:
+        raise ValueError("as_of must be timezone-aware")
+
+    fixtures = Path(
+        fixture_dir or DEFAULT_FIXTURE_DIR
+    )
+
+    archive_root_path = Path(archive_root)
+
+    market_csv, financials_json, sources_json = _fixture_names(
+        normalized
+    )
+
+    market_provider = RecordedMarketDataProvider(
+        fixtures / market_csv
+    )
+
+    financial_provider = RecordedFinancialProvider(
+        fixtures / financials_json
+    )
+
+    source_provider = RecordedResearchSourceProvider(
+        fixtures / sources_json,
+        include_future=include_future_sources,
+    )
+
+    return _run_verification_path(
+        company=normalized,
+        captured_at=captured_at,
+        fixture_dir=fixtures,
+        archive_root=archive_root_path,
+        market_provider=market_provider,
+        financial_provider=financial_provider,
+        source_provider=source_provider,
+    )
+
+
+@dataclass(frozen=True)
+class MultiCompanyVerificationResult:
+    """
+    Aggregated result of the multi-company real-data research path.
+    """
+
+    as_of: datetime
+    fixture_dir: Path
+    archive_root: Path
+    results: tuple[RealDataVerificationResult, ...]
+
+    @property
+    def companies(self) -> tuple[str, ...]:
+        return tuple(result.company for result in self.results)
+
+    @property
+    def sectors(self) -> tuple[str, ...]:
+        return tuple(
+            sorted(
+                {
+                    result.sector
+                    for result in self.results
+                }
+            )
+        )
+
+    @property
+    def pit_checks(self) -> dict[str, dict[str, object]]:
+        return {
+            result.company: result.pit_checks
+            for result in self.results
+        }
+
+    @property
+    def all_pit_checks_pass(self) -> bool:
+        return all(
+            all(
+                value is True
+                for value in result.pit_checks.values()
+            )
+            for result in self.results
+        )
+
+
+def run_multi_company_verification(
+    *,
+    companies: list[str] | tuple[str, ...] | None = None,
+    as_of: datetime | None = None,
+    archive_root: str | Path,
+    fixture_dir: str | Path | None = None,
+) -> MultiCompanyVerificationResult:
+    """
+    Run the complete real-data research path for several recorded
+    Indian companies across different sectors.
+    """
+
+    selected = tuple(
+        company.strip().upper()
+        for company in (companies or COMPANIES)
+    )
+
+    unknown = [
+        company
+        for company in selected
+        if company not in COMPANY_SECTORS
+    ]
+
+    if unknown:
+        raise ValueError(
+            "the recorded fixtures only cover the real companies "
+            f"{', '.join(COMPANIES)}; received {', '.join(unknown)}."
+        )
+
+    captured_at = as_of or DEFAULT_AS_OF
+
+    if captured_at.tzinfo is None:
+        raise ValueError("as_of must be timezone-aware")
+
+    fixtures = Path(
+        fixture_dir or DEFAULT_FIXTURE_DIR
+    )
+
+    archive_root_path = Path(archive_root)
+
+    results: list[RealDataVerificationResult] = []
+
+    for company in selected:
+        results.append(
+            run_real_data_verification(
+                company=company,
+                as_of=captured_at,
+                archive_root=archive_root_path,
+                fixture_dir=fixtures,
+            )
+        )
+
+    return MultiCompanyVerificationResult(
+        as_of=captured_at,
+        fixture_dir=fixtures,
+        archive_root=archive_root_path,
+        results=tuple(results),
+    )
+
+
+class MissingSourcesProvider(ResearchSourceProvider):
+    """
+    A recorded research source provider that finds nothing.
+    """
+
+    def search(
+        self,
+        company: str,
+        question: ResearchQuestion,
+        as_of: datetime,
+    ) -> list[SourceCandidate]:
+        return []
+
+
+class StaleSourcesProvider(StaticSourcesProvider):
+    """
+    Replays recorded sources whose disclosures are much older than
+    the research as-of (still point-in-time valid), plus one
+    future-dated candidate that must be rejected downstream.
+    """
+
+    def __init__(
+        self,
+        sources_json: str | Path,
+        *,
+        stale_shift_days: int = 365,
+    ) -> None:
+        data = json.loads(
+            Path(sources_json).read_text(encoding="utf-8")
+        )
+
+        sources: list[SourceCandidate] = []
+        categories: dict[str, frozenset[str]] = {}
+
+        for index, entry in enumerate(data["sources"]):
+            categories_fixture = frozenset(
+                entry.pop("categories", [])
+            )
+
+            source = SourceCandidate.model_validate(entry)
+
+            published_at = source.published_at
+            available_at = source.available_at
+
+            if published_at is not None:
+                published_at = published_at - timedelta(
+                    days=stale_shift_days
+                )
+
+            if available_at is not None:
+                available_at = available_at - timedelta(
+                    days=stale_shift_days
+                )
+
+            stale = SourceCandidate(
+                **{
+                    **source.model_dump(mode="json"),
+                    "source_id": f"stale-{source.source_id}",
+                    "published_at": published_at,
+                    "available_at": available_at,
+                }
+            )
+
+            sources.append(stale)
+            categories[stale.source_id] = categories_fixture
+
+        future = SourceCandidate(
+            source_id=f"future-{sources_json.stem}",
+            source_name="PIT Verification Fixture",
+            source_type="NEWS",
+            url="https://example.invalid/stale-future",
+            title="Future-dated disclosure fixture used to verify point-in-time rejection of stale-provider discovery",
+            published_at=(
+                DEFAULT_AS_OF + timedelta(days=4)
+            ),
+            available_at=(
+                DEFAULT_AS_OF + timedelta(days=4)
+            ),
+            reliability_tier=2,
+        )
+
+        categories[future.source_id] = frozenset(
+            {"material_events"}
+        )
+
+        super().__init__(
+            [*sources, future],
+            categories=categories,
+            include_future=True,
+        )
+
+
+class PartialSourcesProvider(StaticSourcesProvider):
+    """
+    Replays sources where coverage is only partially available:
+
+    - valid sources for some research questions
+    - no sources for other questions
+    - one future-dated candidate that must be rejected
+    - one naive (timezone-naive) candidate that must be rejected
+    """
+
+    def __init__(
+        self,
+        sources_json: str | Path,
+    ) -> None:
+        data = json.loads(
+            Path(sources_json).read_text(encoding="utf-8")
+        )
+
+        sources: list[SourceCandidate] = []
+        categories: dict[str, frozenset[str]] = {}
+
+        for index, entry in enumerate(data["sources"]):
+            categories_fixture = frozenset(
+                entry.pop("categories", [])
+            )
+
+            source = SourceCandidate.model_validate(entry)
+
+            # Keep only a subset of the recorded disclosures so
+            # coverage is partial.
+            if index % 2 != 0:
+                continue
+
+            sources.append(source)
+            categories[source.source_id] = categories_fixture
+
+        future = SourceCandidate(
+            source_id=f"partial-future-{sources_json.stem}",
+            source_name="PIT Verification Fixture",
+            source_type="NEWS",
+            url="https://example.invalid/partial-future",
+            title="Future-dated disclosure fixture used to verify partial-provider point-in-time rejection",
+            published_at=(
+                DEFAULT_AS_OF + timedelta(days=4)
+            ),
+            available_at=(
+                DEFAULT_AS_OF + timedelta(days=4)
+            ),
+            reliability_tier=2,
+        )
+
+        naive = SourceCandidate(
+            source_id=f"partial-naive-{sources_json.stem}",
+            source_name="PIT Verification Fixture",
+            source_type="NEWS",
+            url="https://example.invalid/partial-naive",
+            title="Naive-timestamp disclosure fixture used to verify partial-provider timestamp rejection",
+            published_at=datetime(
+                2026,
+                8,
+                1,
+                12,
+                0,
+            ),
+            available_at=datetime(
+                2026,
+                8,
+                1,
+                12,
+                0,
+            ),
+            reliability_tier=2,
+        )
+
+        categories[future.source_id] = frozenset(
+            {"material_events"}
+        )
+        categories[naive.source_id] = frozenset(
+            {"material_events"}
+        )
+
+        super().__init__(
+            [*sources, future, naive],
+            categories=categories,
+            include_future=True,
+        )
+
+
+class FailedSourcesProvider(ResearchSourceProvider):
+    """
+    A recorded research source provider that always fails.
+
+    Used to verify graceful degradation: a failed optional source
+    provider must not corrupt the report or cause unrelated evidence
+    to become trusted.
+    """
+
+    source_name = "failed-sources-provider"
+
+    def search(
+        self,
+        company: str,
+        question: ResearchQuestion,
+        as_of: datetime,
+    ) -> list[SourceCandidate]:
+        raise RuntimeError(
+            f"recorded source provider failed for {company}"
+        )
+
+
+def run_source_scenario(
+    *,
+    company: str,
+    source_provider: ResearchSourceProvider,
+    as_of: datetime | None = None,
+    archive_root: str | Path,
+    fixture_dir: str | Path | None = None,
+    market_provider: MarketDataProvider | None = None,
+    financial_provider=None,
+) -> RealDataVerificationResult:
+    """
+    Run the complete real-data research path for a recorded company
+    using an arbitrary recorded source provider.
+
+    Used to verify that company research works when sources are
+    missing, stale, failed, conflicting, or only partially available.
+
+    `market_provider` and `financial_provider` default to the
+    recorded fixtures for the company; injectable so that provider
+    failure paths can also be verified.
+    """
+
+    normalized = company.strip().upper()
+
+    if not normalized:
+        raise ValueError("company cannot be empty")
+
+    if normalized not in COMPANY_SECTORS:
+        raise ValueError(
+            "the recorded fixtures only cover the real companies "
+            f"{', '.join(COMPANIES)}; received {normalized}."
+        )
+
+    captured_at = as_of or DEFAULT_AS_OF
+
+    if captured_at.tzinfo is None:
+        raise ValueError("as_of must be timezone-aware")
+
+    fixtures = Path(
+        fixture_dir or DEFAULT_FIXTURE_DIR
+    )
+
+    archive_root_path = Path(archive_root)
+
+    if market_provider is None or financial_provider is None:
+        market_csv, financials_json, _ = _fixture_names(normalized)
+
+    if market_provider is None:
+        market_provider = RecordedMarketDataProvider(
+            fixtures / market_csv
+        )
+
+    if financial_provider is None:
+        financial_provider = RecordedFinancialProvider(
+            fixtures / financials_json
+        )
+
+    return _run_verification_path(
+        company=normalized,
+        captured_at=captured_at,
+        fixture_dir=fixtures,
+        archive_root=archive_root_path,
+        market_provider=market_provider,
+        financial_provider=financial_provider,
+        source_provider=source_provider,
+    )
+
+
 __all__ = [
     "BENCHMARK_SYMBOL",
+    "COMPANIES",
+    "COMPANY_SECTORS",
     "DEFAULT_AS_OF",
     "DEFAULT_COMPANY",
     "DEFAULT_FIXTURE_DIR",
+    "FailedSourcesProvider",
+    "MissingSourcesProvider",
+    "MultiCompanyVerificationResult",
+    "PartialSourcesProvider",
     "RealDataVerificationResult",
     "RecordedFinancialProvider",
     "RecordedMarketDataProvider",
     "RecordedResearchSourceProvider",
+    "StaleSourcesProvider",
+    "StaticSourcesProvider",
+    "run_multi_company_verification",
     "run_real_data_verification",
+    "run_source_scenario",
 ]

@@ -1,0 +1,63 @@
+{
+  "captured_at": "2026-08-16T08:08:00.828092+00:00",
+  "provider": "yahoo_finance_fundamentals",
+  "company": "M&M",
+  "snapshots": [
+    {
+      "symbol": "M&M",
+      "period_end": "2023-03-31",
+      "revenue": "1190403800000.0",
+      "operating_profit": null,
+      "net_profit": "102815000000.0",
+      "operating_cash_flow": "-70740200000.0",
+      "free_cash_flow": "-133785900000.0",
+      "total_assets": "2058917700000.0",
+      "total_debt": "922468500000.0",
+      "cash_and_equivalents": null,
+      "receivables": "70280200000.0",
+      "payables": null
+    },
+    {
+      "symbol": "M&M",
+      "period_end": "2024-03-31",
+      "revenue": "1358030300000.0",
+      "operating_profit": null,
+      "net_profit": "112686400000.0",
+      "operating_cash_flow": "-56299500000.0",
+      "free_cash_flow": "-155759400000.0",
+      "total_assets": "2363007300000.0",
+      "total_debt": "1066255200000.0",
+      "cash_and_equivalents": null,
+      "receivables": "74594000000.0",
+      "payables": null
+    },
+    {
+      "symbol": "M&M",
+      "period_end": "2025-03-31",
+      "revenue": "1556452600000.0",
+      "operating_profit": null,
+      "net_profit": "129291000000.0",
+      "operating_cash_flow": "31758100000.0",
+      "free_cash_flow": "-72161400000.0",
+      "total_assets": "2775862700000.0",
+      "total_debt": "1249493100000.0",
+      "cash_and_equivalents": null,
+      "receivables": "82797000000.0",
+      "payables": null
+    },
+    {
+      "symbol": "M&M",
+      "period_end": "2026-03-31",
+      "revenue": "1930979500000.0",
+      "operating_profit": null,
+      "net_profit": "170988500000.0",
+      "operating_cash_flow": "116573600000.0",
+      "free_cash_flow": "20519100000.0",
+      "total_assets": "3176346400000.0",
+      "total_debt": "1339631500000.0",
+      "cash_and_equivalents": null,
+      "receivables": "90642700000.0",
+      "payables": null
+    }
+  ]
+}

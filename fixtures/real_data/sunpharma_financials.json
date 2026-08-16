@@ -1,0 +1,63 @@
+{
+  "captured_at": "2026-08-16T08:07:58.986219+00:00",
+  "provider": "yahoo_finance_fundamentals",
+  "company": "SUNPHARMA",
+  "snapshots": [
+    {
+      "symbol": "SUNPHARMA",
+      "period_end": "2023-03-31",
+      "revenue": "432788700000.0",
+      "operating_profit": null,
+      "net_profit": "84735800000.0",
+      "operating_cash_flow": "49593300000.0",
+      "free_cash_flow": "28737500000.0",
+      "total_assets": "807435900000.0",
+      "total_debt": "68858700000.0",
+      "cash_and_equivalents": null,
+      "receivables": "114385100000.0",
+      "payables": null
+    },
+    {
+      "symbol": "SUNPHARMA",
+      "period_end": "2024-03-31",
+      "revenue": "477584500000.0",
+      "operating_profit": null,
+      "net_profit": "95763800000.0",
+      "operating_cash_flow": "121349800000.0",
+      "free_cash_flow": "99331700000.0",
+      "total_assets": "854996500000.0",
+      "total_debt": "32736700000.0",
+      "cash_and_equivalents": null,
+      "receivables": "112493700000.0",
+      "payables": null
+    },
+    {
+      "symbol": "SUNPHARMA",
+      "period_end": "2025-03-31",
+      "revenue": "520412500000.0",
+      "operating_profit": null,
+      "net_profit": "109290400000.0",
+      "operating_cash_flow": "140720900000.0",
+      "free_cash_flow": "119435100000.0",
+      "total_assets": "921005800000.0",
+      "total_debt": "23621900000.0",
+      "cash_and_equivalents": null,
+      "receivables": "130461100000.0",
+      "payables": null
+    },
+    {
+      "symbol": "SUNPHARMA",
+      "period_end": "2026-03-31",
+      "revenue": "582201100000.0",
+      "operating_profit": null,
+      "net_profit": "114794200000.0",
+      "operating_cash_flow": "124191800000.0",
+      "free_cash_flow": "88098100000.0",
+      "total_assets": "1087852200000.0",
+      "total_debt": "46273200000.0",
+      "cash_and_equivalents": null,
+      "receivables": "155096700000.0",
+      "payables": null
+    }
+  ]
+}

@@ -1,0 +1,63 @@
+{
+  "captured_at": "2026-08-16T08:07:55.093646+00:00",
+  "provider": "yahoo_finance_fundamentals",
+  "company": "INFY",
+  "snapshots": [
+    {
+      "symbol": "INFY",
+      "period_end": "2023-03-31",
+      "revenue": "18212000000.0",
+      "operating_profit": null,
+      "net_profit": "2981000000.0",
+      "operating_cash_flow": "2853000000.0",
+      "free_cash_flow": "2534000000.0",
+      "total_assets": "15312000000.0",
+      "total_debt": "1010000000.0",
+      "cash_and_equivalents": null,
+      "receivables": "3094000000.0",
+      "payables": null
+    },
+    {
+      "symbol": "INFY",
+      "period_end": "2024-03-31",
+      "revenue": "18562000000.0",
+      "operating_profit": null,
+      "net_profit": "3167000000.0",
+      "operating_cash_flow": "3148000000.0",
+      "free_cash_flow": "2882000000.0",
+      "total_assets": "16523000000.0",
+      "total_debt": "1002000000.0",
+      "cash_and_equivalents": null,
+      "receivables": "3620000000.0",
+      "payables": null
+    },
+    {
+      "symbol": "INFY",
+      "period_end": "2025-03-31",
+      "revenue": "19277000000.0",
+      "operating_profit": null,
+      "net_profit": "3158000000.0",
+      "operating_cash_flow": "4351000000.0",
+      "free_cash_flow": "4088000000.0",
+      "total_assets": "17419000000.0",
+      "total_debt": "962000000.0",
+      "cash_and_equivalents": null,
+      "receivables": "3645000000.0",
+      "payables": null
+    },
+    {
+      "symbol": "INFY",
+      "period_end": "2026-03-31",
+      "revenue": "20158000000.0",
+      "operating_profit": null,
+      "net_profit": "3313000000.0",
+      "operating_cash_flow": "4039000000.0",
+      "free_cash_flow": "3733000000.0",
+      "total_assets": "16446000000.0",
+      "total_debt": "967000000.0",
+      "cash_and_equivalents": null,
+      "receivables": "3715000000.0",
+      "payables": null
+    }
+  ]
+}

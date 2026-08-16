@@ -1,0 +1,63 @@
+{
+  "captured_at": "2026-08-16T08:07:57.222156+00:00",
+  "provider": "yahoo_finance_fundamentals",
+  "company": "HDFCBANK",
+  "snapshots": [
+    {
+      "symbol": "HDFCBANK",
+      "period_end": "2023-03-31",
+      "revenue": "1205375000000.0",
+      "operating_profit": null,
+      "net_profit": "495446900000.0",
+      "operating_cash_flow": "477200600000.0",
+      "free_cash_flow": "433580300000.0",
+      "total_assets": "25755624000000.0",
+      "total_debt": "3151792800000.0",
+      "cash_and_equivalents": null,
+      "receivables": "194533400000.0",
+      "payables": null
+    },
+    {
+      "symbol": "HDFCBANK",
+      "period_end": "2024-03-31",
+      "revenue": "1604968500000.0",
+      "operating_profit": null,
+      "net_profit": "622656600000.0",
+      "operating_cash_flow": "1022322400000.0",
+      "free_cash_flow": "968484400000.0",
+      "total_assets": "44118573000000.0",
+      "total_debt": "8093552100000.0",
+      "cash_and_equivalents": null,
+      "receivables": "249940000000.0",
+      "payables": null
+    },
+    {
+      "symbol": "HDFCBANK",
+      "period_end": "2025-03-31",
+      "revenue": "1838641100000.0",
+      "operating_profit": null,
+      "net_profit": "673508300000.0",
+      "operating_cash_flow": "1195617400000.0",
+      "free_cash_flow": "1129220100000.0",
+      "total_assets": "48187671100000.0",
+      "total_debt": "7326106100000.0",
+      "cash_and_equivalents": null,
+      "receivables": "323230700000.0",
+      "payables": null
+    },
+    {
+      "symbol": "HDFCBANK",
+      "period_end": "2026-03-31",
+      "revenue": "1925667800000.0",
+      "operating_profit": null,
+      "net_profit": "704793400000.0",
+      "operating_cash_flow": "1118559900000.0",
+      "free_cash_flow": "1065776300000.0",
+      "total_assets": "52621193200000.0",
+      "total_debt": "6643640400000.0",
+      "cash_and_equivalents": null,
+      "receivables": "330247200000.0",
+      "payables": null
+    }
+  ]
+}

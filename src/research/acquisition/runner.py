@@ -27,6 +27,11 @@ class AcquisitionResult:
     observations_created: int
     observations: list[ResearchObservation]
     sources: list[SourceCandidate]
+    provider_failures: tuple[str, ...] = ()
+
+    @property
+    def provider_failed(self) -> bool:
+        return bool(self.provider_failures)
 
 
 class ResearchAcquisitionRunner:
@@ -63,16 +68,33 @@ class ResearchAcquisitionRunner:
         )
 
         discovered: list[SourceCandidate] = []
+        provider_failures: list[str] = []
 
         for question in questions:
             for provider in self.providers:
-                discovered.extend(
-                    provider.search(
-                        company,
-                        question,
-                        as_of,
+                try:
+                    discovered.extend(
+                        provider.search(
+                            company,
+                            question,
+                            as_of,
+                        )
                     )
-                )
+                except (RuntimeError, ValueError, KeyError):
+                    provider_name = getattr(
+                        provider,
+                        "source_name",
+                        None,
+                    )
+
+                    if not provider_name:
+                        provider_name = (
+                            provider.__class__.__name__
+                        )
+
+                    provider_failures.append(
+                        f"{provider_name}:{question.question_id}"
+                    )
 
         accepted = self.validator.validate_many(
             discovered,
@@ -113,4 +135,7 @@ class ResearchAcquisitionRunner:
             observations_created=len(observations),
             observations=observations,
             sources=accepted,
+            provider_failures=tuple(
+                sorted(set(provider_failures))
+            ),
         )

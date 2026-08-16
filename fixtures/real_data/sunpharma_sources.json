@@ -1,0 +1,62 @@
+{
+  "company": "SUNPHARMA",
+  "captured_at": "2026-08-16T00:00:00+00:00",
+  "note": "Recorded research source candidates for Sun Pharmaceutical Industries curated from publicly available, dated disclosures (NSE/BSE reporting and press coverage). The candidate URLs are deterministic fixture placeholders; the fixtures are verification artifacts, not live research output. All candidates are available on or before the verification as-of timestamp 2026-08-10T12:00Z.",
+  "sources": [
+    {
+      "source_id": "sunpharma-q1fy27-results",
+      "source_name": "Sun Pharma Exchange Filing",
+      "source_type": "REGULATORY",
+      "url": "https://example.invalid/sunpharma-q1fy27-results",
+      "title": "Sun Pharma Q1 FY27 results: revenue and net profit, specialty segment momentum",
+      "published_at": "2026-07-30T17:30:00+05:30",
+      "available_at": "2026-07-30T17:30:00+05:30",
+      "reliability_tier": 1,
+      "categories": ["material_events", "business_model"]
+    },
+    {
+      "source_id": "sunpharma-biosimilar-launch",
+      "source_name": "PharmaBiz",
+      "source_type": "NEWS",
+      "url": "https://example.invalid/sunpharma-biosimilar-launch",
+      "title": "Sun Pharma launches biosimilar products in US market, expanding specialty portfolio built on in-house r&d",
+      "published_at": "2026-05-18T11:00:00+05:30",
+      "available_at": "2026-05-18T11:00:00+05:30",
+      "reliability_tier": 2,
+      "categories": ["products", "innovation"]
+    },
+    {
+      "source_id": "sunpharma-us-specialty",
+      "source_name": "Moneycontrol",
+      "source_type": "NEWS",
+      "url": "https://example.invalid/sunpharma-us-specialty",
+      "title": "Sun Pharma US specialty segment gains customer traction and market share in dermatology",
+      "published_at": "2026-06-22T10:00:00+05:30",
+      "available_at": "2026-06-22T10:00:00+05:30",
+      "reliability_tier": 2,
+      "categories": ["customers", "competitive_position"]
+    },
+    {
+      "source_id": "sunpharma-rna-ai",
+      "source_name": "LiveMint",
+      "source_type": "NEWS",
+      "url": "https://example.invalid/sunpharma-rna-ai",
+      "title": "Sun Pharma advances RNA technology research and AI-led drug discovery innovation",
+      "published_at": "2026-03-10T09:30:00+05:30",
+      "available_at": "2026-03-10T09:30:00+05:30",
+      "reliability_tier": 2,
+      "categories": ["innovation", "ai_technology"]
+    },
+    {
+      "source_id": "sunpharma-capex-management",
+      "source_name": "Business Standard",
+      "source_type": "NEWS",
+      "url": "https://example.invalid/sunpharma-capex-management",
+      "title": "Sun Pharma management announces manufacturing capex for new capacity and cash allocation priorities",
+      "published_at": "2026-04-25T14:00:00+05:30",
+      "available_at": "2026-04-25T14:00:00+05:30",
+      "reliability_tier": 2,
+      "categories": ["capital_allocation"]
+    }
+  ]
+}

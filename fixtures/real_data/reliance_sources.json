@@ -1,0 +1,62 @@
+{
+  "company": "RELIANCE",
+  "captured_at": "2026-08-16T00:00:00+00:00",
+  "note": "Recorded research source candidates for Reliance Industries curated from publicly available, dated disclosures (NSE/BSE reporting and press coverage). The candidate URLs are deterministic fixture placeholders; the fixtures are verification artifacts, not live research output. All candidates are available on or before the verification as-of timestamp 2026-08-10T12:00Z.",
+  "sources": [
+    {
+      "source_id": "reliance-q4fy26-results",
+      "source_name": "Reliance Exchange Filing",
+      "source_type": "REGULATORY",
+      "url": "https://example.invalid/reliance-q4fy26-results",
+      "title": "Reliance board and management report Q4 FY26 results: consolidated revenue, net profit and capital allocation to shareholders",
+      "published_at": "2026-04-17T17:30:00+05:30",
+      "available_at": "2026-04-17T17:30:00+05:30",
+      "reliability_tier": 1,
+      "categories": ["material_events", "business_model", "capital_allocation"]
+    },
+    {
+      "source_id": "reliance-ai-jio-cloud",
+      "source_name": "Business Standard",
+      "source_type": "NEWS",
+      "url": "https://example.invalid/reliance-ai-jio-cloud",
+      "title": "Reliance Jio expands AI cloud and digital platforms, partnerships with global technology firms",
+      "published_at": "2026-03-15T10:00:00+05:30",
+      "available_at": "2026-03-15T10:00:00+05:30",
+      "reliability_tier": 2,
+      "categories": ["ai_technology", "partnerships", "innovation"]
+    },
+    {
+      "source_id": "reliance-new-energy-giga",
+      "source_name": "Economic Times",
+      "source_type": "NEWS",
+      "url": "https://example.invalid/reliance-new-energy-giga",
+      "title": "Reliance new energy giga-factory ramps production, a strategic innovation strengthening its competitive position in clean-energy products",
+      "published_at": "2026-02-20T11:00:00+05:30",
+      "available_at": "2026-02-20T11:00:00+05:30",
+      "reliability_tier": 2,
+      "categories": ["products", "transformation", "innovation"]
+    },
+    {
+      "source_id": "reliance-agm-management",
+      "source_name": "Mint",
+      "source_type": "NEWS",
+      "url": "https://example.invalid/reliance-agm-management",
+      "title": "Reliance Industries AGM: chairman's address on leadership, industry strategy and business outlook",
+      "published_at": "2026-08-01T18:00:00+05:30",
+      "available_at": "2026-08-01T18:00:00+05:30",
+      "reliability_tier": 2,
+      "categories": ["management", "industry"]
+    },
+    {
+      "source_id": "reliance-capex-debt",
+      "source_name": "CNBC TV18",
+      "source_type": "NEWS",
+      "url": "https://example.invalid/reliance-capex-debt",
+      "title": "Reliance announces record capex for new energy and digital business, management outlines debt and cash flow plans",
+      "published_at": "2026-05-10T09:30:00+05:30",
+      "available_at": "2026-05-10T09:30:00+05:30",
+      "reliability_tier": 2,
+      "categories": ["capital_allocation", "risks"]
+    }
+  ]
+}

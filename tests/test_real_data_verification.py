@@ -424,9 +424,12 @@ def test_archived_sources_preserve_real_disclosure_metadata(
 
 
 def test_verifier_rejects_unrecorded_company(tmp_path):
-    with pytest.raises(ValueError, match="only cover the real company"):
+    with pytest.raises(
+        ValueError,
+        match="only cover the real companies",
+    ):
         run_real_data_verification(
-            company="INFY",
+            company="UNRECORDED",
             archive_root=tmp_path / "archive",
         )
 

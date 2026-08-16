@@ -1,0 +1,62 @@
+{
+  "company": "INFY",
+  "captured_at": "2026-08-16T00:00:00+00:00",
+  "note": "Recorded research source candidates for Infosys curated from publicly available, dated disclosures (NSE/BSE reporting and press coverage). The candidate URLs are deterministic fixture placeholders; the fixtures are verification artifacts, not live research output. All candidates are available on or before the verification as-of timestamp 2026-08-10T12:00Z.",
+  "sources": [
+    {
+      "source_id": "infy-q1fy27-results",
+      "source_name": "Infosys Exchange Filing",
+      "source_type": "REGULATORY",
+      "url": "https://example.invalid/infy-q1fy27-results",
+      "title": "Infosys Q1 FY27 results: revenue and net profit growth, digital services demand outlook",
+      "published_at": "2026-07-16T16:30:00+05:30",
+      "available_at": "2026-07-16T16:30:00+05:30",
+      "reliability_tier": 1,
+      "categories": ["material_events", "business_model"]
+    },
+    {
+      "source_id": "infy-topaz-ai",
+      "source_name": "The Hindu BusinessLine",
+      "source_type": "NEWS",
+      "url": "https://example.invalid/infy-topaz-ai",
+      "title": "Infosys Topaz AI platform expands: generative AI, cloud and machine learning services for enterprise customers and products",
+      "published_at": "2026-03-25T09:00:00+05:30",
+      "available_at": "2026-03-25T09:00:00+05:30",
+      "reliability_tier": 2,
+      "categories": ["ai_technology", "innovation", "products"]
+    },
+    {
+      "source_id": "infy-large-deals",
+      "source_name": "Moneycontrol",
+      "source_type": "NEWS",
+      "url": "https://example.invalid/infy-large-deals",
+      "title": "Infosys wins large multi-year customer contracts and orders across banking and retail, strengthening competitive position",
+      "published_at": "2026-06-10T12:00:00+05:30",
+      "available_at": "2026-06-10T12:00:00+05:30",
+      "reliability_tier": 2,
+      "categories": ["customers", "competitive_position"]
+    },
+    {
+      "source_id": "infy-buyback-dividend",
+      "source_name": "ET Markets",
+      "source_type": "NEWS",
+      "url": "https://example.invalid/infy-buyback-dividend",
+      "title": "Infosys board and management announce capital return through dividend and buyback",
+      "published_at": "2026-05-05T18:00:00+05:30",
+      "available_at": "2026-05-05T18:00:00+05:30",
+      "reliability_tier": 2,
+      "categories": ["capital_allocation"]
+    },
+    {
+      "source_id": "infy-ceo-digital",
+      "source_name": "Business Today",
+      "source_type": "NEWS",
+      "url": "https://example.invalid/infy-ceo-digital",
+      "title": "Infosys CEO outlines leadership priorities for AI-driven digital transformation",
+      "published_at": "2026-01-20T08:30:00+05:30",
+      "available_at": "2026-01-20T08:30:00+05:30",
+      "reliability_tier": 2,
+      "categories": ["management"]
+    }
+  ]
+}

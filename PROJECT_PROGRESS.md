@@ -2,8 +2,8 @@
 
 ## Current Status
 
-**Test baseline:** 944 passed  
-**Latest commit:** add real-data research verification  
+**Test baseline:** 977 passed  
+**Latest commit:** verify live-data providers and multi-company research readiness  
 **Working tree:** clean at last verified checkpoint  
 **Phase:** Final Beta Launch Sprint
 
@@ -78,6 +78,10 @@ REAL DATA
 - relevance-routed, deduplicated research observation extraction
 - acquired-observation evidence integration (point-in-time safe)
 - real-data research verification (recorded TCS fixtures, full-path PIT checks)
+- multi-company real-data verification (TCS, RELIANCE, INFY, HDFCBANK,
+  SUNPHARMA, M&M across 5 sectors; recorded market/financials/sources fixtures;
+  per-company point-in-time + provenance checks; provider failure isolation with
+  graceful degradation under missing/stale/failed/partial/conflicting sources)
 
 ### Ranking
 - horizon-specific ranking
@@ -130,7 +134,7 @@ SEARCH COMPANY
 
 ## Current Verified Test Baseline
 
-944 tests passing.
+977 tests passing.
 
 This number supersedes all older checkpoint counts.
 
@@ -152,19 +156,28 @@ Status: IN PROGRESS
 ### L2 — Production Data Verification
 Verify real provider behavior, failures, missing fields, provenance and date boundaries.
 
-Real-data research verification is DONE for TCS:
-- recorded real TCS + ^NSEI market bars, real TCS financials, and real
-  dated TCS disclosures replayed through the existing provider
-  architecture (no scraping, no provenance bypass, no network in tests)
-- full path verified: recorded provider → raw archive + provenance →
+Real-data research verification is DONE for six recorded companies:
+- recorded real market bars + financials + dated disclosure fixtures replayed
+  through the existing provider architecture (no scraping, no provenance
+  bypass, no network in tests) for TCS, RELIANCE, INFY, HDFCBANK, SUNPHARMA,
+  M&M across 5 sectors; captured via scripts/capture_multi_company_fixtures.py
+- full path verified per company: recorded provider → raw archive + provenance →
   acquisition → ResearchObservation → EvidenceItem → synthesis → report
-- all point-in-time checks pass for as_of 2026-08-10T12:00Z; future-dated
-  contamination is rejected by the validator/evidence gates and never
-  reaches the report; insufficient provenance is never trusted
+- all point-in-time checks pass for as_of 2026-08-10T12:00Z per company
+  (market bars, market/financial/source records available on or before as_of,
+  future-source rejection, every acquired evidence item resolves to an archived
+  source); future-dated contamination and naive timestamps are rejected by the
+  validator/evidence gates and never reach any report
+- provider failure isolation: a failing optional source provider no longer
+  crashes acquisition; failures are recorded per provider/question and the
+  report still builds from unrelated market/financial evidence
+- availability failure modes verified end to end: missing, stale, failed,
+  partial, and conflicting sources; conflict is retained and flagged by
+  evidence synthesis; stale sources remain point-in-time valid
 - verification is deterministic and reproducible (identical artifacts +
-  artifact checksum), fixtures documented in scripts/capture_real_data_fixtures.py
+  artifact checksum) for every company
 
-Status: IN PROGRESS (broader real-provider failure-path verification remains)
+Status: COMPLETE
 
 ### L3 — Frontend Research Dashboard
 Build production-quality UI for:
@@ -238,7 +251,7 @@ Status: NOT STARTED
 
 Beta is considered READY only when:
 
-[ ] 944+ backend tests pass
+[ ] 977+ backend tests pass
 [ ] frontend builds
 [ ] frontend lint passes
 [ ] API health passes
