@@ -1,0 +1,24 @@
+{
+  "available_at": "2026-04-08T09:00:00+05:30",
+  "checksum": "d01c4fefe46ed9069db6c4341fd27fd8124289592793fe90f001df6ec4e590d2",
+  "dataset_id": "m&m_recorded_sources",
+  "dataset_version": null,
+  "payload": {
+    "available_at": "2026-04-08T09:00:00+05:30",
+    "published_at": "2026-04-08T09:00:00+05:30",
+    "reliability_tier": 2,
+    "source_id": "mm-leadership-auto",
+    "source_name": "Business Standard",
+    "source_type": "NEWS",
+    "title": "M&M announces leadership appointments in automotive and farm equipment businesses",
+    "url": "https://example.invalid/mm-leadership-auto"
+  },
+  "published_at": "2026-04-08T09:00:00+05:30",
+  "record_id": "mm-leadership-auto",
+  "request_metadata": {
+    "as_of": "2026-08-10T12:00:00+00:00",
+    "company": "M&M"
+  },
+  "retrieved_at": "2026-08-10T12:00:00+00:00",
+  "source_id": "m&m_recorded_sources"
+}

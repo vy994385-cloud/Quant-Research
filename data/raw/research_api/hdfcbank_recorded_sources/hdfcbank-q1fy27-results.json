@@ -1,0 +1,24 @@
+{
+  "available_at": "2026-07-18T15:00:00+05:30",
+  "checksum": "6ba9bd8c4734b821c6ebf5a792ec7749e7de43ba056d7fc76a47ce19da418319",
+  "dataset_id": "hdfcbank_recorded_sources",
+  "dataset_version": null,
+  "payload": {
+    "available_at": "2026-07-18T15:00:00+05:30",
+    "published_at": "2026-07-18T15:00:00+05:30",
+    "reliability_tier": 1,
+    "source_id": "hdfcbank-q1fy27-results",
+    "source_name": "HDFC Bank Exchange Filing",
+    "source_type": "REGULATORY",
+    "title": "HDFC Bank Q1 FY27 results: net profit and revenue growth, asset quality stable",
+    "url": "https://example.invalid/hdfcbank-q1fy27-results"
+  },
+  "published_at": "2026-07-18T15:00:00+05:30",
+  "record_id": "hdfcbank-q1fy27-results",
+  "request_metadata": {
+    "as_of": "2026-08-10T12:00:00+00:00",
+    "company": "HDFCBANK"
+  },
+  "retrieved_at": "2026-08-10T12:00:00+00:00",
+  "source_id": "hdfcbank_recorded_sources"
+}

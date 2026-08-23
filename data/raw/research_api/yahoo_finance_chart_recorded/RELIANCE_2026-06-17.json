@@ -1,0 +1,25 @@
+{
+  "available_at": "2026-08-10T12:00:00+00:00",
+  "checksum": "ed486ef482c3333f73ea232bdf2ed1cb6163b4bca9ffc3aabece680712cbdfd3",
+  "dataset_id": "yahoo_finance_chart",
+  "dataset_version": null,
+  "payload": {
+    "adjusted_close": null,
+    "close": "1332.699951171875",
+    "high": "1334.0",
+    "low": "1317.0",
+    "open": "1333.0",
+    "symbol": "RELIANCE",
+    "trading_date": "2026-06-17",
+    "volume": 10029170
+  },
+  "published_at": null,
+  "record_id": "RELIANCE_2026-06-17",
+  "request_metadata": {
+    "end_date": "2026-08-10",
+    "start_date": "2025-08-10",
+    "symbol": "RELIANCE"
+  },
+  "retrieved_at": "2026-08-10T12:00:00+00:00",
+  "source_id": "yahoo_finance_chart_recorded"
+}

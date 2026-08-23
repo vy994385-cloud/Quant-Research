@@ -1,0 +1,24 @@
+{
+  "available_at": "2026-06-22T18:30:00+05:30",
+  "checksum": "08d6c75fed40ee46907dab941e05a7566b1b6a73548616dfcd5463fc9a1d841e",
+  "dataset_id": "tcs_recorded_sources",
+  "dataset_version": null,
+  "payload": {
+    "available_at": "2026-06-22T18:30:00+05:30",
+    "published_at": "2026-06-22T18:30:00+05:30",
+    "reliability_tier": 1,
+    "source_id": "tcs-board-meeting-june22",
+    "source_name": "TCS Exchange Filing",
+    "source_type": "REGULATORY",
+    "title": "TCS exchange filing: board meeting on July 9, 2026 to approve Q1 FY27 financial results and consider interim dividend",
+    "url": "https://www.ndtvprofit.com/markets/tcs-q1-results-date-time-dividend-news-earnings-call-details-and-more-11737953"
+  },
+  "published_at": "2026-06-22T18:30:00+05:30",
+  "record_id": "tcs-board-meeting-june22",
+  "request_metadata": {
+    "as_of": "2026-08-10T12:00:00+00:00",
+    "company": "TCS"
+  },
+  "retrieved_at": "2026-08-10T12:00:00+00:00",
+  "source_id": "tcs_recorded_sources"
+}

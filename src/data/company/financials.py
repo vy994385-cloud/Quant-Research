@@ -93,6 +93,13 @@ class FinancialSnapshot(BaseModel):
     receivables: Decimal | None = None
     payables: Decimal | None = None
 
+    total_equity: Decimal | None = None
+    shareholders_equity: Decimal | None = None
+
+    current_assets: Decimal | None = None
+    current_liabilities: Decimal | None = None
+    inventory: Decimal | None = None
+
     @property
     def profit_cash_flow_divergence(self) -> bool:
         """

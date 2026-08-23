@@ -1,0 +1,24 @@
+{
+  "available_at": "2026-08-01T18:00:00+05:30",
+  "checksum": "0f75b50be451109981185c3cacd1b67509ef1c25c577b455a90ecc86a69a071d",
+  "dataset_id": "reliance_recorded_sources",
+  "dataset_version": null,
+  "payload": {
+    "available_at": "2026-08-01T18:00:00+05:30",
+    "published_at": "2026-08-01T18:00:00+05:30",
+    "reliability_tier": 2,
+    "source_id": "reliance-agm-management",
+    "source_name": "Mint",
+    "source_type": "NEWS",
+    "title": "Reliance Industries AGM: chairman's address on leadership, industry strategy and business outlook",
+    "url": "https://example.invalid/reliance-agm-management"
+  },
+  "published_at": "2026-08-01T18:00:00+05:30",
+  "record_id": "reliance-agm-management",
+  "request_metadata": {
+    "as_of": "2026-08-10T12:00:00+00:00",
+    "company": "RELIANCE"
+  },
+  "retrieved_at": "2026-08-10T12:00:00+00:00",
+  "source_id": "reliance_recorded_sources"
+}

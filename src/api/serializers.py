@@ -7,9 +7,10 @@ the response contract. They never invent scores, evidence, or timing.
 
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import date, datetime
 from decimal import Decimal
 
+from src.api.query_utils import utc_iso
 from src.research.synthesis.models import EvidenceDirection
 
 _HORIZONS = (
@@ -19,14 +20,8 @@ _HORIZONS = (
 )
 
 
-def _utc_iso(value: datetime | date | None) -> str | None:
-    if value is None:
-        return None
-
-    if isinstance(value, date) and not isinstance(value, datetime):
-        value = datetime(value.year, value.month, value.day, tzinfo=timezone.utc)
-
-    return value.astimezone(timezone.utc).isoformat()
+def _utc_iso(value: datetime | date | str | None) -> str | None:
+    return utc_iso(value)
 
 
 def _str(value) -> str:
@@ -519,6 +514,31 @@ def research_contract(
             if result.intelligence is not None
             else None
         ),
+        "cash_flow_quality": _cash_flow_quality(
+            result.intelligence.cash_flow_quality
+            if result.intelligence is not None
+            else None
+        ),
+        "balance_sheet_deep": _balance_sheet_deep(
+            result.intelligence.balance_sheet_deep
+            if result.intelligence is not None
+            else None
+        ),
+        "research_gaps": _research_gaps(
+            result.intelligence.research_gaps
+            if result.intelligence is not None
+            else None
+        ),
+        "cross_domain": _cross_domain(
+            result.intelligence.cross_domain
+            if result.intelligence is not None
+            else None
+        ),
+        "financial_anomalies": _financial_anomalies(
+            result.intelligence.financial_anomalies
+            if result.intelligence is not None
+            else None
+        ),
         "provider_failures": list(
             result.intelligence.provider_failures
             if result.intelligence is not None
@@ -605,7 +625,7 @@ def universe_rankings_contract(
 def discovery_item(
     symbol: str,
     *,
-    sector: str,
+    sector: str | None,
     company_name: str | None,
     research_available: bool,
 ) -> dict:
@@ -975,6 +995,7 @@ def _deep_metric_observation(obs) -> dict:
         "period_type": obs.period_type.value,
         "consolidation": obs.consolidation.value,
         "observation_type": obs.observation_type.value,
+        "unit": obs.unit,
         "value": _str(obs.value) if obs.value is not None else None,
         "previous_value": (
             _str(obs.previous_value)
@@ -1064,6 +1085,7 @@ def _derived_observation(obs) -> dict:
         "provenance_ids": list(obs.provenance_ids),
         "related_item_ids": list(obs.related_item_ids),
         "as_of": _utc_iso(obs.as_of),
+        "severity": obs.severity,
     }
 
 
@@ -1079,6 +1101,169 @@ def _hidden_information(hidden) -> dict | None:
             for o in hidden.observations
         ],
         "notes": list(hidden.notes),
+    }
+
+
+def _quality_observation(obs) -> dict:
+    """Shared shape for derived quality observations."""
+    return {
+        "observation_id": obs.observation_id,
+        "symbol": obs.symbol,
+        "label": obs.observation_type,
+        "semantic_category": obs.category,
+        "description": obs.explanation,
+        "calculation_inputs": dict(obs.calculation_inputs) if obs.calculation_inputs else {},
+        "methodology": getattr(obs, "calculation_method", "") or "",
+        "confidence": getattr(obs, "confidence", None),
+        "severity": obs.severity,
+        "as_of": _utc_iso(obs.as_of),
+    }
+
+
+def _cash_flow_quality(cfq) -> dict | None:
+    if cfq is None:
+        return None
+
+    return {
+        "symbol": cfq.symbol,
+        "as_of": _utc_iso(cfq.as_of),
+        "direction": cfq.direction,
+        "observation_count": cfq.observation_count,
+        "observations": [
+            _quality_observation(o)
+            for o in cfq.observations
+        ],
+        "notes": list(cfq.notes),
+    }
+
+
+def _balance_sheet_deep(bsd) -> dict | None:
+    if bsd is None:
+        return None
+
+    return {
+        "symbol": bsd.symbol,
+        "as_of": _utc_iso(bsd.as_of),
+        "direction": bsd.direction,
+        "observation_count": bsd.observation_count,
+        "observations": [
+            _quality_observation(o)
+            for o in bsd.observations
+        ],
+        "notes": list(bsd.notes),
+    }
+
+
+def _research_gap(gap) -> dict:
+    return {
+        "gap_id": gap.gap_id,
+        "symbol": gap.symbol,
+        "category": gap.category,
+        "description": gap.gap,
+        "status": gap.status,
+        "severity": gap.priority,
+        "reason": getattr(gap, "reason", "") or "",
+        "suggested_action": getattr(gap, "what_would_resolve", "") or "",
+        "sources_checked": list(getattr(gap, "sources_checked", ())),
+        "evidence_refs": list(getattr(gap, "evidence_refs", ())),
+        "related_metrics": list(getattr(gap, "related_metrics", ())),
+        "supporting_data": dict(getattr(gap, "supporting_data", {})),
+        "as_of": _utc_iso(gap.as_of),
+    }
+
+
+def _research_gaps(rg) -> dict | None:
+    if rg is None:
+        return None
+
+    return {
+        "symbol": rg.symbol,
+        "as_of": _utc_iso(rg.as_of),
+        "gap_count": rg.gap_count,
+        "gaps": [
+            _research_gap(g)
+            for g in rg.gaps
+        ],
+        "status_counts": dict(getattr(rg, "status_counts", {})),
+        "category_counts": dict(getattr(rg, "category_counts", {})),
+        "coverage_score": rg.coverage_score,
+        "coverage_explanation": getattr(rg, "coverage_explanation", "") or "",
+        "notes": list(rg.notes),
+    }
+
+
+def _cross_domain_observation(obs) -> dict:
+    return {
+        "observation_id": obs.observation_id,
+        "symbol": obs.symbol,
+        "label": obs.observation_type,
+        "semantic_category": obs.category,
+        "description": obs.explanation,
+        "domain_1_name": getattr(obs, "domain_1_name", ""),
+        "domain_1_metric": getattr(obs, "domain_1_metric", ""),
+        "domain_1_value": getattr(obs, "domain_1_value", None),
+        "domain_1_direction": getattr(obs, "domain_1_direction", "UNKNOWN"),
+        "domain_2_name": getattr(obs, "domain_2_name", ""),
+        "domain_2_metric": getattr(obs, "domain_2_metric", ""),
+        "domain_2_value": getattr(obs, "domain_2_value", None),
+        "domain_2_direction": getattr(obs, "domain_2_direction", "UNKNOWN"),
+        "relationship": getattr(obs, "relationship", ""),
+        "direction": getattr(obs, "direction", "NEUTRAL"),
+        "limitations": list(getattr(obs, "limitations", ())),
+        "calculation_inputs": dict(obs.calculation_inputs) if obs.calculation_inputs else {},
+        "methodology": getattr(obs, "calculation_method", "") or "",
+        "confidence": getattr(obs, "confidence", None),
+        "severity": obs.severity,
+        "as_of": _utc_iso(obs.as_of),
+        "source_name": getattr(obs, "source_name", None),
+        "related_metrics": list(getattr(obs, "related_metrics", ())),
+        "supporting_data": dict(getattr(obs, "supporting_data", {})),
+    }
+
+
+def _cross_domain(cd) -> dict | None:
+    if cd is None:
+        return None
+
+    return {
+        "symbol": cd.symbol,
+        "as_of": _utc_iso(cd.as_of),
+        "observation_count": cd.observation_count,
+        "observations": [
+            _cross_domain_observation(o)
+            for o in cd.observations
+        ],
+        "positive_count": cd.positive_count,
+        "negative_count": cd.negative_count,
+        "mixed_count": cd.mixed_count,
+        "neutral_count": cd.neutral_count,
+        "notes": list(cd.notes),
+    }
+
+
+def _financial_anomaly_item(item) -> dict:
+    return {
+        "metric": item.metric,
+        "current_change": item.current_change,
+        "comparison_change": item.comparison_change,
+        "severity": item.severity,
+        "explanation": item.explanation,
+    }
+
+
+def _financial_anomalies(fa) -> dict | None:
+    if fa is None:
+        return None
+
+    return {
+        "symbol": fa.symbol,
+        "as_of": _utc_iso(fa.as_of),
+        "anomaly_count": fa.anomaly_count,
+        "anomalies": [
+            _financial_anomaly_item(a)
+            for a in fa.anomalies
+        ],
+        "notes": list(fa.notes),
     }
 
 
@@ -1148,6 +1333,21 @@ def intelligence_contract(
         "hidden_information": _hidden_information(
             intelligence.hidden_information
         ),
+        "cash_flow_quality": _cash_flow_quality(
+            intelligence.cash_flow_quality
+        ),
+        "balance_sheet_deep": _balance_sheet_deep(
+            intelligence.balance_sheet_deep
+        ),
+        "research_gaps": _research_gaps(
+            intelligence.research_gaps
+        ),
+        "cross_domain": _cross_domain(
+            intelligence.cross_domain
+        ),
+        "financial_anomalies": _financial_anomalies(
+            intelligence.financial_anomalies
+        ),
         "provider_failures": list(
             intelligence.provider_failures
         ),
@@ -1170,27 +1370,42 @@ def intelligence_contract(
     }
 
 
+def _company_envelope(result, *, company_name: str | None) -> dict:
+    """Canonical company envelope shared by all L3 contract builders."""
+
+    return {
+        "symbol": result.company,
+        "company_name": company_name,
+        "sector": result.sector,
+        "as_of": _utc_iso(result.as_of),
+    }
+
+
+def _require_intelligence(result):
+    intelligence = getattr(result, "intelligence", None)
+    if intelligence is None:
+        raise ValueError(
+            "result does not contain a company intelligence snapshot"
+        )
+    return intelligence
+
+
 def timeline_contract(
     result,
     *,
     company_name: str | None,
 ) -> dict:
-    """Serialize a company's evidence timeline response."""
+    """Serialize timeline for a company."""
 
-    intelligence = result.intelligence
+    intelligence = _require_intelligence(result)
 
-    if intelligence is None or intelligence.timeline is None:
+    if intelligence.timeline is None:
         raise ValueError(
             "result does not contain a company timeline"
         )
 
     return {
-        "company": {
-            "symbol": result.company,
-            "company_name": company_name,
-            "sector": result.sector,
-            "as_of": _utc_iso(result.as_of),
-        },
+        "company": _company_envelope(result, company_name=company_name),
         "timeline": _intel_timeline(intelligence.timeline),
     }
 
@@ -1202,20 +1417,10 @@ def deep_financial_insights_contract(
 ) -> dict:
     """Serialize deep financial insights for a company."""
 
-    intelligence = result.intelligence
-
-    if intelligence is None:
-        raise ValueError(
-            "result does not contain a company intelligence snapshot"
-        )
+    intelligence = _require_intelligence(result)
 
     return {
-        "company": {
-            "symbol": result.company,
-            "company_name": company_name,
-            "sector": result.sector,
-            "as_of": _utc_iso(result.as_of),
-        },
+        "company": _company_envelope(result, company_name=company_name),
         "deep_financial_insights": _deep_financial_insights(
             intelligence.deep_financial_insights
         ),
@@ -1229,20 +1434,10 @@ def source_statuses_contract(
 ) -> dict:
     """Serialize source statuses for a company."""
 
-    intelligence = result.intelligence
-
-    if intelligence is None:
-        raise ValueError(
-            "result does not contain a company intelligence snapshot"
-        )
+    intelligence = _require_intelligence(result)
 
     return {
-        "company": {
-            "symbol": result.company,
-            "company_name": company_name,
-            "sector": result.sector,
-            "as_of": _utc_iso(result.as_of),
-        },
+        "company": _company_envelope(result, company_name=company_name),
         "source_statuses": [
             _source_status(s)
             for s in intelligence.source_statuses
@@ -1255,36 +1450,131 @@ def hidden_information_contract(
     *,
     company_name: str | None,
 ) -> dict:
-    """Serialize hidden / less-obvious information for a company."""
+    """Serialize hidden information for a company."""
 
-    intelligence = result.intelligence
-
-    if intelligence is None:
-        raise ValueError(
-            "result does not contain a company intelligence snapshot"
-        )
+    intelligence = _require_intelligence(result)
 
     return {
-        "company": {
-            "symbol": result.company,
-            "company_name": company_name,
-            "sector": result.sector,
-            "as_of": _utc_iso(result.as_of),
-        },
+        "company": _company_envelope(result, company_name=company_name),
         "hidden_information": _hidden_information(
             intelligence.hidden_information
         ),
     }
 
 
+def cash_flow_quality_contract(
+    result,
+    *,
+    company_name: str | None,
+) -> dict:
+    """Serialize cash flow quality for a company."""
+
+    intelligence = _require_intelligence(result)
+
+    return {
+        "company": _company_envelope(result, company_name=company_name),
+        "cash_flow_quality": _cash_flow_quality(
+            intelligence.cash_flow_quality
+        ),
+    }
+
+
+def balance_sheet_deep_contract(
+    result,
+    *,
+    company_name: str | None,
+) -> dict:
+    """Serialize balance sheet deep for a company."""
+
+    intelligence = _require_intelligence(result)
+
+    return {
+        "company": _company_envelope(result, company_name=company_name),
+        "balance_sheet_deep": _balance_sheet_deep(
+            intelligence.balance_sheet_deep
+        ),
+    }
+
+
+def research_gaps_contract(
+    result,
+    *,
+    company_name: str | None,
+) -> dict:
+    """Serialize research gaps for a company."""
+
+    intelligence = _require_intelligence(result)
+
+    return {
+        "company": _company_envelope(result, company_name=company_name),
+        "research_gaps": _research_gaps(
+            intelligence.research_gaps
+        ),
+    }
+
+
+def cross_domain_contract(
+    result,
+    *,
+    company_name: str | None,
+) -> dict:
+    """Serialize cross domain for a company."""
+
+    intelligence = _require_intelligence(result)
+
+    return {
+        "company": _company_envelope(result, company_name=company_name),
+        "cross_domain": _cross_domain(
+            intelligence.cross_domain
+        ),
+    }
+
+
+def financial_anomalies_contract(
+    result,
+    *,
+    company_name: str | None,
+) -> dict:
+    """Serialize financial anomalies for a company."""
+
+    intelligence = _require_intelligence(result)
+
+    return {
+        "company": _company_envelope(result, company_name=company_name),
+        "financial_anomalies": _financial_anomalies(
+            intelligence.financial_anomalies
+        ),
+    }
+
+
+# ── F6 serializers (delegated to f6_serializers module) ──────────
+from src.api.f6_serializers import (  # noqa: E402, F401
+    chart_data_contract,
+    corporate_actions_contract,
+    industry_context_contract,
+    news_contract,
+    tracking_contract,
+)
+
+
 __all__ = [
+    "balance_sheet_deep_contract",
+    "cash_flow_quality_contract",
+    "chart_data_contract",
     "company_rankings_contract",
+    "corporate_actions_contract",
+    "cross_domain_contract",
     "deep_financial_insights_contract",
     "discovery_item",
+    "financial_anomalies_contract",
     "hidden_information_contract",
+    "industry_context_contract",
     "intelligence_contract",
+    "news_contract",
     "research_contract",
+    "research_gaps_contract",
     "source_statuses_contract",
     "timeline_contract",
+    "tracking_contract",
     "universe_rankings_contract",
 ]

@@ -1,0 +1,24 @@
+{
+  "available_at": "2026-03-10T09:30:00+05:30",
+  "checksum": "f9a55bdaacd32bd871474800eef3bf4f9f95e281cd58af46bba6667ce07d422e",
+  "dataset_id": "sunpharma_recorded_sources",
+  "dataset_version": null,
+  "payload": {
+    "available_at": "2026-03-10T09:30:00+05:30",
+    "published_at": "2026-03-10T09:30:00+05:30",
+    "reliability_tier": 2,
+    "source_id": "sunpharma-rna-ai",
+    "source_name": "LiveMint",
+    "source_type": "NEWS",
+    "title": "Sun Pharma advances RNA technology research and AI-led drug discovery innovation",
+    "url": "https://example.invalid/sunpharma-rna-ai"
+  },
+  "published_at": "2026-03-10T09:30:00+05:30",
+  "record_id": "sunpharma-rna-ai",
+  "request_metadata": {
+    "as_of": "2026-08-10T12:00:00+00:00",
+    "company": "SUNPHARMA"
+  },
+  "retrieved_at": "2026-08-10T12:00:00+00:00",
+  "source_id": "sunpharma_recorded_sources"
+}

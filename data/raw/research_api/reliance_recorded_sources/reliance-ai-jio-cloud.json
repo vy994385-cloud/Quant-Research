@@ -1,0 +1,24 @@
+{
+  "available_at": "2026-03-15T10:00:00+05:30",
+  "checksum": "23ba6f87823ecfe848e4e013d708c67eae70db2177b8dd24cdaf62f6ed644548",
+  "dataset_id": "reliance_recorded_sources",
+  "dataset_version": null,
+  "payload": {
+    "available_at": "2026-03-15T10:00:00+05:30",
+    "published_at": "2026-03-15T10:00:00+05:30",
+    "reliability_tier": 2,
+    "source_id": "reliance-ai-jio-cloud",
+    "source_name": "Business Standard",
+    "source_type": "NEWS",
+    "title": "Reliance Jio expands AI cloud and digital platforms, partnerships with global technology firms",
+    "url": "https://example.invalid/reliance-ai-jio-cloud"
+  },
+  "published_at": "2026-03-15T10:00:00+05:30",
+  "record_id": "reliance-ai-jio-cloud",
+  "request_metadata": {
+    "as_of": "2026-08-10T12:00:00+00:00",
+    "company": "RELIANCE"
+  },
+  "retrieved_at": "2026-08-10T12:00:00+00:00",
+  "source_id": "reliance_recorded_sources"
+}

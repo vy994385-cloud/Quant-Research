@@ -278,6 +278,7 @@ def test_tcs_hidden_information_structure(client):
         assert isinstance(obs["provenance_ids"], list)
         assert isinstance(obs["related_item_ids"], list)
         assert obs["as_of"]
+        assert obs["severity"] in ("INFO", "WARN", "ALERT")
 
 
 def test_hidden_information_pit_safe(client):
@@ -291,7 +292,7 @@ def test_hidden_information_pit_safe(client):
     assert hidden is not None
 
     for obs in hidden["observations"]:
-        assert obs["as_of"] <= payload["as_of"]
+        assert obs["as_of"] <= hidden["as_of"]
 
 
 def test_hidden_information_deterministic(client):
@@ -410,3 +411,434 @@ def test_intelligence_changes_have_new_fields(client):
         assert "event_type" in change
         assert "published_at" in change
         assert "available_at" in change
+
+
+# =================================================================
+# R2 — Cross-domain endpoint
+# =================================================================
+
+
+def test_cross_domain_route_exposed(client):
+    resp = client.get(
+        "/api/v1/companies/TCS/cross-domain"
+    )
+    assert resp.status_code == 200
+    assert resp.json()["company"]["symbol"] == "TCS"
+
+
+def test_tcs_cross_domain_structure(client):
+    resp = client.get(
+        "/api/v1/companies/TCS/cross-domain"
+    )
+    payload = resp.json()
+
+    assert payload["company"]["as_of"] == DEFAULT_AS_OF_ISO
+
+    cd = payload["cross_domain"]
+    assert cd is not None
+    assert cd["symbol"] == "TCS"
+    assert cd["as_of"] == DEFAULT_AS_OF_ISO
+    assert isinstance(cd["observations"], list)
+    assert isinstance(cd["notes"], list)
+    assert isinstance(cd["positive_count"], int)
+    assert isinstance(cd["negative_count"], int)
+    assert isinstance(cd["mixed_count"], int)
+    assert isinstance(cd["neutral_count"], int)
+
+    for obs in cd["observations"]:
+        assert obs["observation_id"]
+        assert obs["symbol"] == "TCS"
+        assert obs["label"]
+        assert obs["semantic_category"]
+        assert obs["description"]
+        assert obs["severity"] in ("INFO", "WARN", "ALERT")
+        assert obs["as_of"]
+
+
+def test_cross_domain_pit_safe(client):
+    resp = client.get(
+        "/api/v1/companies/TCS/cross-domain",
+        params={"as_of": "2026-04-01T00:00:00+00:00"},
+    )
+    payload = resp.json()
+    cd = payload["cross_domain"]
+    assert cd is not None
+    assert payload["company"]["as_of"] == "2026-04-01T00:00:00+00:00"
+
+    for obs in cd["observations"]:
+        assert obs["as_of"] <= cd["as_of"]
+
+
+def test_cross_domain_deterministic(client):
+    a = client.get(
+        "/api/v1/companies/TCS/cross-domain"
+    ).json()
+    b = client.get(
+        "/api/v1/companies/TCS/cross-domain"
+    ).json()
+    assert a == b
+
+
+@pytest.mark.parametrize("symbol", VERIFIED_COMPANIES)
+def test_every_company_has_cross_domain(client, symbol):
+    resp = client.get(
+        f"/api/v1/companies/{symbol}/cross-domain"
+    )
+    assert resp.status_code == 200
+    payload = resp.json()
+    assert payload["company"]["symbol"] == symbol
+    cd = payload["cross_domain"]
+    assert cd is not None
+    assert isinstance(cd["observations"], list)
+
+
+def test_unknown_company_cross_domain_returns_404(client):
+    resp = client.get(
+        "/api/v1/companies/UNKNOWN/cross-domain"
+    )
+    assert resp.status_code == 404
+
+
+def test_naive_as_of_cross_domain_returns_400(client):
+    resp = client.get(
+        "/api/v1/companies/TCS/cross-domain",
+        params={"as_of": "2026-08-10T12:00:00"},
+    )
+    assert resp.status_code == 400
+
+
+# =================================================================
+# R2 — Research contract surfaces expansion fields
+# =================================================================
+
+
+def test_research_contract_has_cash_flow_quality(client):
+    resp = client.get("/api/v1/companies/TCS/research")
+    payload = resp.json()
+    assert "cash_flow_quality" in payload
+    cfq = payload["cash_flow_quality"]
+    assert cfq is not None
+    assert cfq["symbol"] == "TCS"
+    assert cfq["as_of"] == DEFAULT_AS_OF_ISO
+    assert cfq["direction"] in (
+        "IMPROVING", "DETERIORATING", "STABLE", "UNKNOWN",
+    )
+    assert isinstance(cfq["observations"], list)
+    assert isinstance(cfq["notes"], list)
+
+
+def test_research_contract_has_balance_sheet_deep(client):
+    resp = client.get("/api/v1/companies/TCS/research")
+    payload = resp.json()
+    assert "balance_sheet_deep" in payload
+    bsd = payload["balance_sheet_deep"]
+    assert bsd is not None
+    assert bsd["symbol"] == "TCS"
+    assert bsd["as_of"] == DEFAULT_AS_OF_ISO
+    assert isinstance(bsd["observations"], list)
+    assert isinstance(bsd["notes"], list)
+
+
+def test_research_contract_has_research_gaps(client):
+    resp = client.get("/api/v1/companies/TCS/research")
+    payload = resp.json()
+    assert "research_gaps" in payload
+    rg = payload["research_gaps"]
+    assert rg is not None
+    assert rg["symbol"] == "TCS"
+    assert rg["as_of"] == DEFAULT_AS_OF_ISO
+    assert isinstance(rg["gaps"], list)
+    assert isinstance(rg["notes"], list)
+
+
+def test_research_contract_has_cross_domain(client):
+    resp = client.get("/api/v1/companies/TCS/research")
+    payload = resp.json()
+    assert "cross_domain" in payload
+    cd = payload["cross_domain"]
+    assert cd is not None
+    assert cd["symbol"] == "TCS"
+    assert isinstance(cd["observations"], list)
+
+
+def test_research_contract_has_financial_anomalies(client):
+    resp = client.get("/api/v1/companies/TCS/research")
+    payload = resp.json()
+    assert "financial_anomalies" in payload
+    fa = payload["financial_anomalies"]
+    assert fa is not None
+    assert fa["symbol"] == "TCS"
+    assert fa["as_of"] == DEFAULT_AS_OF_ISO
+    assert isinstance(fa["anomalies"], list)
+    assert isinstance(fa["notes"], list)
+
+
+# =================================================================
+# R2 — Intelligence contract surfaces expansion fields
+# =================================================================
+
+
+def test_intelligence_contract_has_expansion_fields(client):
+    resp = client.get("/api/v1/companies/TCS/intelligence")
+    payload = resp.json()
+
+    assert "cash_flow_quality" in payload
+    assert "balance_sheet_deep" in payload
+    assert "research_gaps" in payload
+    assert "cross_domain" in payload
+    assert "financial_anomalies" in payload
+
+
+def test_intelligence_cash_flow_quality_structure(client):
+    resp = client.get("/api/v1/companies/TCS/intelligence")
+    cfq = resp.json()["cash_flow_quality"]
+
+    assert cfq is not None
+    assert cfq["symbol"] == "TCS"
+    assert isinstance(cfq["observations"], list)
+
+    for obs in cfq["observations"]:
+        assert obs["observation_id"]
+        assert obs["symbol"] == "TCS"
+        assert obs["as_of"]
+
+
+def test_intelligence_balance_sheet_deep_structure(client):
+    resp = client.get("/api/v1/companies/TCS/intelligence")
+    bsd = resp.json()["balance_sheet_deep"]
+
+    assert bsd is not None
+    assert bsd["symbol"] == "TCS"
+    assert isinstance(bsd["observations"], list)
+
+    for obs in bsd["observations"]:
+        assert obs["observation_id"]
+        assert obs["symbol"] == "TCS"
+        assert obs["as_of"]
+
+
+def test_intelligence_research_gaps_structure(client):
+    resp = client.get("/api/v1/companies/TCS/intelligence")
+    rg = resp.json()["research_gaps"]
+
+    assert rg is not None
+    assert rg["symbol"] == "TCS"
+    assert isinstance(rg["gaps"], list)
+
+
+def test_intelligence_cross_domain_structure(client):
+    resp = client.get("/api/v1/companies/TCS/intelligence")
+    cd = resp.json()["cross_domain"]
+
+    assert cd is not None
+    assert cd["symbol"] == "TCS"
+    assert isinstance(cd["observations"], list)
+
+
+def test_intelligence_financial_anomalies_structure(client):
+    resp = client.get("/api/v1/companies/TCS/intelligence")
+    fa = resp.json()["financial_anomalies"]
+
+    assert fa is not None
+    assert fa["symbol"] == "TCS"
+    assert isinstance(fa["anomalies"], list)
+
+
+# =================================================================
+# R2 — Every company has expansion fields in research contract
+# =================================================================
+
+
+@pytest.mark.parametrize("symbol", VERIFIED_COMPANIES)
+def test_every_company_research_has_expansion_fields(client, symbol):
+    resp = client.get(
+        f"/api/v1/companies/{symbol}/research"
+    )
+    assert resp.status_code == 200
+    payload = resp.json()
+
+    assert payload["cash_flow_quality"] is not None
+    assert payload["balance_sheet_deep"] is not None
+    assert payload["research_gaps"] is not None
+    assert payload["cross_domain"] is not None
+    assert payload["financial_anomalies"] is not None
+
+
+# =================================================================
+# R2 — Provenance: expansion observations carry as_of
+# =================================================================
+
+
+def test_expansion_observations_carry_as_of(client):
+    resp = client.get("/api/v1/companies/TCS/research")
+    payload = resp.json()
+
+    pit_as_of = payload["point_in_time"]["effective_as_of"]
+
+    cfq = payload["cash_flow_quality"]
+    for obs in cfq["observations"]:
+        assert obs["as_of"] <= pit_as_of
+
+    bsd = payload["balance_sheet_deep"]
+    for obs in bsd["observations"]:
+        assert obs["as_of"] <= pit_as_of
+
+    cd = payload["cross_domain"]
+    for obs in cd["observations"]:
+        assert obs["as_of"] <= pit_as_of
+
+    fa = payload["financial_anomalies"]
+    for obs in fa["anomalies"]:
+        assert obs["as_of"] <= pit_as_of
+
+
+# =================================================================
+# R2 — PIT: earlier as_of has fewer or equal observations
+# =================================================================
+
+
+def test_earlier_as_of_fewer_or_equal_expansion_obs(client):
+    default = client.get(
+        "/api/v1/companies/TCS/research"
+    ).json()
+    earlier = client.get(
+        "/api/v1/companies/TCS/research",
+        params={"as_of": "2026-04-01T00:00:00+00:00"},
+    ).json()
+
+    default_gaps = default["research_gaps"]["gap_count"]
+    earlier_gaps = earlier["research_gaps"]["gap_count"]
+    assert earlier_gaps <= default_gaps
+
+    default_cfq = len(default["cash_flow_quality"]["observations"])
+    earlier_cfq = len(earlier["cash_flow_quality"]["observations"])
+    assert earlier_cfq <= default_cfq
+
+    default_bsd = len(default["balance_sheet_deep"]["observations"])
+    earlier_bsd = len(earlier["balance_sheet_deep"]["observations"])
+    assert earlier_bsd <= default_bsd
+
+
+# =================================================================
+# R2 — Research Gaps endpoint
+# =================================================================
+
+
+def test_research_gaps_route_exposed(client):
+    resp = client.get(
+        "/api/v1/companies/TCS/research-gaps"
+    )
+    assert resp.status_code == 200
+    assert resp.json()["company"]["symbol"] == "TCS"
+
+
+def test_tcs_research_gaps_structure(client):
+    resp = client.get(
+        "/api/v1/companies/TCS/research-gaps"
+    )
+    payload = resp.json()
+
+    assert payload["company"]["as_of"] == DEFAULT_AS_OF_ISO
+
+    rg = payload["research_gaps"]
+    assert rg is not None
+    assert rg["symbol"] == "TCS"
+    assert rg["as_of"] == DEFAULT_AS_OF_ISO
+    assert isinstance(rg["gaps"], list)
+    assert isinstance(rg["gap_count"], int)
+    assert isinstance(rg["status_counts"], dict)
+    assert isinstance(rg["category_counts"], dict)
+    assert isinstance(rg["notes"], list)
+    assert rg["coverage_score"] in ("HIGH", "MEDIUM", "LOW", None)
+
+    for gap in rg["gaps"]:
+        assert gap["gap_id"]
+        assert gap["symbol"] == "TCS"
+        assert gap["category"]
+        assert gap["description"]
+        assert gap["status"]
+        assert gap["severity"] in ("HIGH", "MEDIUM", "LOW")
+        assert gap["as_of"]
+        assert isinstance(gap["sources_checked"], list)
+        assert isinstance(gap["evidence_refs"], list)
+        assert isinstance(gap["related_metrics"], list)
+        assert isinstance(gap["supporting_data"], dict)
+
+
+def test_research_gaps_pit_safe(client):
+    resp = client.get(
+        "/api/v1/companies/TCS/research-gaps",
+        params={"as_of": "2026-04-01T00:00:00+00:00"},
+    )
+    payload = resp.json()
+    rg = payload["research_gaps"]
+    assert rg is not None
+    assert payload["company"]["as_of"] == "2026-04-01T00:00:00+00:00"
+
+
+def test_research_gaps_deterministic(client):
+    a = client.get(
+        "/api/v1/companies/TCS/research-gaps"
+    ).json()
+    b = client.get(
+        "/api/v1/companies/TCS/research-gaps"
+    ).json()
+    assert a == b
+
+
+@pytest.mark.parametrize("symbol", VERIFIED_COMPANIES)
+def test_every_company_has_research_gaps(client, symbol):
+    resp = client.get(
+        f"/api/v1/companies/{symbol}/research-gaps"
+    )
+    assert resp.status_code == 200
+    payload = resp.json()
+    assert payload["company"]["symbol"] == symbol
+    rg = payload["research_gaps"]
+    assert rg is not None
+    assert isinstance(rg["gaps"], list)
+    assert rg["gap_count"] >= 0
+
+
+def test_unknown_company_research_gaps_returns_404(client):
+    resp = client.get(
+        "/api/v1/companies/UNKNOWN/research-gaps"
+    )
+    assert resp.status_code == 404
+
+
+def test_naive_as_of_research_gaps_returns_400(client):
+    resp = client.get(
+        "/api/v1/companies/TCS/research-gaps",
+        params={"as_of": "2026-08-10T12:00:00"},
+    )
+    assert resp.status_code == 400
+
+
+def test_research_gaps_coverage_score(client):
+    resp = client.get(
+        "/api/v1/companies/TCS/research-gaps"
+    )
+    rg = resp.json()["research_gaps"]
+    assert rg is not None
+    assert rg["coverage_score"] in ("HIGH", "MEDIUM", "LOW")
+    assert rg["coverage_explanation"]
+
+
+def test_research_contract_has_research_gaps(client):
+    resp = client.get("/api/v1/companies/TCS/research")
+    payload = resp.json()
+    assert "research_gaps" in payload
+    rg = payload["research_gaps"]
+    assert rg is not None
+    assert rg["gap_count"] >= 0
+    assert isinstance(rg["gaps"], list)
+
+
+def test_intelligence_has_research_gaps(client):
+    resp = client.get("/api/v1/companies/TCS/intelligence")
+    payload = resp.json()
+    assert "research_gaps" in payload
+    rg = payload["research_gaps"]
+    assert rg is not None
+    assert rg["gap_count"] >= 0

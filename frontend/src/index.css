@@ -1,21 +1,220 @@
-:root {
-  font-family:
-    Inter,
-    ui-sans-serif,
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    sans-serif;
+/* ════════════════════════════════════════════════════════════════════
+   Quant Research Terminal — design tokens
+   ════════════════════════════════════════════════════════════════════
 
-  color: #111827;
-  background: #f5f7fa;
+   Semantic roles (single source of truth for the visual language):
+
+     Background / Surface / Elevated   — layered neutral planes
+     Border (strong → faint)           — hairline separators, no boxes-in-boxes
+     Text primary / secondary / muted  — editorial type hierarchy
+     Accent                            — interactive blue (links, active states)
+     Positive / Negative evidence      — restrained directional evidence colors
+     Conflict                          — distinct from missing AND from warning
+     Warning                           — attention without alarm
+     Unavailable                       — neutral gray; missing data is NOT an error
+     PIT verified                      — point-in-time credibility teal
+
+   Legacy aliases (--bg, --surface, --border, --text, --accent, …) are kept
+   so every stylesheet resolves against real tokens.
+   ════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ── Planes ─────────────────────────────────────────────────── */
+  --color-bg: #f4f6f8;
+  --color-surface: #ffffff;
+  --color-surface-raised: #fbfcfd;
+  --color-surface-sunken: #eef1f5;
+  --color-surface-muted: #f7f9fa;
+
+  /* ── Borders ────────────────────────────────────────────────── */
+  --color-border: #d3dae2;
+  --color-border-subtle: #dfe4eb;
+  --color-border-faint: #e8ecf1;
+  --color-border-light: #eef1f5;
+  --color-border-lightest: #f2f5f8;
+
+  /* ── Text ───────────────────────────────────────────────────── */
+  --color-text: #17212e;
+  --color-text-secondary: #45566b;
+  --color-text-tertiary: #64748a;
+  --color-text-muted: #8c99ab;
+  --color-text-faint: #aab4c3;
+
+  /* ── Accent (interactive) ───────────────────────────────────── */
+  --color-primary: #2359a8;
+  --color-primary-dark: #1b477f;
+  --color-primary-muted: #2e63b5;
+  --color-primary-light: #4d84cc;
+  --color-primary-pale: #e9eff8;
+  --color-accent: var(--color-primary);
+
+  /* ── Evidence semantics (restrained, never neon) ────────────── */
+  --color-positive: #217a4b;
+  --color-positive-dark: #1b6a41;
+  --color-positive-text: #1b6640;
+  --color-positive-bg: #e9f4ee;
+  --color-positive-bg-deep: #ddf0e6;
+  --color-positive-border: #bfe0cd;
+
+  --color-negative: #b03a3a;
+  --color-negative-dark: #963231;
+  --color-negative-text: #96302f;
+  --color-negative-bg: #faeceb;
+  --color-negative-bg-deep: #f5dfde;
+  --color-negative-border: #eccaca;
+
+  --color-conflict: #7a4bbf;
+  --color-conflict-text: #653aa3;
+  --color-conflict-bg: #f1ecfa;
+
+  --color-amber: #a06a10;
+  --color-warn: #a06a10;
+  --color-stale: #a06a10;
+  --color-amber-text: #7d520c;
+  --color-amber-bg: #faf3e2;
+  --color-amber-bg-deep: #f5ecd4;
+  --color-amber-border: #ead9ac;
+
+  /* Unavailable / limited — deliberately neutral. Not an error. */
+  --color-unavailable: #8c99ab;
+  --color-unavailable-bg: #f0f2f5;
+
+  /* PIT verified — credibility teal, distinct from evidence green */
+  --color-pit: #146b68;
+  --color-pit-bg: #e6f3f2;
+
+  --color-ok: #217a4b;
+  --color-error: #b03a3a;
+
+  /* ── Info / slate tag surfaces ──────────────────────────────── */
+  --color-info-bg: #e9eff8;
+  --color-info-text: #1b477f;
+  --color-slate-bg: #eef1f5;
+  --color-slate-text: #55657c;
+
+  /* ── Sidebar (deep ink, low noise) ──────────────────────────── */
+  --sidebar-bg: #101b2c;
+  --sidebar-border: #1b2940;
+  --sidebar-text: #ccd8e8;
+  --sidebar-text-muted: #90a1ba;
+  --sidebar-text-dim: #67798f;
+  --sidebar-nav-hover: #182740;
+  --sidebar-nav-active-bg: #1d3050;
+  --sidebar-nav-active-border: #4d84cc;
+  --sidebar-footer-border: #20304a;
+  --sidebar-footer-text: #8598b2;
+  --sidebar-footer-dim: #5f7189;
+
+  /* ── Focus ──────────────────────────────────────────────────── */
+  --color-focus: rgba(35, 89, 168, 0.45);
+
+  /* ── Typography ─────────────────────────────────────────────── */
+  --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
+  --font-mono: "SF Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --text-2xs: 9px;
+  --text-xs: 10px;
+  --text-sm: 11px;
+  --text-base: 12px;
+  --text-md: 13px;
+  --text-lg: 14px;
+  --text-xl: 15px;
+  --text-2xl: 17px;
+  --text-3xl: 20px;
+  --text-4xl: 24px;
+
+  --leading-tight: 1.28;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.62;
+
+  --weight-normal: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+  --weight-extrabold: 700;
+
+  --tracking-tight: -0.015em;
+  --tracking-normal: 0;
+  --tracking-wide: 0.03em;
+  --tracking-wider: 0.05em;
+  --tracking-widest: 0.07em;
+  --tracking-ultra: 0.08em;
+  --tracking-mega: 0.11em;
+
+  /* ── Spacing (disciplined 4px rhythm) ───────────────────────── */
+  --space-0: 0;
+  --space-px: 1px;
+  --space-0-5: 2px;
+  --space-1: 4px;
+  --space-1-5: 6px;
+  --space-2: 8px;
+  --space-2-5: 10px;
+  --space-3: 12px;
+  --space-3-5: 14px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 28px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-14: 56px;
+  --space-16: 64px;
+
+  /* ── Radius (restrained; cards barely round) ────────────────── */
+  --radius-sm: 3px;
+  --radius-md: 4px;
+  --radius-base: 5px;
+  --radius-lg: 6px;
+  --radius-xl: 7px;
+  --radius-2xl: 8px;
+  --radius-3xl: 10px;
+  --radius-full: 9999px;
+
+  /* ── Shadows (low-noise) ────────────────────────────────────── */
+  --shadow-xs: 0 1px 2px rgba(16, 27, 44, 0.05);
+  --shadow-sm: 0 1px 3px rgba(16, 27, 44, 0.07);
+  --shadow-md: 0 4px 14px rgba(16, 27, 44, 0.09);
+  --shadow-lg: 0 10px 30px rgba(16, 27, 44, 0.12);
+  --shadow-dropdown: 0 14px 34px rgba(16, 27, 44, 0.16);
+
+  /* ── Transitions ────────────────────────────────────────────── */
+  --transition-fast: 90ms ease;
+  --transition-base: 140ms ease;
+  --transition-smooth: 180ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* ── Z-index ────────────────────────────────────────────────── */
+  --z-sticky: 5;
+  --z-dropdown: 20;
+
+  /* ── Layout ─────────────────────────────────────────────────── */
+  --sidebar-width: 232px;
+  --workspace-max: 1440px;
+  --workspace-padding-x: 32px;
+  --workspace-padding-y: 28px;
+
+  /* ── Legacy aliases (older rules resolve to real tokens) ────── */
+  --bg: var(--color-surface);
+  --surface: var(--color-surface-raised);
+  --surface-raised: var(--color-surface-raised);
+  --border: var(--color-border-subtle);
+  --text: var(--color-text);
+  --text-secondary: var(--color-text-secondary);
+  --text-muted: var(--color-text-muted);
+  --accent: var(--color-primary);
+
+  font-family: var(--font-sans);
+  color: var(--color-text);
+  background: var(--color-bg);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 html {
-  background: #f5f7fa;
+  background: var(--color-bg);
 }
 
 body {
@@ -24,6 +223,49 @@ body {
 }
 
 button,
-input {
+input,
+select {
   font-family: inherit;
+}
+
+/* ── Focus ────────────────────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+/* ── Selection ────────────────────────────────────────────────── */
+::selection {
+  background: var(--color-primary-pale);
+  color: var(--color-text);
+}
+
+/* ── Reduced motion ───────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ── Scrollbars ───────────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: var(--radius-full);
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-text-muted);
 }

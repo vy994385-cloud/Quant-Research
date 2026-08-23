@@ -11,15 +11,26 @@ evidence -> report) and honors an explicit, timezone-aware as_of.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime
 
 from fastapi import APIRouter, Query
 
+from src.api.query_utils import (
+    SUPPORTED_HORIZONS,
+    clean_sector,
+    parse_as_of,
+)
+
+# Re-export for backward compatibility
+# (other routers historically imported from here)
+
 from src.api.contracts import (
+    CompanyCrossDomainContract,
     CompanyDiscoveryResponse,
     CompanyIntelligenceContract,
     CompanyRankingsContract,
     CompanyResearchContract,
+    CompanyResearchGapsContract,
     CompanyTimelineContract,
     CompanyDeepFinancialInsightsContract,
     CompanySourceStatusesContract,
@@ -27,8 +38,6 @@ from src.api.contracts import (
     UniverseRankingsContract,
 )
 from src.api.errors import (
-    InvalidAsOfError,
-    InvalidHorizonError,
     UnknownCompanyError,
 )
 from src.api.recorded_research import (
@@ -36,77 +45,24 @@ from src.api.recorded_research import (
 )
 from src.api.serializers import (
     company_rankings_contract,
+    cross_domain_contract,
     deep_financial_insights_contract,
     discovery_item,
     hidden_information_contract,
     intelligence_contract,
     research_contract,
+    research_gaps_contract,
     source_statuses_contract,
     timeline_contract,
     universe_rankings_contract,
 )
 
-SUPPORTED_HORIZONS = ("INTRADAY", "SWING", "LONG_TERM")
-
-_HORIZON_ALIASES = {
-    "INTRADAY": "INTRADAY",
-    "INTRA": "INTRADAY",
-    "SWING": "SWING",
-    "LONG_TERM": "LONG_TERM",
-    "LONG-TERM": "LONG_TERM",
-    "LONGTERM": "LONG_TERM",
-}
-
-
-def parse_as_of(value: str | None) -> datetime | None:
-    """Parse and validate an optional as_of query parameter."""
-
-    if value is None:
-        return None
-
-    text = value.strip()
-
-    if not text:
-        return None
-
-    if text.endswith("Z"):
-        text = text[:-1] + "+00:00"
-
-    try:
-        parsed = datetime.fromisoformat(text)
-    except ValueError:
-        raise InvalidAsOfError(
-            "as_of must be an ISO 8601 timestamp",
-            details={"as_of": value},
-        ) from None
-
-    if parsed.tzinfo is None:
-        if "T" in text:
-            raise InvalidAsOfError(
-                "as_of must include a timezone offset",
-                details={"as_of": value},
-            )
-
-        parsed = parsed.replace(tzinfo=timezone.utc)
-
-    return parsed
+SUPPORTED_HORIZONS  # re-exported from query_utils
 
 
 def _normalize_horizon(horizon: str) -> str:
-    requested = horizon.strip().upper()
-
-    normalized = _HORIZON_ALIASES.get(requested)
-
-    if normalized is None:
-        raise InvalidHorizonError(
-            "unsupported ranking horizon",
-            details={
-                "horizon": horizon,
-                "supported": list(SUPPORTED_HORIZONS),
-            },
-        )
-
-    return normalized
+    from src.api.query_utils import normalize_horizon
+    return normalize_horizon(horizon)
 
 
 def _select_symbols(service, symbols: str | None) -> tuple[str, ...]:
@@ -177,8 +133,8 @@ def create_research_router(
             results.append(
                 discovery_item(
                     symbol,
-                    sector=service.company_sector(symbol)
-                    or "unknown",
+                    # Unknown sector is null — never a sentinel string.
+                    sector=clean_sector(service.company_sector(symbol)),
                     company_name=service.company_name(symbol),
                     research_available=(
                         service.research_available(symbol)
@@ -417,6 +373,60 @@ def create_research_router(
         )
 
         return hidden_information_contract(
+            result,
+            company_name=service.company_name(normalized),
+        )
+
+    @router.get(
+        "/companies/{symbol}/cross-domain",
+        response_model=CompanyCrossDomainContract,
+    )
+    def company_cross_domain(
+        symbol: str,
+        as_of: str | None = Query(
+            default=None,
+            description=(
+                "Optional point-in-time timestamp (ISO 8601, "
+                "timezone-aware). Defaults to the recorded as_of."
+            ),
+        ),
+    ) -> dict:
+        normalized = service.validate_company(symbol)
+        captured_at = parse_as_of(as_of)
+
+        result = service.run(
+            normalized,
+            as_of=captured_at,
+        )
+
+        return cross_domain_contract(
+            result,
+            company_name=service.company_name(normalized),
+        )
+
+    @router.get(
+        "/companies/{symbol}/research-gaps",
+        response_model=CompanyResearchGapsContract,
+    )
+    def company_research_gaps(
+        symbol: str,
+        as_of: str | None = Query(
+            default=None,
+            description=(
+                "Optional point-in-time timestamp (ISO 8601, "
+                "timezone-aware). Defaults to the recorded as_of."
+            ),
+        ),
+    ) -> dict:
+        normalized = service.validate_company(symbol)
+        captured_at = parse_as_of(as_of)
+
+        result = service.run(
+            normalized,
+            as_of=captured_at,
+        )
+
+        return research_gaps_contract(
             result,
             company_name=service.company_name(normalized),
         )

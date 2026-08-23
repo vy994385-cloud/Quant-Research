@@ -59,11 +59,12 @@ class DeterministicResearchAgent(ResearchAgent):
         source: SourceCandidate,
     ) -> AgentExtraction:
         return AgentExtraction(
-            claim=(
-                f"Source {source.source_id} contains evidence relevant "
-                f"to the research question."
+            claim=source.title.strip(),
+            evidence_excerpt=(
+                f"Recorded source '{source.source_id}' "
+                f"({source.source_name}) was reviewed for evidence "
+                "relevant to this research question."
             ),
-            evidence_excerpt=source.title,
             confidence=0.5,
         )
 

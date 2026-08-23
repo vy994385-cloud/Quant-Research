@@ -1,0 +1,25 @@
+{
+  "available_at": "2026-08-10T12:00:00+00:00",
+  "checksum": "927045521cf7868ad2505b1c5cd82d191a62df5938450b3533a8055e76931942",
+  "dataset_id": "yahoo_finance_chart",
+  "dataset_version": null,
+  "payload": {
+    "adjusted_close": null,
+    "close": "2327.199951171875",
+    "high": "2335.89990234375",
+    "low": "2314.0",
+    "open": "2331.0",
+    "symbol": "TCS",
+    "trading_date": "2026-05-21",
+    "volume": 3299087
+  },
+  "published_at": null,
+  "record_id": "TCS_2026-05-21",
+  "request_metadata": {
+    "end_date": "2026-08-10",
+    "start_date": "2025-08-10",
+    "symbol": "TCS"
+  },
+  "retrieved_at": "2026-08-10T12:00:00+00:00",
+  "source_id": "yahoo_finance_chart_recorded"
+}

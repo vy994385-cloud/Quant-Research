@@ -1,0 +1,24 @@
+{
+  "available_at": "2026-07-30T17:30:00+05:30",
+  "checksum": "57d8c696dbcffcc42c748045f6c32d5fdebe8f497bc19f703176cec20f50a82e",
+  "dataset_id": "sunpharma_recorded_sources",
+  "dataset_version": null,
+  "payload": {
+    "available_at": "2026-07-30T17:30:00+05:30",
+    "published_at": "2026-07-30T17:30:00+05:30",
+    "reliability_tier": 1,
+    "source_id": "sunpharma-q1fy27-results",
+    "source_name": "Sun Pharma Exchange Filing",
+    "source_type": "REGULATORY",
+    "title": "Sun Pharma Q1 FY27 results: revenue and net profit, specialty segment momentum",
+    "url": "https://example.invalid/sunpharma-q1fy27-results"
+  },
+  "published_at": "2026-07-30T17:30:00+05:30",
+  "record_id": "sunpharma-q1fy27-results",
+  "request_metadata": {
+    "as_of": "2026-08-10T12:00:00+00:00",
+    "company": "SUNPHARMA"
+  },
+  "retrieved_at": "2026-08-10T12:00:00+00:00",
+  "source_id": "sunpharma_recorded_sources"
+}

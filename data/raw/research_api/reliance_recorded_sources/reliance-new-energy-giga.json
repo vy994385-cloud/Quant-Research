@@ -1,0 +1,24 @@
+{
+  "available_at": "2026-02-20T11:00:00+05:30",
+  "checksum": "a517faf6e2a7aafafd083a15871f358c9a6dcb5f7bdc1fcc480e803bdc335074",
+  "dataset_id": "reliance_recorded_sources",
+  "dataset_version": null,
+  "payload": {
+    "available_at": "2026-02-20T11:00:00+05:30",
+    "published_at": "2026-02-20T11:00:00+05:30",
+    "reliability_tier": 2,
+    "source_id": "reliance-new-energy-giga",
+    "source_name": "Economic Times",
+    "source_type": "NEWS",
+    "title": "Reliance new energy giga-factory ramps production, a strategic innovation strengthening its competitive position in clean-energy products",
+    "url": "https://example.invalid/reliance-new-energy-giga"
+  },
+  "published_at": "2026-02-20T11:00:00+05:30",
+  "record_id": "reliance-new-energy-giga",
+  "request_metadata": {
+    "as_of": "2026-08-10T12:00:00+00:00",
+    "company": "RELIANCE"
+  },
+  "retrieved_at": "2026-08-10T12:00:00+00:00",
+  "source_id": "reliance_recorded_sources"
+}

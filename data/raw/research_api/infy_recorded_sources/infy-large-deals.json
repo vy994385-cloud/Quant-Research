@@ -1,0 +1,24 @@
+{
+  "available_at": "2026-06-10T12:00:00+05:30",
+  "checksum": "550098f7d48555565ed3cb1dec9744141f7d79da9e74825d08117c564f4defb1",
+  "dataset_id": "infy_recorded_sources",
+  "dataset_version": null,
+  "payload": {
+    "available_at": "2026-06-10T12:00:00+05:30",
+    "published_at": "2026-06-10T12:00:00+05:30",
+    "reliability_tier": 2,
+    "source_id": "infy-large-deals",
+    "source_name": "Moneycontrol",
+    "source_type": "NEWS",
+    "title": "Infosys wins large multi-year customer contracts and orders across banking and retail, strengthening competitive position",
+    "url": "https://example.invalid/infy-large-deals"
+  },
+  "published_at": "2026-06-10T12:00:00+05:30",
+  "record_id": "infy-large-deals",
+  "request_metadata": {
+    "as_of": "2026-08-10T12:00:00+00:00",
+    "company": "INFY"
+  },
+  "retrieved_at": "2026-08-10T12:00:00+00:00",
+  "source_id": "infy_recorded_sources"
+}

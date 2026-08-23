@@ -1,0 +1,25 @@
+{
+  "available_at": "2026-08-10T12:00:00+00:00",
+  "checksum": "1a5f32eafd1a7caab4ffa9f7abbb6a6c344b692dd47cb68f6b42bf29a71f3067",
+  "dataset_id": "yahoo_finance_chart",
+  "dataset_version": null,
+  "payload": {
+    "adjusted_close": null,
+    "close": "3463.39990234375",
+    "high": "3501.0",
+    "low": "3415.5",
+    "open": "3419.199951171875",
+    "symbol": "M&M",
+    "trading_date": "2025-10-01",
+    "volume": 2364844
+  },
+  "published_at": null,
+  "record_id": "M&M_2025-10-01",
+  "request_metadata": {
+    "end_date": "2026-08-10",
+    "start_date": "2025-08-10",
+    "symbol": "M&M"
+  },
+  "retrieved_at": "2026-08-10T12:00:00+00:00",
+  "source_id": "yahoo_finance_chart_recorded"
+}

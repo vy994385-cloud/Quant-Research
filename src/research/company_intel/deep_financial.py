@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from collections import Counter
 from datetime import datetime
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from typing import Sequence
 
 from src.research.company_intel.models import (
@@ -32,6 +32,51 @@ from src.research.company_intel.models import (
 from src.research.company_intel.semantics import (
     FinancialObservationType,
 )
+
+# Deterministic presentation rounding for division results. Fractions
+# (margins, returns, cash conversion, period-over-period changes) are
+# quantized once at build time to six decimal places with ROUND_HALF_UP
+# so serialized observations never carry long decimal tails and every
+# value is reproducible from the published inputs.
+_FRACTION_QUANTUM = Decimal("0.000001")
+
+# Canonical observation units. "INR" marks absolute Indian-rupee
+# amounts in their raw reported scale; "FRACTION" marks ratios of one.
+# Percentages are a downstream rendering concern (multiply by 100).
+_UNIT_INR = "INR"
+_UNIT_FRACTION = "FRACTION"
+
+_RATIO_METRICS = frozenset(
+    {
+        "operating_margin",
+        "net_margin",
+        "cash_conversion",
+        "return_on_assets",
+    }
+)
+
+
+def _metric_unit(metric: str) -> str:
+    """Canonical unit for a metric: fractions stay ratios, never currency."""
+
+    if metric in _RATIO_METRICS:
+        return _UNIT_FRACTION
+    return _UNIT_INR
+
+
+def _quantize_fraction(value: Decimal | None) -> Decimal | None:
+    if value is None:
+        return None
+    return value.quantize(
+        _FRACTION_QUANTUM,
+        rounding=ROUND_HALF_UP,
+    )
+
+
+def _period_end_label(period: FinancialPeriod) -> str:
+    """Human-readable period label; raw internal IDs never surface."""
+
+    return f"the period ending {period.period_end.isoformat()}"
 
 # Standard tracked metrics. A metric is surfaced as UNAVAILABLE for a
 # period only when it is reported in at least one other period of the
@@ -50,34 +95,35 @@ _TRACKED_METRICS = (
 )
 
 # Derived metrics computed deterministically from reported figures.
-# Each entry is (metric name, required reported inputs, derivation
-# template). The derivation template is rendered with the current
-# period_id so the computation can be reproduced exactly.
+# Each entry is (metric name, required reported inputs, human-readable
+# operation). The operation names the exact inputs in words so the
+# computation can be reproduced and audited without formula syntax or
+# internal identifiers reaching user-facing strings.
 _DERIVED_DEFINITIONS = (
     (
         "operating_margin",
         ("operating_profit", "revenue"),
-        "operating_profit({period_id}) / revenue({period_id})",
+        "operating profit divided by revenue",
     ),
     (
         "net_margin",
         ("net_profit", "revenue"),
-        "net_profit({period_id}) / revenue({period_id})",
+        "net profit divided by revenue",
     ),
     (
         "cash_conversion",
         ("operating_cash_flow", "net_profit"),
-        "operating_cash_flow({period_id}) / net_profit({period_id})",
+        "operating cash flow divided by net profit",
     ),
     (
         "return_on_assets",
         ("net_profit", "total_assets"),
-        "net_profit({period_id}) / total_assets({period_id})",
+        "net profit divided by total assets",
     ),
     (
         "net_debt",
         ("total_debt", "cash_and_equivalents"),
-        "total_debt({period_id}) - cash_and_equivalents({period_id})",
+        "total debt minus cash and equivalents",
     ),
 )
 
@@ -99,7 +145,7 @@ def _delta(
     if previous == 0:
         return (change, None)
 
-    return (change, change / abs(previous))
+    return (change, _quantize_fraction(change / abs(previous)))
 
 
 def _derived_value(
@@ -115,7 +161,7 @@ def _derived_value(
     if metric_name == "net_debt":
         return parts[0] - parts[1]
 
-    return parts[0] / parts[1]
+    return _quantize_fraction(parts[0] / parts[1])
 
 
 def _series_key(period: FinancialPeriod) -> tuple[str, str]:
@@ -186,13 +232,26 @@ def _build_series_observations(
                             delta=None,
                             delta_pct=None,
                             derivation=(
-                                f"not reported for {period.period_id}"
+                                "Not reported for "
+                                f"{_period_end_label(period)}."
                             ),
                         )
                     )
                 continue
 
             change, change_pct = _delta(value, previous_value)
+
+            if previous is None:
+                reported_derivation = (
+                    "Reported value for "
+                    f"{_period_end_label(period)}."
+                )
+            else:
+                reported_derivation = (
+                    "Reported value for "
+                    f"{_period_end_label(period)}, compared with "
+                    f"{_period_end_label(previous)}."
+                )
 
             observations.append(
                 _observation(
@@ -206,18 +265,11 @@ def _build_series_observations(
                     previous_value=previous_value,
                     delta=change,
                     delta_pct=change_pct,
-                    derivation=(
-                        f"reported value for {period.period_id}"
-                        if previous is None
-                        else (
-                            f"reported value for {period.period_id} "
-                            f"compared against {previous.period_id}"
-                        )
-                    ),
+                    derivation=reported_derivation,
                 )
             )
 
-    for metric_name, inputs, formula in _DERIVED_DEFINITIONS:
+    for metric_name, inputs, operation in _DERIVED_DEFINITIONS:
         for index, period in enumerate(ordered):
             previous = ordered[index - 1] if index > 0 else None
 
@@ -239,6 +291,18 @@ def _build_series_observations(
 
             change, change_pct = _delta(value, previous_value)
 
+            if value is not None:
+                derived_derivation = (
+                    f"Derived as {operation} for "
+                    f"{_period_end_label(period)}."
+                )
+            else:
+                derived_derivation = (
+                    "Not derivable because required reported "
+                    "figures are missing for "
+                    f"{_period_end_label(period)}."
+                )
+
             observations.append(
                 _observation(
                     symbol=symbol,
@@ -249,14 +313,7 @@ def _build_series_observations(
                     previous_value=previous_value,
                     delta=change,
                     delta_pct=change_pct,
-                    derivation=(
-                        formula.format(period_id=period.period_id)
-                        if value is not None
-                        else (
-                            "not derivable: input figure missing for "
-                            f"{period.period_id}"
-                        )
-                    ),
+                    derivation=derived_derivation,
                 )
             )
 
@@ -284,6 +341,7 @@ def _observation(
         period_type=period.period_type,
         consolidation=period.consolidation,
         observation_type=observation_type,
+        unit=_metric_unit(metric),
         value=value,
         previous_value=previous_value,
         delta=delta,

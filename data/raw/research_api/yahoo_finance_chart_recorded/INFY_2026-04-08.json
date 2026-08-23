@@ -1,0 +1,25 @@
+{
+  "available_at": "2026-08-10T12:00:00+00:00",
+  "checksum": "79fee03e9f79866f29e6a4d89e407433e7cb485e8b116b4c0ce6a658ae042644",
+  "dataset_id": "yahoo_finance_chart",
+  "dataset_version": null,
+  "payload": {
+    "adjusted_close": null,
+    "close": "1346.199951171875",
+    "high": "1376.9000244140625",
+    "low": "1331.0",
+    "open": "1349.0",
+    "symbol": "INFY",
+    "trading_date": "2026-04-08",
+    "volume": 16030133
+  },
+  "published_at": null,
+  "record_id": "INFY_2026-04-08",
+  "request_metadata": {
+    "end_date": "2026-08-10",
+    "start_date": "2025-08-10",
+    "symbol": "INFY"
+  },
+  "retrieved_at": "2026-08-10T12:00:00+00:00",
+  "source_id": "yahoo_finance_chart_recorded"
+}

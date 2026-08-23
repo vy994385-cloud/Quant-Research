@@ -1,0 +1,24 @@
+{
+  "available_at": "2026-05-10T09:30:00+05:30",
+  "checksum": "cfcb8001477e09dda1bbc71d4c4ae6d9451edd511da63257c35435bce7b9e95b",
+  "dataset_id": "reliance_recorded_sources",
+  "dataset_version": null,
+  "payload": {
+    "available_at": "2026-05-10T09:30:00+05:30",
+    "published_at": "2026-05-10T09:30:00+05:30",
+    "reliability_tier": 2,
+    "source_id": "reliance-capex-debt",
+    "source_name": "CNBC TV18",
+    "source_type": "NEWS",
+    "title": "Reliance announces record capex for new energy and digital business, management outlines debt and cash flow plans",
+    "url": "https://example.invalid/reliance-capex-debt"
+  },
+  "published_at": "2026-05-10T09:30:00+05:30",
+  "record_id": "reliance-capex-debt",
+  "request_metadata": {
+    "as_of": "2026-08-10T12:00:00+00:00",
+    "company": "RELIANCE"
+  },
+  "retrieved_at": "2026-08-10T12:00:00+00:00",
+  "source_id": "reliance_recorded_sources"
+}

@@ -1,0 +1,25 @@
+{
+  "available_at": "2026-08-15T16:16:38.278567+00:00",
+  "checksum": "0081b0c0eccfcb209c3022e0a6dbeae6032af5ae1e8c681fbb83e621bbcf1989",
+  "dataset_id": "yahoo_finance_chart",
+  "dataset_version": null,
+  "payload": {
+    "adjusted_close": null,
+    "close": "24430.349609375",
+    "high": "24458.650390625",
+    "low": "24287.099609375",
+    "open": "24306.849609375",
+    "symbol": "^NSEI",
+    "trading_date": "2026-07-06",
+    "volume": 329400
+  },
+  "published_at": null,
+  "record_id": "^NSEI_2026-07-06",
+  "request_metadata": {
+    "end_date": "2026-08-15",
+    "start_date": "2025-08-15",
+    "symbol": "^NSEI"
+  },
+  "retrieved_at": "2026-08-15T16:16:38.278567+00:00",
+  "source_id": "yahoofinancemarketdataprovider"
+}

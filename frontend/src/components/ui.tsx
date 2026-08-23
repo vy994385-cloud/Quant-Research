@@ -1,5 +1,7 @@
 /**
- * Small shared UI primitives reused across dashboard sections.
+ * Small shared UI primitives for the data-first research platform.
+ *
+ * Purely informational — no scores, confidence bars, or investment judgments.
  */
 
 import type { ReactNode } from "react"
@@ -13,24 +15,6 @@ export function Tag({
   tone: Tone
 }) {
   return <span className={`tag ${tone}`}>{text}</span>
-}
-
-export function SectionTitle({
-  eyebrow,
-  title,
-  detail,
-}: {
-  eyebrow: string
-  title: string
-  detail: string
-}) {
-  return (
-    <header className="section-title">
-      <span>{eyebrow}</span>
-      <h2>{title}</h2>
-      <p>{detail}</p>
-    </header>
-  )
 }
 
 export function PanelHead({
@@ -54,55 +38,218 @@ export function EmptyCopy({ text }: { text: string }) {
   return <p className="empty-copy">{text}</p>
 }
 
-export function Metric({
+export function DataField({
   label,
   value,
-  detail,
-  icon,
-  tone = "",
+  mono = false,
 }: {
   label: string
-  value: string
-  detail: string
-  icon: ReactNode
-  tone?: string
+  value: ReactNode
+  mono?: boolean
 }) {
   return (
-    <article className={`metric ${tone}`}>
-      <div>
-        {icon}
-        <span>{label}</span>
+    <div className="data-field">
+      <dt className="data-field-label">{label}</dt>
+      <dd className={mono ? "data-field-value mono" : "data-field-value"}>
+        {value ?? "\u2014"}
+      </dd>
+    </div>
+  )
+}
+
+export function StatusBadge({
+  text,
+  tone,
+}: {
+  text: string
+  tone: Tone
+}) {
+  return (
+    <span className={`status-badge ${tone}`}>
+      <span className="status-badge-dot" />
+      {text}
+    </span>
+  )
+}
+
+export function MetricTile({
+  label,
+  value,
+  unit,
+  detail,
+  tone,
+}: {
+  label: string
+  value: ReactNode
+  unit?: string
+  detail?: string
+  tone?: Tone
+}) {
+  return (
+    <article className={tone ? `metric-tile ${tone}` : "metric-tile"}>
+      <span className="metric-tile-label">{label}</span>
+      <div className="metric-tile-value">
+        <strong>{value ?? "\u2014"}</strong>
+        {unit ? <span className="metric-tile-unit">{unit}</span> : null}
       </div>
-      <strong>{value}</strong>
-      <small>{detail}</small>
+      {detail ? <small className="metric-tile-detail">{detail}</small> : null}
     </article>
   )
 }
 
-export function ScoreDonut({
-  value,
-  color,
-  suffix,
+export function DeltaIndicator({
+  absolute,
+  percentage,
+  neutral = false,
 }: {
-  value: number
-  color: string
-  suffix?: string
+  absolute: string
+  percentage: string
+  neutral?: boolean
 }) {
-  const clamped = Math.max(0, Math.min(100, value))
-
   return (
-    <div
-      className="score-donut"
-      style={{
-        background: `conic-gradient(${color} ${clamped}%, #e5ebf1 0)`,
-      }}
-      role="img"
-      aria-label={`Score ${clamped.toFixed(0)} out of 100`}
-    >
-      <div className="score-donut-inner">
-        <strong>{clamped.toFixed(0)}</strong>
-        {suffix ? <span>{suffix}</span> : null}
+    <span className={neutral ? "delta-indicator" : "delta-indicator has-value"}>
+      <span className="delta-absolute">{absolute}</span>
+      <span className="delta-sep">/</span>
+      <span className="delta-percentage">{percentage}</span>
+    </span>
+  )
+}
+
+export function SectionDivider({ label }: { label?: string }) {
+  return (
+    <div className="section-divider">
+      {label ? (
+        <>
+          <span className="section-divider-line" />
+          <span className="section-divider-label">{label}</span>
+          <span className="section-divider-line" />
+        </>
+      ) : (
+        <span className="section-divider-line full" />
+      )}
+    </div>
+  )
+}
+
+/* ── Redesign 2.0 primitives ──────────────────────────────────────── */
+
+export interface TabItem {
+  id: string
+  label: string
+}
+
+/**
+ * Anchor tab strip for document-style pages. Tabs scroll to sections;
+ * `activeId` (scroll-spy) drives the underline + aria-current state.
+ * Horizontally scrollable on narrow viewports.
+ */
+export function TabStrip({
+  items,
+  activeId,
+  label,
+}: {
+  items: TabItem[]
+  activeId: string | null
+  label: string
+}) {
+  return (
+    <nav className="tab-strip" aria-label={label}>
+      <div className="tab-strip-track">
+        {items.map((item) => (
+          <a
+            key={item.id}
+            href={`#${item.id}`}
+            className={activeId === item.id ? "tab-item active" : "tab-item"}
+            aria-current={activeId === item.id ? "location" : undefined}
+          >
+            {item.label}
+          </a>
+        ))}
       </div>
+    </nav>
+  )
+}
+
+/**
+ * Filter chip row used across evidence/observation/event workspaces.
+ * Renders as a group of toggle buttons with optional counts.
+ */
+export function FilterChips<T extends string>({
+  options,
+  value,
+  onChange,
+  ariaLabel,
+}: {
+  options: Array<{ value: T; label: string; count?: number }>
+  value: T
+  onChange: (next: T) => void
+  ariaLabel: string
+}) {
+  return (
+    <div className="filter-chips" role="group" aria-label={ariaLabel}>
+      {options.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          className={
+            option.value === value ? "filter-chip active" : "filter-chip"
+          }
+          onClick={() => onChange(option.value)}
+          aria-pressed={option.value === value}
+        >
+          {option.label}
+          {typeof option.count === "number" && (
+            <span className="chip-count">{option.count}</span>
+          )}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+/**
+ * Right-side detail drawer for master/detail explorers.
+ * Closes on Escape and overlay click; focus moves to the close button.
+ */
+/**
+ * Dense feed row for discovery surfaces:
+ * date | company | event | type | source | verification.
+ */
+export function FeedTable({
+  headers,
+  rows,
+  caption,
+  emptyText,
+}: {
+  headers: string[]
+  rows: Array<{ key: string; cells: ReactNode[]; detail?: ReactNode }>
+  caption?: string
+  emptyText: string
+}) {
+  if (rows.length === 0) {
+    return <EmptyCopy text={emptyText} />
+  }
+  return (
+    <div className="table-scroll">
+      <table className="feed-table">
+        {caption ? <caption className="visually-hidden">{caption}</caption> : null}
+        <thead>
+          <tr>
+            {headers.map((header) => (
+              <th scope="col" key={header}>{header}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.key}>
+              {row.cells.map((cell, i) => (
+                <td key={i}>{cell}</td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   )
 }

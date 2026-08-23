@@ -14,7 +14,15 @@ __pycache__/
 .DS_Store
 
 # Data
+# Recorded research data MUST be tracked: the production backend is a pure
+# computation API served from these committed fixtures (no live network).
 data/raw/*
+!data/raw/research/
+!data/raw/research/**
+!data/raw/research_api/
+!data/raw/research_api/**
+!data/raw/universe/
+!data/raw/universe/**
 data/processed/*
 
 # Frontend

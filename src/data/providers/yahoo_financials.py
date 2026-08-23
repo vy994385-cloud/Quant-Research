@@ -30,6 +30,9 @@ class YahooFinanceFinancialProvider:
         "annualFreeCashFlow",
         "annualAccountsReceivable",
         "annualOperatingCashFlow",
+        "annualOperatingIncome",
+        "annualCashAndCashEquivalents",
+        "annualTotalEquity",
     )
 
     def __init__(self, timeout: int = 20):
@@ -178,6 +181,9 @@ class YahooFinanceFinancialProvider:
                     revenue=values.get(
                         "annualTotalRevenue"
                     ),
+                    operating_profit=values.get(
+                        "annualOperatingIncome"
+                    ),
                     net_profit=values.get(
                         "annualNetIncome"
                     ),
@@ -195,6 +201,12 @@ class YahooFinanceFinancialProvider:
                     ),
                     operating_cash_flow=values.get(
                         "annualOperatingCashFlow"
+                    ),
+                    cash_and_equivalents=values.get(
+                        "annualCashAndCashEquivalents"
+                    ),
+                    total_equity=values.get(
+                        "annualTotalEquity"
                     ),
                 )
             )

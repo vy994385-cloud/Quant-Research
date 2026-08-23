@@ -1,0 +1,24 @@
+{
+  "available_at": "2026-02-15T09:00:00+05:30",
+  "checksum": "3cc2a499d2ed1c079e27b49a555870d4013832b179b8b69e85fe4dfcd4a09279",
+  "dataset_id": "hdfcbank_recorded_sources",
+  "dataset_version": null,
+  "payload": {
+    "available_at": "2026-02-15T09:00:00+05:30",
+    "published_at": "2026-02-15T09:00:00+05:30",
+    "reliability_tier": 2,
+    "source_id": "hdfcbank-digital-banking",
+    "source_name": "YourStory",
+    "source_type": "NEWS",
+    "title": "HDFC Bank launches digital banking products and platform with AI, cloud technology for customers",
+    "url": "https://example.invalid/hdfcbank-digital-banking"
+  },
+  "published_at": "2026-02-15T09:00:00+05:30",
+  "record_id": "hdfcbank-digital-banking",
+  "request_metadata": {
+    "as_of": "2026-08-10T12:00:00+00:00",
+    "company": "HDFCBANK"
+  },
+  "retrieved_at": "2026-08-10T12:00:00+00:00",
+  "source_id": "hdfcbank_recorded_sources"
+}

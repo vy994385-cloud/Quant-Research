@@ -1,0 +1,24 @@
+{
+  "available_at": "2026-02-28T10:00:00+05:30",
+  "checksum": "f4f0e25880da2242e70ea3a70c11fd0cce3ec275c15e812181aca4331e178754",
+  "dataset_id": "m&m_recorded_sources",
+  "dataset_version": null,
+  "payload": {
+    "available_at": "2026-02-28T10:00:00+05:30",
+    "published_at": "2026-02-28T10:00:00+05:30",
+    "reliability_tier": 2,
+    "source_id": "mm-ev-capex",
+    "source_name": "BloombergQuint",
+    "source_type": "NEWS",
+    "title": "M&M management outlines electric-vehicle capex and capital allocation plan",
+    "url": "https://example.invalid/mm-ev-capex"
+  },
+  "published_at": "2026-02-28T10:00:00+05:30",
+  "record_id": "mm-ev-capex",
+  "request_metadata": {
+    "as_of": "2026-08-10T12:00:00+00:00",
+    "company": "M&M"
+  },
+  "retrieved_at": "2026-08-10T12:00:00+00:00",
+  "source_id": "m&m_recorded_sources"
+}

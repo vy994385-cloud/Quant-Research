@@ -1,0 +1,24 @@
+{
+  "available_at": "2026-05-18T11:00:00+05:30",
+  "checksum": "a8d5da3d95b1a8c1fadddc0d8c2e9cb035fd2a61c38b67e0152b89744c0cafa6",
+  "dataset_id": "sunpharma_recorded_sources",
+  "dataset_version": null,
+  "payload": {
+    "available_at": "2026-05-18T11:00:00+05:30",
+    "published_at": "2026-05-18T11:00:00+05:30",
+    "reliability_tier": 2,
+    "source_id": "sunpharma-biosimilar-launch",
+    "source_name": "PharmaBiz",
+    "source_type": "NEWS",
+    "title": "Sun Pharma launches biosimilar products in US market, expanding specialty portfolio built on in-house r&d",
+    "url": "https://example.invalid/sunpharma-biosimilar-launch"
+  },
+  "published_at": "2026-05-18T11:00:00+05:30",
+  "record_id": "sunpharma-biosimilar-launch",
+  "request_metadata": {
+    "as_of": "2026-08-10T12:00:00+00:00",
+    "company": "SUNPHARMA"
+  },
+  "retrieved_at": "2026-08-10T12:00:00+00:00",
+  "source_id": "sunpharma_recorded_sources"
+}

@@ -1,0 +1,24 @@
+{
+  "available_at": "2026-04-25T14:00:00+05:30",
+  "checksum": "45069f951bf1693377d5f5852e712bd5c819b86f3b159daedd3898c23b2b20e6",
+  "dataset_id": "sunpharma_recorded_sources",
+  "dataset_version": null,
+  "payload": {
+    "available_at": "2026-04-25T14:00:00+05:30",
+    "published_at": "2026-04-25T14:00:00+05:30",
+    "reliability_tier": 2,
+    "source_id": "sunpharma-capex-management",
+    "source_name": "Business Standard",
+    "source_type": "NEWS",
+    "title": "Sun Pharma management announces manufacturing capex for new capacity and cash allocation priorities",
+    "url": "https://example.invalid/sunpharma-capex-management"
+  },
+  "published_at": "2026-04-25T14:00:00+05:30",
+  "record_id": "sunpharma-capex-management",
+  "request_metadata": {
+    "as_of": "2026-08-10T12:00:00+00:00",
+    "company": "SUNPHARMA"
+  },
+  "retrieved_at": "2026-08-10T12:00:00+00:00",
+  "source_id": "sunpharma_recorded_sources"
+}

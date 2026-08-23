@@ -367,7 +367,7 @@ def test_derived_metric_items_are_derived_metrics():
     ][0]
 
     assert "operating margin" in margin.title
-    assert "0.2" in margin.description
+    assert "operating margin of 20%" in margin.description
 
 
 def test_segments_and_subsidiaries_are_preserved():

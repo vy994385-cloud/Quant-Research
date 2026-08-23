@@ -1,0 +1,24 @@
+{
+  "available_at": "2026-04-17T17:30:00+05:30",
+  "checksum": "d0a2dfac13fe95471a8f90c9bbefc8b90a0c42d74f7dd75beccceab5e7ba696a",
+  "dataset_id": "reliance_recorded_sources",
+  "dataset_version": null,
+  "payload": {
+    "available_at": "2026-04-17T17:30:00+05:30",
+    "published_at": "2026-04-17T17:30:00+05:30",
+    "reliability_tier": 1,
+    "source_id": "reliance-q4fy26-results",
+    "source_name": "Reliance Exchange Filing",
+    "source_type": "REGULATORY",
+    "title": "Reliance board and management report Q4 FY26 results: consolidated revenue, net profit and capital allocation to shareholders",
+    "url": "https://example.invalid/reliance-q4fy26-results"
+  },
+  "published_at": "2026-04-17T17:30:00+05:30",
+  "record_id": "reliance-q4fy26-results",
+  "request_metadata": {
+    "as_of": "2026-08-10T12:00:00+00:00",
+    "company": "RELIANCE"
+  },
+  "retrieved_at": "2026-08-10T12:00:00+00:00",
+  "source_id": "reliance_recorded_sources"
+}

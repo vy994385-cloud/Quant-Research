@@ -189,11 +189,17 @@ class YahooFinanceMarketDataProvider(MarketDataProvider):
             .get("quote", [{}])[0]
         )
 
+        adjclose_data = (
+            result.get("indicators", {})
+            .get("adjclose", [{}])[0]
+        )
+
         opens = quote_data.get("open") or []
         highs = quote_data.get("high") or []
         lows = quote_data.get("low") or []
         closes = quote_data.get("close") or []
         volumes = quote_data.get("volume") or []
+        adjcloses = adjclose_data.get("adjclose") or []
 
         bars: list[PriceBar] = []
 
@@ -237,6 +243,10 @@ class YahooFinanceMarketDataProvider(MarketDataProvider):
             if trading_date > end_date:
                 continue
 
+            adj_close_value = None
+            if index < len(adjcloses) and adjcloses[index] is not None:
+                adj_close_value = Decimal(str(adjcloses[index]))
+
             bars.append(
                 PriceBar(
                     symbol=requested_symbol,
@@ -246,6 +256,7 @@ class YahooFinanceMarketDataProvider(MarketDataProvider):
                     low=Decimal(str(lows[index])),
                     close=Decimal(str(closes[index])),
                     volume=int(volumes[index]),
+                    adjusted_close=adj_close_value,
                 )
             )
 

@@ -40,6 +40,21 @@ from src.api.schemas import (
 from src.api.errors import register_api_error_handlers
 from src.api.research_router import create_research_router
 
+from src.api.fundamentals_router import create_fundamentals_router
+from src.api.technical_router import create_technical_router
+from src.api.business_router import create_business_router
+from src.api.events_router import create_events_router
+from src.api.ownership_router import create_ownership_router
+from src.api.attribution_router import create_attribution_router
+from src.api.timeline_router import create_timeline_router
+from src.api.validation_router import create_validation_router
+from src.api.analyst_router import router as analyst_router
+from src.api.ownership_summary_router import router as ownership_summary_router
+from src.api.f6_router import create_f6_router
+from src.api.f7_router import create_f7_router
+from src.api.f8_router import create_f8_router
+from src.api.capability_router import create_capability_router
+
 import os
 
 app = FastAPI(
@@ -73,6 +88,20 @@ app.add_middleware(
 register_api_error_handlers(app)
 
 app.include_router(create_research_router())
+app.include_router(create_fundamentals_router())
+app.include_router(create_technical_router())
+app.include_router(create_business_router())
+app.include_router(create_events_router())
+app.include_router(create_ownership_router())
+app.include_router(create_attribution_router())
+app.include_router(create_timeline_router())
+app.include_router(create_validation_router())
+app.include_router(analyst_router)
+app.include_router(ownership_summary_router)
+app.include_router(create_f6_router())
+app.include_router(create_f7_router())
+app.include_router(create_f8_router())
+app.include_router(create_capability_router())
 
 
 # ---------------------------------------------------------------------
@@ -342,7 +371,7 @@ def demo_research() -> dict:
     return {
         "company": {
             "symbol": snapshot.symbol,
-            "name": snapshot.company_name,
+            "company_name": snapshot.company_name,
             "as_of": snapshot.as_of_date.isoformat(),
         },
         "research_score": {
@@ -438,9 +467,9 @@ def demo_research() -> dict:
                 "source_name": item.source_name,
                 "source_type": item.source_type,
                 "title": item.title,
-                "published_date": (
+                "published_at": (
                     item.published_date.isoformat()
-                    if item.published_date
+                    if item.published_date is not None
                     else None
                 ),
                 "reliability_tier": (
@@ -467,9 +496,10 @@ def get_demo_research() -> dict:
 # Ranking serialization
 # ---------------------------------------------------------------------
 
-def _ranking_payload(ranking) -> dict:
+def _ranking_payload(ranking, *, company_name: str | None = None) -> dict:
     return {
         "symbol": ranking.symbol,
+        "company_name": company_name,
         "horizon": ranking.horizon,
         "score": str(ranking.score),
         "signal": ranking.rank_signal,
@@ -493,7 +523,7 @@ def _report_payload(report) -> dict:
     return {
         "company": {
             "symbol": report.symbol,
-            "name": snapshot.company_name,
+            "company_name": snapshot.company_name,
             "as_of": report.as_of_date.isoformat(),
         },
 
@@ -535,13 +565,25 @@ def _report_payload(report) -> dict:
 
         "rankings": {
             "intraday": _ranking_payload(
-                report.intraday
+                report.intraday,
+                company_name=(
+                    report.company_intelligence.company_name
+                    or report.symbol
+                ),
             ),
             "swing": _ranking_payload(
-                report.swing
+                report.swing,
+                company_name=(
+                    report.company_intelligence.company_name
+                    or report.symbol
+                ),
             ),
             "long_term": _ranking_payload(
-                report.long_term
+                report.long_term,
+                company_name=(
+                    report.company_intelligence.company_name
+                    or report.symbol
+                ),
             ),
         },
 
@@ -605,9 +647,9 @@ def _report_payload(report) -> dict:
                 "source_name": item.source_name,
                 "source_type": item.source_type,
                 "title": item.title,
-                "published_date": (
+                "published_at": (
                     item.published_date.isoformat()
-                    if item.published_date
+                    if item.published_date is not None
                     else None
                 ),
                 "reliability_tier": (
@@ -1034,7 +1076,12 @@ def get_rankings(horizon: str) -> dict:
             ranking = report.long_term
 
         results.append(
-            _ranking_payload(ranking)
+            _ranking_payload(
+                ranking,
+                company_name=(
+                    report.company_intelligence.company_name
+                ),
+            )
         )
 
     return {
@@ -1139,13 +1186,25 @@ def get_stock_rankings(symbol: str) -> dict:
         ),
         "rankings": {
             "intraday": _ranking_payload(
-                report.intraday
+                report.intraday,
+                company_name=(
+                    report.company_intelligence.company_name
+                    or report.symbol
+                ),
             ),
             "swing": _ranking_payload(
-                report.swing
+                report.swing,
+                company_name=(
+                    report.company_intelligence.company_name
+                    or report.symbol
+                ),
             ),
             "long_term": _ranking_payload(
-                report.long_term
+                report.long_term,
+                company_name=(
+                    report.company_intelligence.company_name
+                    or report.symbol
+                ),
             ),
         },
     }

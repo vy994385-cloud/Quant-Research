@@ -1,0 +1,24 @@
+{
+  "available_at": "2026-07-09T19:00:00+05:30",
+  "checksum": "8e51b67b5f35a429cf70ec3c45ed1e1880d4c5b93aee58a57bd5da345be08e0e",
+  "dataset_id": "tcs_recorded_sources",
+  "dataset_version": null,
+  "payload": {
+    "available_at": "2026-07-09T19:00:00+05:30",
+    "published_at": "2026-07-09T19:00:00+05:30",
+    "reliability_tier": 2,
+    "source_id": "tcs-interim-dividend-fy27",
+    "source_name": "News18",
+    "source_type": "NEWS",
+    "title": "TCS declares Rs 12 per share interim dividend for FY27, capital return to shareholders, record date July 15, 2026",
+    "url": "https://www.news18.com/business/markets/tcs-announces-rs-12-interim-dividend-for-fy27-record-date-set-for-july-15-payment-on-july-31-ws-l-10200711.html"
+  },
+  "published_at": "2026-07-09T19:00:00+05:30",
+  "record_id": "tcs-interim-dividend-fy27",
+  "request_metadata": {
+    "as_of": "2026-08-10T12:00:00+00:00",
+    "company": "TCS"
+  },
+  "retrieved_at": "2026-08-10T12:00:00+00:00",
+  "source_id": "tcs_recorded_sources"
+}

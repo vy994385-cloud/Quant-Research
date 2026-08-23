@@ -1,0 +1,25 @@
+{
+  "available_at": "2026-08-10T12:00:00+00:00",
+  "checksum": "5d4e66c0bc93c96492b2785e769e32a3c51d2b7e2c1823e64d5d7aa4b71feca6",
+  "dataset_id": "yahoo_finance_chart",
+  "dataset_version": null,
+  "payload": {
+    "adjusted_close": null,
+    "close": "1694.5999755859375",
+    "high": "1699.0",
+    "low": "1654.9000244140625",
+    "open": "1684.300048828125",
+    "symbol": "SUNPHARMA",
+    "trading_date": "2026-04-06",
+    "volume": 3533715
+  },
+  "published_at": null,
+  "record_id": "SUNPHARMA_2026-04-06",
+  "request_metadata": {
+    "end_date": "2026-08-10",
+    "start_date": "2025-08-10",
+    "symbol": "SUNPHARMA"
+  },
+  "retrieved_at": "2026-08-10T12:00:00+00:00",
+  "source_id": "yahoo_finance_chart_recorded"
+}

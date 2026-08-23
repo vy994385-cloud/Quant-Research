@@ -16,6 +16,7 @@ from src.research.report.models import (
     ResearchEvidence,
     ResearchReport,
 )
+from src.research.report.presentation import humanize_identifier
 from src.research.intelligence import build_research_intelligence
 from src.data.company.financials import FinancialSnapshot
 from src.features.market_snapshot import MarketFeatureSnapshot
@@ -222,13 +223,16 @@ def _feature_evidence(
     evidence: list[ResearchEvidence] = []
 
     for feature in features:
+        feature_label = humanize_identifier(feature.feature_id)
         evidence.append(
             ResearchEvidence(
                 evidence_id=f"FEATURE_{feature.feature_id}",
-                title=f"Validated feature: {feature.feature_id}",
+                title=(
+                    f"Validated research measure: {feature_label}"
+                ),
                 explanation=(
-                    f"Feature {feature.feature_id} is available "
-                    "as validated point-in-time research evidence."
+                    f"{feature_label} is available as validated "
+                    "point-in-time research evidence."
                 ),
                 symbol=symbol,
                 observation_at=feature.observation_at,

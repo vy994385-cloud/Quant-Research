@@ -2,7 +2,7 @@
  * Loading, empty, and structured-error states for the dashboard.
  */
 
-import { Activity, TriangleAlert, XCircle } from "lucide-react"
+import { Activity, Building2, TriangleAlert, XCircle } from "lucide-react"
 import { ApiError } from "../api/client"
 
 export function LoadingState({
@@ -15,6 +15,24 @@ export function LoadingState({
       <Activity className="spin" size={26} />
       <strong>Loading research</strong>
       <span>{label}</span>
+    </div>
+  )
+}
+
+export function EmptyState({
+  icon: Icon = Building2,
+  title,
+  description,
+}: {
+  icon?: React.ComponentType<{ size?: number }>
+  title: string
+  description?: string
+}) {
+  return (
+    <div className="empty-state">
+      <Icon size={28} />
+      <strong>{title}</strong>
+      {description && <p>{description}</p>}
     </div>
   )
 }
@@ -49,11 +67,24 @@ export function ErrorState({
 
   const isApiError = error instanceof ApiError
 
+  // Honest framing per failure class: a server-side data problem is not a
+  // connectivity outage, and neither is a contract-level rejection.
+  let heading = "Research could not be generated"
+  let hint: string | null = null
+  if (isApiError && error.code === "server_unavailable") {
+    heading = "Research area unavailable"
+    hint =
+      "The rest of the workspace is unaffected; this area can be retried."
+  } else if (isApiError && error.code === "network_error") {
+    heading = "Cannot reach the research service"
+  }
+
   return (
     <div className="empty-state error" role="alert">
       <XCircle size={28} />
-      <strong>Research could not be generated</strong>
+      <strong>{heading}</strong>
       <p>{message}</p>
+      {hint && <p className="error-hint">{hint}</p>}
       {isApiError && error.code !== "network_error" ? (
         <span className="error-code">Error code: {error.code}</span>
       ) : null}

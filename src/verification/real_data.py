@@ -789,6 +789,90 @@ def _run_verification_path(
         fixture_dir=fixture_dir,
     )
 
+    # Enrich intelligence snapshot with new research expansion
+    # analysis results. These require FinancialSnapshot objects
+    # which are only available in this verification layer.
+    fin_snapshots = list(base_result.financial_snapshots)
+    if fin_snapshots:
+        from src.analysis.cash_flow_quality import (
+            analyze_cash_flow_quality,
+        )
+        from src.analysis.balance_sheet_deep import (
+            analyze_balance_sheet_deep,
+        )
+        from src.analysis.research_gaps import (
+            analyze_research_gaps,
+        )
+        from src.analysis.cross_domain_observations import (
+            analyze_cross_domain,
+        )
+
+        cfq = analyze_cash_flow_quality(
+            symbol=normalized,
+            as_of=captured_at,
+            snapshots=fin_snapshots,
+        )
+        bsd = analyze_balance_sheet_deep(
+            symbol=normalized,
+            as_of=captured_at,
+            snapshots=fin_snapshots,
+        )
+        rg = analyze_research_gaps(
+            symbol=normalized,
+            as_of=captured_at,
+            snapshots=fin_snapshots,
+        )
+        cd = analyze_cross_domain(
+            symbol=normalized,
+            as_of=captured_at,
+            snapshots=fin_snapshots,
+        )
+
+        # Financial anomalies: pairwise comparison of consecutive snapshots
+        from src.analysis.financial_anomalies import (
+            analyze_financial_change,
+        )
+        from src.research.company_intel.models import (
+            FinancialAnomaliesResult,
+            FinancialAnomalyItem,
+        )
+
+        anomaly_items: list = []
+        for idx in range(1, len(fin_snapshots)):
+            prev_snap = fin_snapshots[idx - 1]
+            curr_snap = fin_snapshots[idx]
+            for anomaly in analyze_financial_change(prev_snap, curr_snap):
+                anomaly_items.append(
+                    FinancialAnomalyItem(
+                        metric=anomaly.metric,
+                        current_change=str(anomaly.current_change),
+                        comparison_change=(
+                            str(anomaly.comparison_change)
+                            if anomaly.comparison_change is not None
+                            else None
+                        ),
+                        severity=anomaly.severity,
+                        explanation=anomaly.explanation,
+                    )
+                )
+
+        fa = FinancialAnomaliesResult(
+            symbol=normalized,
+            as_of=captured_at,
+            anomalies=tuple(anomaly_items),
+        )
+
+        # Pydantic models are immutable; rebuild with new fields
+        intelligence = intelligence.model_copy(
+            update={
+                "cash_flow_quality": cfq,
+                "balance_sheet_deep": bsd,
+                "research_gaps": rg,
+                "cross_domain": cd,
+                "financial_anomalies": fa,
+            }
+        )
+
     pit_checks["intelligence_items_known_at_as_of"] = all(
         item.is_known_at(captured_at)
         for item in intelligence.items

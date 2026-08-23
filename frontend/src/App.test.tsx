@@ -1,10 +1,11 @@
 import { describe, expect, it, vi } from "vitest"
-import { render, screen } from "@testing-library/react"
-import userEvent from "@testing-library/user-event"
+import { render, screen, fireEvent, within } from "@testing-library/react"
+import { MemoryRouter } from "react-router-dom"
 import { ApiError, fetchDiscovery, fetchResearch } from "./api/client"
 import type { CompanyResearch } from "./api/types"
 import { DEGRADED_RESEARCH, DISCOVERY, RESEARCH } from "./test/fixtures"
-import App from "./App"
+import { AppRoutes } from "./App"
+import { DiscoveryProvider } from "./DiscoveryContext"
 
 vi.mock("./api/client", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./api/client")>()
@@ -18,90 +19,81 @@ vi.mock("./api/client", async (importOriginal) => {
 const mockedFetchDiscovery = vi.mocked(fetchDiscovery)
 const mockedFetchResearch = vi.mocked(fetchResearch)
 
-async function selectCompany(symbol: string) {
-  const user = userEvent.setup()
-  const input = screen.getByLabelText("Company search")
-
-  await user.type(input, symbol)
-  await user.click(await screen.findByText(symbol))
-
-  return user
+function renderAtRoute(route: string) {
+  return render(
+    <MemoryRouter initialEntries={[route]}>
+      <DiscoveryProvider>
+        <AppRoutes />
+      </DiscoveryProvider>
+    </MemoryRouter>,
+  )
 }
-
 describe("App", () => {
-  it("starts with an empty research state", () => {
+  it("renders the sidebar navigation", async () => {
     mockedFetchDiscovery.mockResolvedValue(DISCOVERY)
-    mockedFetchResearch.mockResolvedValue(RESEARCH)
-
-    render(<App />)
-
-    expect(
-      screen.getByText("Start company research"),
-    ).toBeInTheDocument()
+    const { container } = renderAtRoute("/")
+    expect(screen.getByText("Quant Research")).toBeInTheDocument()
+    // The lazy-loaded page resolves async, so await the page heading first.
+    await screen.findByRole("heading", { name: "Research Home" })
+    // Nav links are scoped to the sidebar navigation: once the home data
+    // resolves, the page body legitimately contains the same words.
+    const sidebarNav = container.querySelector<HTMLElement>(".sidebar-nav")!
+    expect(within(sidebarNav).getByText("Research Home")).toBeInTheDocument()
+    expect(within(sidebarNav).getByText("Companies")).toBeInTheDocument()
+    expect(within(sidebarNav).getByText("Industries")).toBeInTheDocument()
+    expect(within(sidebarNav).getByText("Themes")).toBeInTheDocument()
+    expect(within(sidebarNav).getByText("Signals")).toBeInTheDocument()
+    expect(within(sidebarNav).getByText("Compare")).toBeInTheDocument()
+    expect(within(sidebarNav).getByText("Evidence")).toBeInTheDocument()
   })
 
-  it("renders the full research dashboard after selecting a company", async () => {
+  it("renders the Research Home page with discovery data", async () => {
     mockedFetchDiscovery.mockResolvedValue(DISCOVERY)
-    mockedFetchResearch.mockResolvedValue(RESEARCH)
+    renderAtRoute("/")
 
-    render(<App />)
-    await selectCompany("TCS")
-
-    // Company identity + as-of bar
     expect(
       await screen.findByText("Tata Consultancy Services"),
     ).toBeInTheDocument()
-    expect(screen.getByLabelText("Point-in-time as-of date")).toBeInTheDocument()
+    expect(screen.getByText("Infosys")).toBeInTheDocument()
+  })
 
-    // Overview
-    expect(screen.getByText("OVERALL CONCLUSION")).toBeInTheDocument()
+  it("renders the full company research dashboard via route", async () => {
+    mockedFetchResearch.mockResolvedValue(RESEARCH)
+    renderAtRoute("/companies/TCS")
+
     expect(
-      screen.getByText("TCS shows a predominantly positive research profile across the available evidence."),
+      await screen.findByRole("heading", { name: "Tata Consultancy Services" }),
     ).toBeInTheDocument()
 
-    // Rankings
-    expect(screen.getByText("Intraday")).toBeInTheDocument()
+    // Research overview
+    expect(screen.getByText("Research Overview")).toBeInTheDocument()
 
-    // Evidence
-    expect(screen.getAllByText("Supporting evidence").length).toBeGreaterThan(0)
-    expect(screen.getAllByText("Rising Debt Trend").length).toBeGreaterThan(0)
+    // Evidence record with dated timeline entries. The newest entry also
+    // appears in the overview "What changed" summary, hence getAllByText.
+    // Titles render sentence-cased with the symbol prefix stripped.
+    expect(screen.getByText("Evidence Record")).toBeInTheDocument()
+    expect(
+      screen.getAllByText("Board meeting scheduled for June").length,
+    ).toBeGreaterThanOrEqual(1)
 
-    // Trends + signals
-    expect(screen.getByText("Financial trends component")).toBeInTheDocument()
+    // Derived observations register — titles render as recorded (sentence case).
     expect(screen.getAllByText("Increasing revenue").length).toBeGreaterThan(0)
 
-    // Risks
-    expect(screen.getByText("Negative evidence & exceptions")).toBeInTheDocument()
-
-    // Intelligence
-    expect(screen.getByText("Business quality")).toBeInTheDocument()
-
-    // Timeline + research status
-    expect(screen.getByText("Company evidence timeline")).toBeInTheDocument()
+    // Source coverage table renders humanised source labels; raw identifiers
+    // survive only in the technical provenance lineage records below.
     expect(
-      screen.getByText("TCS ANNUAL financials for the period ending 2026-03-31"),
-    ).toBeInTheDocument()
-    expect(screen.getByText("Freshness")).toBeInTheDocument()
+      screen.getAllByText("Recorded Intel Sources").length,
+    ).toBeGreaterThanOrEqual(1)
+    expect(screen.getByText("Market source record")).toBeInTheDocument()
+    expect(screen.getAllByText("yahoo_finance_market").length).toBeGreaterThanOrEqual(1)
 
-    // Deep financial insights
-    expect(screen.getByText("Deep financial insights")).toBeInTheDocument()
+    // Structured data coverage section
+    expect(screen.getByText("Data Coverage")).toBeInTheDocument()
 
-    // Source statuses
-    expect(screen.getByText("Source statuses")).toBeInTheDocument()
-    expect(screen.getAllByText("recorded_intel_sources").length).toBeGreaterThan(0)
-
-    // Sources, provenance, and point-in-time
-    expect(screen.getByText("Point-in-time context")).toBeInTheDocument()
-    expect(screen.getByText("PIT CHECKS PASSED")).toBeInTheDocument()
-    expect(screen.getByText("Market source")).toBeInTheDocument()
-    expect(screen.getByText("yahoo_finance_chart")).toBeInTheDocument()
-
-    expect(mockedFetchResearch).toHaveBeenCalledWith("TCS", undefined)
+    expect(mockedFetchResearch).toHaveBeenCalledWith("TCS")
   })
 
   it("shows the loading state while research is pending", async () => {
-    mockedFetchDiscovery.mockResolvedValue(DISCOVERY)
-
     let resolveResearch!: (value: CompanyResearch) => void
 
     mockedFetchResearch.mockImplementation(
@@ -111,30 +103,27 @@ describe("App", () => {
         }),
     )
 
-    render(<App />)
-    await selectCompany("TCS")
+    renderAtRoute("/companies/TCS")
 
     expect(
-      await screen.findByText("Loading research"),
+      await screen.findByText(/Retrieving research data/),
     ).toBeInTheDocument()
 
     resolveResearch(RESEARCH)
 
     expect(
-      await screen.findByText("Tata Consultancy Services"),
+      await screen.findByRole("heading", { name: "Tata Consultancy Services" }),
     ).toBeInTheDocument()
   })
 
   it("renders the structured error contract on failure", async () => {
-    mockedFetchDiscovery.mockResolvedValue(DISCOVERY)
     mockedFetchResearch.mockRejectedValue(
       new ApiError("Unsupported company", "unknown_company", 404, {
         symbol: "TCS",
       }),
     )
 
-    render(<App />)
-    await selectCompany("TCS")
+    renderAtRoute("/companies/TCS")
 
     expect(
       await screen.findByText("Unsupported company"),
@@ -143,25 +132,24 @@ describe("App", () => {
   })
 
   it("surfaces degraded research context", async () => {
-    mockedFetchDiscovery.mockResolvedValue(DISCOVERY)
     mockedFetchResearch.mockResolvedValue(DEGRADED_RESEARCH)
+    renderAtRoute("/companies/TCS")
 
-    render(<App />)
-    await selectCompany("TCS")
+    // Structured data coverage replaces warning banners
+    expect(await screen.findByText("Data Coverage")).toBeInTheDocument()
 
-    expect(
-      await screen.findByText("Degraded research context"),
-    ).toBeInTheDocument()
+    // Provider failures are listed inside the expandable Missing group
+    fireEvent.click(screen.getByRole("button", { name: /Missing/ }))
     expect(
       screen.getByText(
-        "1 research source provider(s) failed and were isolated from this report.",
+        "2 research providers failed and were isolated from this snapshot (missing-sources-provider, missing-intel-provider)",
       ),
     ).toBeInTheDocument()
+
     expect(
       screen.getByText(
-        "1 intelligence source provider(s) failed and were isolated from this snapshot.",
+        "Point-in-time checks did not all pass for this snapshot; review evidence timestamps with extra caution.",
       ),
     ).toBeInTheDocument()
-    expect(screen.getByText("PIT CHECKS FAILED")).toBeInTheDocument()
   })
 })

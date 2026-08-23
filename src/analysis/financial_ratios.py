@@ -134,3 +134,82 @@ def cash_conversion_ratio(
             snapshot.net_profit,
         )
     )
+
+
+def return_on_equity(
+    snapshot: FinancialSnapshot,
+) -> Decimal | None:
+
+    return percentage(
+        safe_divide(
+            snapshot.net_profit,
+            getattr(snapshot, "shareholders_equity", None)
+            or getattr(snapshot, "total_equity", None),
+        )
+    )
+
+
+def return_on_capital_employed(
+    snapshot: FinancialSnapshot,
+) -> Decimal | None:
+
+    equity = getattr(snapshot, "shareholders_equity", None)
+    total_debt = snapshot.total_debt
+
+    if equity is None or total_debt is None:
+        return None
+
+    capital_employed = equity + total_debt
+
+    return percentage(
+        safe_divide(
+            snapshot.operating_profit,
+            capital_employed,
+        )
+    )
+
+
+def working_capital(
+    snapshot: FinancialSnapshot,
+) -> Decimal | None:
+
+    current_assets = getattr(snapshot, "current_assets", None)
+    current_liabilities = getattr(
+        snapshot, "current_liabilities", None
+    )
+
+    if current_assets is None or current_liabilities is None:
+        return None
+
+    return current_assets - current_liabilities
+
+
+def current_ratio(
+    snapshot: FinancialSnapshot,
+) -> Decimal | None:
+
+    return safe_divide(
+        getattr(snapshot, "current_assets", None),
+        getattr(snapshot, "current_liabilities", None),
+    )
+
+
+def accruals_ratio(
+    snapshot: FinancialSnapshot,
+) -> Decimal | None:
+
+    if snapshot.total_assets is None or snapshot.total_assets == 0:
+        return None
+
+    net_profit = snapshot.net_profit
+    operating_cash_flow = snapshot.operating_cash_flow
+
+    if net_profit is None or operating_cash_flow is None:
+        return None
+
+    accruals = net_profit - operating_cash_flow
+
+    return safe_divide(
+        accruals,
+        snapshot.total_assets,
+    )

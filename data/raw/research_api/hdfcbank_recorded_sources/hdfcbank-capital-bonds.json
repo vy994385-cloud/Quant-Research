@@ -1,0 +1,24 @@
+{
+  "available_at": "2026-04-10T17:00:00+05:30",
+  "checksum": "9561e4e2977055de846ae6327117699e8abaf9fa3021d717a975fcbf43f6d236",
+  "dataset_id": "hdfcbank_recorded_sources",
+  "dataset_version": null,
+  "payload": {
+    "available_at": "2026-04-10T17:00:00+05:30",
+    "published_at": "2026-04-10T17:00:00+05:30",
+    "reliability_tier": 2,
+    "source_id": "hdfcbank-capital-bonds",
+    "source_name": "BloombergQuint",
+    "source_type": "NEWS",
+    "title": "HDFC Bank board approves AT1 capital issuance, management details tier-1 capital and cash position",
+    "url": "https://example.invalid/hdfcbank-capital-bonds"
+  },
+  "published_at": "2026-04-10T17:00:00+05:30",
+  "record_id": "hdfcbank-capital-bonds",
+  "request_metadata": {
+    "as_of": "2026-08-10T12:00:00+00:00",
+    "company": "HDFCBANK"
+  },
+  "retrieved_at": "2026-08-10T12:00:00+00:00",
+  "source_id": "hdfcbank_recorded_sources"
+}

@@ -1,0 +1,25 @@
+{
+  "available_at": "2026-08-10T12:00:00+00:00",
+  "checksum": "982541b5221496ec3b32ece59b1436f36d588741ccab3393216ee7ede9889856",
+  "dataset_id": "yahoo_finance_chart",
+  "dataset_version": null,
+  "payload": {
+    "adjusted_close": null,
+    "close": "967.7999877929688",
+    "high": "969.25",
+    "low": "959.9000244140625",
+    "open": "960.2999877929688",
+    "symbol": "HDFCBANK",
+    "trading_date": "2025-09-11",
+    "volume": 15113633
+  },
+  "published_at": null,
+  "record_id": "HDFCBANK_2025-09-11",
+  "request_metadata": {
+    "end_date": "2026-08-10",
+    "start_date": "2025-08-10",
+    "symbol": "HDFCBANK"
+  },
+  "retrieved_at": "2026-08-10T12:00:00+00:00",
+  "source_id": "yahoo_finance_chart_recorded"
+}

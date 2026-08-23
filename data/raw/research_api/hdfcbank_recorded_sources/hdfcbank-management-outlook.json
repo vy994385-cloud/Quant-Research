@@ -1,0 +1,24 @@
+{
+  "available_at": "2026-07-20T12:30:00+05:30",
+  "checksum": "3db3ff8ce68d84775a319a6810dca11f144bde585d8e87c490306be251e56bd4",
+  "dataset_id": "hdfcbank_recorded_sources",
+  "dataset_version": null,
+  "payload": {
+    "available_at": "2026-07-20T12:30:00+05:30",
+    "published_at": "2026-07-20T12:30:00+05:30",
+    "reliability_tier": 2,
+    "source_id": "hdfcbank-management-outlook",
+    "source_name": "Mint",
+    "source_type": "NEWS",
+    "title": "HDFC Bank leadership commentary on banking industry outlook, credit growth and digital strategy",
+    "url": "https://example.invalid/hdfcbank-management-outlook"
+  },
+  "published_at": "2026-07-20T12:30:00+05:30",
+  "record_id": "hdfcbank-management-outlook",
+  "request_metadata": {
+    "as_of": "2026-08-10T12:00:00+00:00",
+    "company": "HDFCBANK"
+  },
+  "retrieved_at": "2026-08-10T12:00:00+00:00",
+  "source_id": "hdfcbank_recorded_sources"
+}

@@ -1,0 +1,24 @@
+{
+  "available_at": "2026-06-15T12:00:00+05:30",
+  "checksum": "d38134f0fa9297eb23c7982889505fd9c16130ff474c91a68e25eca15e8cc243",
+  "dataset_id": "m&m_recorded_sources",
+  "dataset_version": null,
+  "payload": {
+    "available_at": "2026-06-15T12:00:00+05:30",
+    "published_at": "2026-06-15T12:00:00+05:30",
+    "reliability_tier": 2,
+    "source_id": "mm-ev-launches",
+    "source_name": "Autocar Professional",
+    "source_type": "NEWS",
+    "title": "M&M launches electric SUV products with connected car AI technology, strengthening its competitive position",
+    "url": "https://example.invalid/mm-ev-launches"
+  },
+  "published_at": "2026-06-15T12:00:00+05:30",
+  "record_id": "mm-ev-launches",
+  "request_metadata": {
+    "as_of": "2026-08-10T12:00:00+00:00",
+    "company": "M&M"
+  },
+  "retrieved_at": "2026-08-10T12:00:00+00:00",
+  "source_id": "m&m_recorded_sources"
+}

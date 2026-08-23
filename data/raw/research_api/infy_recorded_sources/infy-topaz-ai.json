@@ -1,0 +1,24 @@
+{
+  "available_at": "2026-03-25T09:00:00+05:30",
+  "checksum": "1557b38b6bdea3cf5ace8f58eb3de37482d452af3c0a3b895e62bd24bfcb21da",
+  "dataset_id": "infy_recorded_sources",
+  "dataset_version": null,
+  "payload": {
+    "available_at": "2026-03-25T09:00:00+05:30",
+    "published_at": "2026-03-25T09:00:00+05:30",
+    "reliability_tier": 2,
+    "source_id": "infy-topaz-ai",
+    "source_name": "The Hindu BusinessLine",
+    "source_type": "NEWS",
+    "title": "Infosys Topaz AI platform expands: generative AI, cloud and machine learning services for enterprise customers and products",
+    "url": "https://example.invalid/infy-topaz-ai"
+  },
+  "published_at": "2026-03-25T09:00:00+05:30",
+  "record_id": "infy-topaz-ai",
+  "request_metadata": {
+    "as_of": "2026-08-10T12:00:00+00:00",
+    "company": "INFY"
+  },
+  "retrieved_at": "2026-08-10T12:00:00+00:00",
+  "source_id": "infy_recorded_sources"
+}

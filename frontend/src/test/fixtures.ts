@@ -5,8 +5,8 @@
 
 import type {
   CompanyResearch,
+  CompanyResearchGapsResponse,
   DiscoveryResponse,
-  UniverseRankings,
 } from "../api/types"
 
 export const DISCOVERY: DiscoveryResponse = {
@@ -23,49 +23,6 @@ export const DISCOVERY: DiscoveryResponse = {
       company_name: "Infosys",
       sector: "information technology",
       research_available: true,
-    },
-  ],
-}
-
-export const UNIVERSE: UniverseRankings = {
-  as_of: "2026-08-10T12:00:00+00:00",
-  horizon: "LONG_TERM",
-  count: 2,
-  point_in_time: {
-    as_of: "2026-08-10T12:00:00+00:00",
-    effective_as_of: "2026-08-10T12:00:00+00:00",
-    market_as_of: "2026-08-07",
-    evidence_included: 42,
-    acquired_evidence_included: 14,
-    future_evidence_excluded: 0,
-    sources_discovered: 6,
-    sources_accepted: 4,
-    sources_rejected: 2,
-    pit_checks_passed: true,
-    notes: [],
-  },
-  results: [
-    {
-      symbol: "TCS",
-      company_name: "Tata Consultancy Services",
-      horizon: "LONG_TERM",
-      score: "68.1",
-      signal: "NEUTRAL",
-      confidence: "81.1",
-      coverage: "100",
-      missing_components: [],
-      components: { fundamentals: "77.5", risk: "90" },
-    },
-    {
-      symbol: "INFY",
-      company_name: "Infosys",
-      horizon: "LONG_TERM",
-      score: "60.0",
-      signal: "NEUTRAL",
-      confidence: "70.0",
-      coverage: "82.4",
-      missing_components: ["future_readiness"],
-      components: { fundamentals: "70.0", risk: "80" },
     },
   ],
 }
@@ -581,4 +538,67 @@ export const DEGRADED_RESEARCH: CompanyResearch = {
     financial_data_missing: true,
   },
   provider_failures: ["missing-intel-provider"],
+}
+
+export const RESEARCH_GAPS: CompanyResearchGapsResponse = {
+  company: {
+    symbol: "TCS",
+    company_name: "Tata Consultancy Services",
+    sector: "information technology",
+    as_of: "2026-08-10T12:00:00+00:00",
+  },
+  research_gaps: {
+    symbol: "TCS",
+    as_of: "2026-08-10T12:00:00+00:00",
+    gap_count: 2,
+    coverage_score: "MEDIUM",
+    coverage_explanation:
+      "Some gaps exist in the available evidence, primarily around forward guidance and insider activity.",
+    status_counts: { UNAVAILABLE: 1, STALE: 1 },
+    category_counts: {
+      FINANCIAL: 1,
+      GOVERNANCE: 1,
+    },
+    notes: [
+      "Gap analysis based on verified period data as of the specified as_of timestamp.",
+    ],
+    gaps: [
+      {
+        gap_id: "gap-1",
+        symbol: "TCS",
+        category: "FINANCIAL",
+        description: "Forward guidance from management not available for latest period.",
+        status: "UNAVAILABLE",
+        severity: "HIGH",
+        reason:
+          "No earnings call transcript or investor presentation found after 2025-12-31.",
+        suggested_action: "Monitor next quarterly earnings call for updated guidance.",
+        sources_checked: [
+          "earnings_call_transcript",
+          "investor_presentation",
+          "broker_report",
+        ],
+        evidence_refs: [],
+        related_metrics: ["revenue_growth", "eps_guidance"],
+        supporting_data: { last_guidance_date: "2025-10-15" },
+        as_of: "2026-08-10T12:00:00+00:00",
+      },
+      {
+        gap_id: "gap-2",
+        symbol: "TCS",
+        category: "GOVERNANCE",
+        description: "Insider transaction data is stale.",
+        status: "STALE",
+        severity: "MEDIUM",
+        reason:
+          "Last available insider transaction record is from 2025-03-15, more than 90 days ago.",
+        suggested_action: "Check SEBI SAST filings for recent insider activity.",
+        sources_checked: ["sast_filings", "insider_transactions"],
+        evidence_refs: ["evidence-insider-1"],
+        related_metrics: ["insider_buying", "insider_selling"],
+        supporting_data: { last_transaction_date: "2025-03-15" },
+        as_of: "2026-08-10T12:00:00+00:00",
+      },
+    ],
+  },
 }

@@ -1,0 +1,24 @@
+{
+  "available_at": "2026-05-05T18:00:00+05:30",
+  "checksum": "eefbe8732d2d3be5404a4c3a14915afa478cf8299d559987e196c2d5445cb98c",
+  "dataset_id": "infy_recorded_sources",
+  "dataset_version": null,
+  "payload": {
+    "available_at": "2026-05-05T18:00:00+05:30",
+    "published_at": "2026-05-05T18:00:00+05:30",
+    "reliability_tier": 2,
+    "source_id": "infy-buyback-dividend",
+    "source_name": "ET Markets",
+    "source_type": "NEWS",
+    "title": "Infosys board and management announce capital return through dividend and buyback",
+    "url": "https://example.invalid/infy-buyback-dividend"
+  },
+  "published_at": "2026-05-05T18:00:00+05:30",
+  "record_id": "infy-buyback-dividend",
+  "request_metadata": {
+    "as_of": "2026-08-10T12:00:00+00:00",
+    "company": "INFY"
+  },
+  "retrieved_at": "2026-08-10T12:00:00+00:00",
+  "source_id": "infy_recorded_sources"
+}

@@ -117,4 +117,161 @@ def analyze_financial_change(
                 )
             )
 
+    if current.profit_cash_flow_divergence:
+        anomalies.append(
+            FinancialAnomaly(
+                metric="profit_cfo_divergence",
+                current_change=(
+                    current.operating_cash_flow
+                    or Decimal("0")
+                ),
+                comparison_change=None,
+                severity="MEDIUM",
+                explanation=(
+                    "Net profit is positive while operating "
+                    "cash flow is negative. This divergence "
+                    "may indicate accrual-based earnings that "
+                    "are not backed by cash generation."
+                ),
+            )
+        )
+
+    # Revenue vs cash generation divergence
+    cash_flow_change = percentage_change(
+        previous.operating_cash_flow,
+        current.operating_cash_flow,
+    )
+
+    if (
+        revenue_change is not None
+        and cash_flow_change is not None
+    ):
+        divergence = revenue_change - cash_flow_change
+
+        if divergence >= Decimal("20"):
+            anomalies.append(
+                FinancialAnomaly(
+                    metric="revenue_cash_flow_divergence",
+                    current_change=revenue_change,
+                    comparison_change=cash_flow_change,
+                    severity="MEDIUM",
+                    explanation=(
+                        "Revenue is growing materially faster "
+                        "than operating cash flow. This may "
+                        "indicate revenue recognition issues, "
+                        "working capital build-up, or "
+                        "collection challenges."
+                    ),
+                )
+            )
+
+    # Growth vs margin divergence
+    if (
+        revenue_change is not None
+        and revenue_change > Decimal("10")
+    ):
+        # Calculate margin change
+        prev_margin = None
+        curr_margin = None
+
+        if (
+            previous.revenue is not None
+            and previous.revenue > 0
+            and previous.net_profit is not None
+        ):
+            prev_margin = (
+                previous.net_profit / previous.revenue
+            ) * Decimal("100")
+
+        if (
+            current.revenue is not None
+            and current.revenue > 0
+            and current.net_profit is not None
+        ):
+            curr_margin = (
+                current.net_profit / current.revenue
+            ) * Decimal("100")
+
+        if prev_margin is not None and curr_margin is not None:
+            margin_change = curr_margin - prev_margin
+
+            if margin_change < Decimal("-5"):
+                anomalies.append(
+                    FinancialAnomaly(
+                        metric="growth_margin_divergence",
+                        current_change=revenue_change,
+                        comparison_change=margin_change.quantize(
+                            Decimal("0.01")
+                        ),
+                        severity="MEDIUM",
+                        explanation=(
+                            f"Revenue grew {revenue_change:.1f}% "
+                            f"but net margin declined by "
+                            f"{abs(margin_change):.1f}pp. This "
+                            "may indicate pricing pressure, "
+                            "cost inflation, or mix shift."
+                        ),
+                    )
+                )
+
+    # Earnings vs FCF divergence
+    earnings_change = percentage_change(
+        previous.net_profit,
+        current.net_profit,
+    )
+    fcf_change = percentage_change(
+        previous.free_cash_flow,
+        current.free_cash_flow,
+    )
+
+    if (
+        earnings_change is not None
+        and fcf_change is not None
+    ):
+        divergence = earnings_change - fcf_change
+
+        if divergence >= Decimal("30"):
+            anomalies.append(
+                FinancialAnomaly(
+                    metric="earnings_fcf_divergence",
+                    current_change=earnings_change,
+                    comparison_change=fcf_change,
+                    severity="MEDIUM",
+                    explanation=(
+                        "Earnings are growing materially faster "
+                        "than free cash flow. This may indicate "
+                        "capital intensity, working capital "
+                        "build-up, or earnings quality concerns."
+                    ),
+                )
+            )
+
+    # Debt vs cash generation divergence
+    debt_change = percentage_change(
+        previous.total_debt,
+        current.total_debt,
+    )
+
+    if (
+        debt_change is not None
+        and cash_flow_change is not None
+    ):
+        divergence = debt_change - cash_flow_change
+
+        if divergence >= Decimal("20"):
+            anomalies.append(
+                FinancialAnomaly(
+                    metric="debt_cash_flow_divergence",
+                    current_change=debt_change,
+                    comparison_change=cash_flow_change,
+                    severity="MEDIUM",
+                    explanation=(
+                        "Debt is growing materially faster "
+                        "than operating cash flow. This may "
+                        "indicate leverage building without "
+                        "corresponding cash generation."
+                    ),
+                )
+            )
+
     return anomalies

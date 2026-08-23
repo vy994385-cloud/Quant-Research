@@ -1,0 +1,24 @@
+{
+  "available_at": "2026-07-10T09:30:00+05:30",
+  "checksum": "e18f0de4be23166fb5ea63bf4543eba93ef655e059f93886f83ddf8f0b7f0177",
+  "dataset_id": "tcs_recorded_sources",
+  "dataset_version": null,
+  "payload": {
+    "available_at": "2026-07-10T09:30:00+05:30",
+    "published_at": "2026-07-10T09:30:00+05:30",
+    "reliability_tier": 2,
+    "source_id": "tcs-ai-partnerships",
+    "source_name": "Angel One",
+    "source_type": "NEWS",
+    "title": "TCS AI initiatives: strategic AI partnerships with Anthropic and Mistral AI, expanded Google Cloud collaboration, annualized AI revenue $2.6 billion",
+    "url": "https://www.angelone.in/news/stocks/tcs-share-price-rises-4-on-july-10-2026-after-q1-fy27-results-announces-12-interim-dividend"
+  },
+  "published_at": "2026-07-10T09:30:00+05:30",
+  "record_id": "tcs-ai-partnerships",
+  "request_metadata": {
+    "as_of": "2026-08-10T12:00:00+00:00",
+    "company": "TCS"
+  },
+  "retrieved_at": "2026-08-10T12:00:00+00:00",
+  "source_id": "tcs_recorded_sources"
+}

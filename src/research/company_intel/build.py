@@ -36,6 +36,10 @@ from src.research.company_intel.models import (
     FinancialStatement,
     SourceRef,
 )
+from src.research.report.presentation import (
+    format_inr_amount,
+    format_ratio_as_percent,
+)
 from src.research.company_intel.quality import build_research_status
 from src.research.company_intel.semantics import (
     BusinessEventType,
@@ -720,10 +724,12 @@ def _period_summary(period: FinancialPeriod) -> str:
     ]
 
     if revenue is not None:
-        parts.append(f"Reported revenue {revenue}.")
+        revenue_text = format_inr_amount(revenue) or str(revenue)
+        parts.append(f"Reported revenue {revenue_text}.")
 
     if net_profit is not None:
-        parts.append(f"Reported net profit {net_profit}.")
+        net_profit_text = format_inr_amount(net_profit) or str(net_profit)
+        parts.append(f"Reported net profit {net_profit_text}.")
 
     return " ".join(parts)
 
@@ -830,8 +836,8 @@ def derived_metric_items(
                     verification_status=VerificationStatus.CONFIRMED,
                     intel_category=IntelCategory.FINANCIAL_DISCLOSURE,
                     derivation=(
-                        "revenue: reported value for "
-                        f"{period.period_id}"
+                        "Reported revenue figure for the period "
+                        f"ending {period.period_end.isoformat()}."
                     ),
                     topic="financial_metrics",
                     title=(
@@ -839,8 +845,9 @@ def derived_metric_items(
                         f"for the period ending {period.period_end.isoformat()}"
                     ),
                     description=(
-                        f"Reported revenue {revenue} for the period ending "
-                        f"{period.period_end.isoformat()}."
+                        "Reported revenue "
+                        f"{format_inr_amount(revenue) or revenue} for the "
+                        f"period ending {period.period_end.isoformat()}."
                     ),
                     direction=IntelDirection.NEUTRAL,
                     published_at=period.published_at,
@@ -869,9 +876,9 @@ def derived_metric_items(
                     verification_status=VerificationStatus.CONFIRMED,
                     intel_category=IntelCategory.FINANCIAL_DISCLOSURE,
                     derivation=(
-                        "operating_profit("
-                        f"{period.period_id}) / revenue("
-                        f"{period.period_id})"
+                        "Derived as operating profit divided by "
+                        "revenue for the period ending "
+                        f"{period.period_end.isoformat()}."
                     ),
                     topic="financial_metrics",
                     title=(
@@ -880,10 +887,10 @@ def derived_metric_items(
                         f"{period.period_end.isoformat()}"
                     ),
                     description=(
-                        f"Operating profit {operating_profit} divided by "
-                        f"revenue {revenue} for the period ending "
-                        f"{period.period_end.isoformat()} equals an "
-                        f"operating margin of {margin}."
+                        f"Operating profit {format_inr_amount(operating_profit) or operating_profit} "
+                        f"on revenue {format_inr_amount(revenue) or revenue} for the "
+                        f"period ending {period.period_end.isoformat()} equals an "
+                        f"operating margin of {format_ratio_as_percent(margin)}."
                     ),
                     direction=IntelDirection.NEUTRAL,
                     published_at=period.published_at,
@@ -1130,6 +1137,7 @@ def build_company_intelligence_snapshot(
         symbol=symbol,
         as_of=as_of,
         deep_financial_insights=deep_financial_insights,
+        financial_periods=tuple(financial_periods),
     )
 
     conflicts = detect_evidence_conflicts(

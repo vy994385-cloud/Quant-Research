@@ -8,14 +8,16 @@
  */
 
 import type {
-  CompanyDeepFinancialResponse,
-  CompanyHiddenInformationResponse,
-  CompanyRankings,
+  CompanyCorporateActionsResponse,
+  CompanyCrossDomainResponse,
+  CompanyDeepTechnicalResponse,
+  CompanyEvidenceResponse,
+  CompanyNewsResponse,
+  CompanyProfessionalReportResponse,
   CompanyResearch,
-  CompanySourceStatusesResponse,
+  CompanyResearchGapsResponse,
   CompanyTimelineResponse,
   DiscoveryResponse,
-  UniverseRankings,
 } from "./types"
 import type { ApiErrorBody } from "./types"
 
@@ -49,6 +51,28 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Cheap reachability probe used after a request fails at the network level.
+ * CORS-blocked 5xx responses and offline servers are indistinguishable from
+ * the rejected fetch alone; one lightweight GET to a known-good endpoint
+ * separates "API down" from "this data area failed server-side".
+ */
+async function probeApiReachable(): Promise<boolean> {
+  try {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 5000)
+    const response = await fetch(`${API_URL}/api/v1/companies`, {
+      cache: "no-store",
+      signal: controller.signal,
+    })
+    clearTimeout(timer)
+    // Any HTTP answer — even an error status — proves the API is reachable.
+    return response.status > 0
+  } catch {
+    return false
+  }
+}
+
 async function request<T>(
   path: string,
   query: Record<string, string | undefined> = {},
@@ -66,11 +90,22 @@ async function request<T>(
   try {
     response = await fetch(url)
   } catch {
-    throw new ApiError(
-      "Unable to connect to the Quant Research API.",
-      "network_error",
-      0,
-    )
+    // The fetch itself failed. Distinguish an unreachable API from a
+    // server-side failure on this specific research area (e.g. a 5xx whose
+    // error body is blocked by CORS) so the UI never claims a connectivity
+    // outage that did not happen.
+    const reachable = await probeApiReachable()
+    throw reachable
+      ? new ApiError(
+          "The server could not produce this research area right now.",
+          "server_unavailable",
+          0,
+        )
+      : new ApiError(
+          "Unable to connect to the Quant Research API.",
+          "network_error",
+          0,
+        )
   }
 
   if (!response.ok) {
@@ -118,53 +153,72 @@ export function fetchTimeline(
   )
 }
 
-export function fetchCompanyRankings(
+export function fetchCompanyNews(
   symbol: string,
   asOf?: string,
-): Promise<CompanyRankings> {
-  return request<CompanyRankings>(
-    `/api/v1/companies/${encodeURIComponent(symbol)}/rankings`,
+): Promise<CompanyNewsResponse> {
+  return request<CompanyNewsResponse>(
+    `/api/v1/companies/${encodeURIComponent(symbol)}/news`,
     { as_of: asOf },
   )
 }
 
-export function fetchUniverseRankings(
-  horizon: string,
-  asOf?: string,
-  symbols?: string,
-): Promise<UniverseRankings> {
-  return request<UniverseRankings>(
-    `/api/v1/rankings/${encodeURIComponent(horizon)}`,
-    { as_of: asOf, symbols },
-  )
-}
-
-export function fetchDeepFinancialInsights(
+export function fetchCorporateActions(
   symbol: string,
   asOf?: string,
-): Promise<CompanyDeepFinancialResponse> {
-  return request<CompanyDeepFinancialResponse>(
-    `/api/v1/companies/${encodeURIComponent(symbol)}/deep-financial-insights`,
+): Promise<CompanyCorporateActionsResponse> {
+  return request<CompanyCorporateActionsResponse>(
+    `/api/v1/companies/${encodeURIComponent(symbol)}/corporate-actions`,
     { as_of: asOf },
   )
 }
 
-export function fetchSourceStatuses(
+export function fetchDeepTechnicals(
   symbol: string,
   asOf?: string,
-): Promise<CompanySourceStatusesResponse> {
-  return request<CompanySourceStatusesResponse>(
-    `/api/v1/companies/${encodeURIComponent(symbol)}/source-statuses`,
+): Promise<CompanyDeepTechnicalResponse> {
+  return request<CompanyDeepTechnicalResponse>(
+    `/api/v1/companies/${encodeURIComponent(symbol)}/deep-technicals`,
     { as_of: asOf },
   )
 }
 
-export function fetchHiddenInformation(
+export function fetchCrossDomain(
   symbol: string,
   asOf?: string,
-): Promise<CompanyHiddenInformationResponse> {
-  return request<CompanyHiddenInformationResponse>(
-    `/api/v1/companies/${encodeURIComponent(symbol)}/hidden-information`,
+): Promise<CompanyCrossDomainResponse> {
+  return request<CompanyCrossDomainResponse>(
+    `/api/v1/companies/${encodeURIComponent(symbol)}/cross-domain`,
+    { as_of: asOf },
+  )
+}
+
+export function fetchResearchGaps(
+  symbol: string,
+  asOf?: string,
+): Promise<CompanyResearchGapsResponse> {
+  return request<CompanyResearchGapsResponse>(
+    `/api/v1/companies/${encodeURIComponent(symbol)}/research-gaps`,
+    { as_of: asOf },
+  )
+}
+
+export function fetchEvidenceLineage(
+  symbol: string,
+  asOf?: string,
+): Promise<CompanyEvidenceResponse> {
+  return request<CompanyEvidenceResponse>(
+    `/api/v1/companies/${encodeURIComponent(symbol)}/evidence`,
+    { as_of: asOf },
+  )
+}
+
+export function fetchProfessionalReport(
+  symbol: string,
+  asOf?: string,
+): Promise<CompanyProfessionalReportResponse> {
+  return request<CompanyProfessionalReportResponse>(
+    `/api/v1/companies/${encodeURIComponent(symbol)}/research-report`,
     { as_of: asOf },
   )
 }

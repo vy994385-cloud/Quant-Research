@@ -11,6 +11,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from decimal import Decimal
 from enum import Enum
+from typing import ClassVar
 
 from pydantic import (
     BaseModel,
@@ -20,6 +21,10 @@ from pydantic import (
     model_validator,
 )
 
+from src.analysis.balance_sheet_deep import BalanceSheetDeepResult
+from src.analysis.cash_flow_quality import CashFlowQualityResult
+from src.analysis.cross_domain_observations import CrossDomainResult
+from src.analysis.research_gaps import ResearchGapResult
 from src.data.company.financials import SegmentResult
 
 from src.research.company_intel.semantics import (
@@ -284,13 +289,31 @@ class DeepMetricObservation(BaseModel):
 
     `observation_type` states whether the value was reported by the
     company, derived deterministically from reported figures (see
-    `derivation` for the exact formula), or unavailable in the
-    recorded evidence. `previous_value`, `delta`, and `delta_pct`
-    compare against the previous comparable period in the same
-    series; quarterly and annual figures are never compared.
+    `derivation` for a human-readable statement of how), or
+    unavailable in the recorded evidence. `previous_value`, `delta`,
+    and `delta_pct` compare against the previous comparable period in
+    the same series; quarterly and annual figures are never compared.
+
+    `unit` makes the quantity contractually explicit so ratios are
+    never mistaken for currency:
+
+    - "INR": absolute Indian-rupee amounts (raw reported scale;
+      canonical crore rendering is a presentation concern);
+    - "FRACTION": ratio of one (margins, returns, cash conversion).
+      Percentages are rendered downstream by multiplying by 100.
+
+    `delta_pct` is always a fraction of the previous value, never a
+    pre-scaled percentage. Division results are quantized at build
+    time to six decimal places (ROUND_HALF_UP) so serialized values
+    never carry long decimal tails; missing values stay null and are
+    never fabricated as zero.
     """
 
     model_config = ConfigDict(extra="forbid")
+
+    _ALLOWED_UNITS: ClassVar[frozenset[str]] = frozenset(
+        {"INR", "FRACTION"}
+    )
 
     observation_id: str = Field(min_length=1)
     symbol: str = Field(min_length=1)
@@ -300,6 +323,7 @@ class DeepMetricObservation(BaseModel):
     period_type: ReportingPeriodType
     consolidation: ConsolidationScope
     observation_type: FinancialObservationType
+    unit: str = "INR"
     value: Decimal | None = None
     previous_value: Decimal | None = None
     delta: Decimal | None = None
@@ -309,6 +333,16 @@ class DeepMetricObservation(BaseModel):
     published_at: datetime | None = None
     available_at: datetime | None = None
     provenance_id: str | None = None
+
+    @field_validator("unit")
+    @classmethod
+    def _validate_unit(cls, value: str) -> str:
+        if value not in cls._ALLOWED_UNITS:
+            allowed = ", ".join(sorted(cls._ALLOWED_UNITS))
+            raise ValueError(
+                f"unit must be one of: {allowed}"
+            )
+        return value
 
     @field_validator("published_at", "available_at")
     @classmethod
@@ -421,6 +455,7 @@ class DerivedObservation(BaseModel):
     provenance_ids: tuple[str, ...] = ()
     related_item_ids: tuple[str, ...] = ()
     as_of: datetime
+    severity: str = "INFO"
 
     @field_validator("as_of")
     @classmethod
@@ -787,6 +822,51 @@ class CompanyResearchStatus(BaseModel):
         return value
 
 
+class FinancialAnomalyItem(BaseModel):
+    """One financial anomaly observation from pairwise snapshot comparison.
+
+    Preserves provenance: the anomaly is derived from specific consecutive
+    snapshots and carries the as_of context, metric identity, and severity.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    metric: str = Field(min_length=1)
+    current_change: str
+    comparison_change: str | None = None
+    severity: str = "MEDIUM"
+    explanation: str = ""
+
+
+class FinancialAnomaliesResult(BaseModel):
+    """Aggregated financial anomaly observations for a company.
+
+    Produced by pairwise comparison of consecutive financial snapshots.
+    Each item is a descriptive divergence observation; nothing here is
+    a recommendation or a signal to act on.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    symbol: str = Field(min_length=1)
+    as_of: datetime
+    anomalies: tuple[FinancialAnomalyItem, ...] = ()
+    anomaly_count: int = 0
+    notes: tuple[str, ...] = ()
+
+    @field_validator("as_of")
+    @classmethod
+    def _require_aware_timestamp(cls, value: datetime) -> datetime:
+        if value.tzinfo is None:
+            raise ValueError("as_of must be timezone-aware")
+        return value
+
+    @model_validator(mode="after")
+    def _recompute_count(self) -> "FinancialAnomaliesResult":
+        self.anomaly_count = len(self.anomalies)
+        return self
+
+
 class CompanyIntelligenceSnapshot(BaseModel):
     """
     The deep, evidence-based intelligence view of one company
@@ -815,6 +895,13 @@ class CompanyIntelligenceSnapshot(BaseModel):
     deep_financial_insights: DeepFinancialInsights | None = None
     source_statuses: tuple[SourceStatus, ...] = ()
     hidden_information: HiddenInformationInsights | None = None
+
+    # New research expansion fields
+    cash_flow_quality: CashFlowQualityResult | None = None
+    balance_sheet_deep: BalanceSheetDeepResult | None = None
+    research_gaps: ResearchGapResult | None = None
+    cross_domain: CrossDomainResult | None = None
+    financial_anomalies: FinancialAnomaliesResult | None = None
 
     timeline: CompanyTimeline | None = None
     status: CompanyResearchStatus | None = None
@@ -886,6 +973,8 @@ __all__ = [
     "DerivedObservation",
     "EvidenceConflict",
     "EvidenceLink",
+    "FinancialAnomaliesResult",
+    "FinancialAnomalyItem",
     "FinancialIntelligence",
     "FinancialPeriod",
     "FinancialStatement",
