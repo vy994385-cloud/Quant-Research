@@ -19,7 +19,6 @@ services:
   - type: web
     name: quant-research-frontend
     runtime: static
-    plan: free
     buildCommand: cd frontend && npm install && npm run build
     staticPublishPath: frontend/dist
     envVars:
