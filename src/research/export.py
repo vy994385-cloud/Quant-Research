@@ -10,7 +10,10 @@ package of JSON / CSV files plus a verifiable manifest:
 - the manifest itself is hashed, so a package can be verified as a
   whole;
 - exports contain recorded facts only — no scores, rankings, or
-  recommendations are added at export time.
+  recommendations are added at export time;
+- schema_version is included for forward-compatibility;
+- optional files (coverage.json, changes.json) are included only
+  when backed by actual data.
 """
 
 from __future__ import annotations
@@ -22,6 +25,8 @@ import json
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
+
+EXPORT_SCHEMA_VERSION = "2.0.0"
 
 
 def _require_aware(as_of: datetime) -> None:
@@ -96,6 +101,7 @@ class ExportPackage(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+    schema_version: str = EXPORT_SCHEMA_VERSION
     as_of: datetime
     files: dict[str, str] = Field(default_factory=dict)
     manifest: tuple[ExportEntry, ...] = ()
@@ -189,6 +195,7 @@ def build_export_package(
 
 
 __all__ = [
+    "EXPORT_SCHEMA_VERSION",
     "ExportEntry",
     "ExportPackage",
     "build_export_package",

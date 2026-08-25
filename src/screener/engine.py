@@ -14,6 +14,10 @@ Supported operators:
     in                 membership (list of strings)
     contains           substring match on strings
     is_true / is_false boolean state
+    has / missing      data-presence checks (no value required):
+                       'has' matches companies with a recorded,
+                       parseable value; 'missing' matches companies
+                       where the field is absent or not usable
 
 Group logic supports AND/OR inside a group; groups combine with a
 top-level AND/OR where safe. Unknown fields or operators raise an
@@ -53,6 +57,8 @@ _SUPPORTED_OPERATORS = {
     "contains",
     "is_true",
     "is_false",
+    "has",
+    "missing",
 }
 
 
@@ -302,10 +308,17 @@ def _validate_filter(raw_filter: Any, *, location: str) -> ScreenFilter:
         "is_false",
         "in",
         "contains",
+        "has",
+        "missing",
     }:
         value = _coerce_number(value, location)
         if operator == "between":
             second_value = _coerce_number(second_value, location)
+
+    if operator in {"has", "missing"} and value is not None:
+        raise InvalidScreenError(
+            f"{location}: '{operator}' takes no value",
+        )
 
     if operator == "in":
         if not isinstance(value, list) or not all(
@@ -354,6 +367,22 @@ def evaluate_filter(filter_spec: ScreenFilter, values: dict[str, object]) -> boo
 
     actual = values.get(filter_spec.field)
     operator = filter_spec.operator
+
+    if operator == "has":
+        if actual is None:
+            return False
+        definition = FIELD_REGISTRY.get(filter_spec.field)
+        if definition is not None and definition.value_type == "number":
+            return _as_decimal(actual) is not None
+        return True
+
+    if operator == "missing":
+        if actual is None:
+            return True
+        definition = FIELD_REGISTRY.get(filter_spec.field)
+        if definition is not None and definition.value_type == "number":
+            return _as_decimal(actual) is None
+        return False
 
     if operator == "is_true":
         return actual is True

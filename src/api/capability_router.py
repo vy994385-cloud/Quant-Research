@@ -71,6 +71,7 @@ class ScreenerFieldSpec(BaseModel):
     value_type: str
     unit: str | None = None
     available: bool
+    availability_state: str = "UNKNOWN"
     availability_note: str | None = None
 
 
@@ -238,6 +239,10 @@ def create_capability_router(
                 value_type=definition.value_type,
                 unit=definition.unit,
                 available=definition.available,
+                availability_state=(
+                    "ACTIVE" if definition.available
+                    else "UNAVAILABLE"
+                ),
                 availability_note=definition.availability_note,
             )
             for definition in sorted(
@@ -342,11 +347,20 @@ def create_capability_router(
     )
     def evidence_search(
         q: str = Query(default="", description="Lexical AND terms."),
+        exact_phrase: str | None = Query(
+            default=None,
+            description=(
+                "Optional contiguous phrase that must appear "
+                "(case-insensitive)."
+            ),
+        ),
         symbol: str | None = Query(default=None),
         category: str | None = Query(default=None),
         source_id: str | None = Query(default=None),
         published_from: date | None = Query(default=None),
         published_to: date | None = Query(default=None),
+        observation_from: date | None = Query(default=None),
+        observation_to: date | None = Query(default=None),
         as_of: str | None = Query(default=None),
     ) -> EvidenceSearchResponse:
         captured = parse_as_of(as_of)
@@ -365,11 +379,18 @@ def create_capability_router(
                 for part in q.split()
                 if part
             ),
+            exact_phrase=(
+                exact_phrase.strip()
+                if exact_phrase and exact_phrase.strip()
+                else None
+            ),
             symbol=symbol.upper() if symbol else None,
             category=category,
             source_id=source_id,
             published_from=published_from,
             published_to=published_to,
+            observation_from=observation_from,
+            observation_to=observation_to,
             as_of=captured,
         )
 
@@ -384,11 +405,14 @@ def create_capability_router(
             outcome = search_evidence(
                 lineage,
                 text=q,
+                exact_phrase=exact_phrase,
                 symbol=None,
                 category=category,
                 source_id=source_id,
                 published_from=published_from,
                 published_to=published_to,
+                observation_from=observation_from,
+                observation_to=observation_to,
                 as_of=captured,
             )
 
@@ -429,10 +453,53 @@ def create_capability_router(
         fields_row = extract_company_fields(result)
         fields_row = {"symbol": normalized, **fields_row}
 
+        # Evidence manifest: every canonical evidence record with its
+        # source and provenance ids (full lineage, no scores).
+        intel = result.intelligence
+        lineage = _lineage_for(result)
+        evidence_rows = [
+            hit.model_dump(mode="json")
+            for hit in search_evidence(
+                lineage,
+                text="",
+                symbol=normalized,
+            ).hits
+        ]
+
+        sources_rows = [
+            {
+                "source_name": status.source_name,
+                "stale": status.stale,
+                "days_since_latest_published": (
+                    status.days_since_latest_published
+                ),
+            }
+            for status in (
+                intel.source_statuses if intel is not None else ()
+            )
+        ]
+
         package = build_export_package(
             {
                 "research.json": research_payload,
                 "screener_fields.csv": [fields_row],
+                "evidence.json": evidence_rows,
+                "pit.json": research_payload.get("point_in_time", {}),
+                "sources.csv": sources_rows,
+                "coverage.json": {
+                    "coverage_by_kind": research_payload.get("coverage", {}).get("by_kind", {}),
+                    "missing_categories": research_payload.get("coverage", {}).get("missing_categories", []),
+                    "item_count": research_payload.get("coverage", {}).get("item_count", 0),
+                },
+                "manifest.json": {
+                    "symbol": normalized,
+                    "as_of": result.as_of.isoformat(),
+                    "schema_version": "2.0.0",
+                    "files_included": [
+                        "research.json", "screener_fields.csv", "evidence.json",
+                        "pit.json", "sources.csv", "coverage.json", "manifest.json",
+                    ],
+                },
             },
             as_of=result.as_of,
         )

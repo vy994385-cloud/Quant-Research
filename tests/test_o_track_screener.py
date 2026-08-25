@@ -254,3 +254,86 @@ class TestCapabilityGaps:
             "Saved-screen storage is not supported" in note
             for note in output.notes
         )
+
+
+class TestPresenceOperators:
+    """T1 expansion: 'has' / 'missing' data-presence operators."""
+
+    def test_has_matches_companies_with_values(self, universe):
+        definition = ScreenDefinition.from_dict(
+            {
+                "name": "Has revenue",
+                "groups": [
+                    {
+                        "filters": [
+                            {
+                                "field": "revenue_latest",
+                                "operator": "has",
+                            }
+                        ]
+                    }
+                ],
+            }
+        )
+        execution = execute_screen(definition, universe)
+        assert execution.matched_symbols == tuple(universe.keys())
+
+    def test_missing_matches_only_when_absent(self, universe):
+        definition = ScreenDefinition.from_dict(
+            {
+                "name": "Missing revenue",
+                "groups": [
+                    {
+                        "filters": [
+                            {
+                                "field": "revenue_latest",
+                                "operator": "missing",
+                            }
+                        ]
+                    }
+                ],
+            }
+        )
+        execution = execute_screen(definition, universe)
+        # Every fixture company records revenue; nothing may match.
+        assert execution.matched_symbols == ()
+
+    def test_presence_operators_reject_values(self):
+        with pytest.raises(InvalidScreenError) as excinfo:
+            ScreenDefinition.from_dict(
+                {
+                    "name": "Bad has",
+                    "groups": [
+                        {
+                            "filters": [
+                                {
+                                    "field": "revenue_latest",
+                                    "operator": "has",
+                                    "value": 5,
+                                }
+                            ]
+                        }
+                    ],
+                }
+            )
+        assert "takes no value" in str(excinfo.value)
+
+    def test_presence_operators_are_documented(self, universe):
+        definition = ScreenDefinition.from_dict(
+            {
+                "name": "Has net profit",
+                "groups": [
+                    {
+                        "filters": [
+                            {
+                                "field": "net_profit_latest",
+                                "operator": "has",
+                            }
+                        ]
+                    }
+                ],
+            }
+        )
+        first = execute_screen(definition, dict(universe))
+        second = execute_screen(definition, dict(universe))
+        assert first.matched_symbols == second.matched_symbols

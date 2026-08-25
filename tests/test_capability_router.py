@@ -154,6 +154,15 @@ class TestScreenerRoutes:
         for name in unavailable:
             assert by_name[name]["availability_note"]
 
+    def test_field_catalog_includes_availability_state(self, client):
+        payload = client.get("/api/v1/screener/fields").json()
+        for field in payload["fields"]:
+            assert "availability_state" in field
+            if field["available"]:
+                assert field["availability_state"] == "ACTIVE"
+            else:
+                assert field["availability_state"] == "UNAVAILABLE"
+
     def test_screen_run_executes_over_universe(self, client):
         definition = {
             "name": "Profitable companies",
@@ -462,3 +471,120 @@ class TestExportRoute:
         # The exported research file IS the existing v1 contract.
         assert research["company"]["symbol"] == "HDFCBANK"
         assert "assessment" in research or "report" in research
+
+
+# ==========================================================================
+# T1-W2: Compare 2.0
+# ==========================================================================
+
+
+class TestCompareV2:
+    def test_comparison_has_comparison_context(self, client):
+        response = client.get(
+            "/api/v1/companies/compare",
+            params={"symbols": "TCS,INFY", "as_of": AS_OF_ISO},
+        )
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["comparison_context"] == "side_by_side"
+
+    def test_comparison_has_shared_as_of(self, client):
+        response = client.get(
+            "/api/v1/companies/compare",
+            params={"symbols": "TCS,INFY", "as_of": AS_OF_ISO},
+        )
+        assert response.status_code == 200
+        payload = response.json()
+        assert "shared_as_of" in payload
+        assert "mixed_as_of_warning" in payload
+
+    def test_comparison_has_coverage_summary(self, client):
+        response = client.get(
+            "/api/v1/companies/compare",
+            params={"symbols": "TCS,INFY", "as_of": AS_OF_ISO},
+        )
+        assert response.status_code == 200
+        payload = response.json()
+        assert "coverage_summary" in payload
+        assert "TCS" in payload["coverage_summary"]
+        assert "INFY" in payload["coverage_summary"]
+
+    def test_comparison_has_conflict_summary(self, client):
+        response = client.get(
+            "/api/v1/companies/compare",
+            params={"symbols": "TCS,INFY", "as_of": AS_OF_ISO},
+        )
+        assert response.status_code == 200
+        payload = response.json()
+        assert "conflict_summary" in payload
+        assert isinstance(payload["conflict_summary"]["TCS"], int)
+
+
+# ==========================================================================
+# T1-W2: Export 2.0
+# ==========================================================================
+
+
+class TestExportV2:
+    def test_export_has_schema_version(self, client):
+        payload = client.get(
+            "/api/v1/companies/TCS/export",
+            params={"as_of": AS_OF_ISO},
+        ).json()
+        assert payload["schema_version"] == "2.0.0"
+
+    def test_export_includes_coverage_json(self, client):
+        payload = client.get(
+            "/api/v1/companies/TCS/export",
+            params={"as_of": AS_OF_ISO},
+        ).json()
+        assert "coverage.json" in payload["files"]
+
+    def test_export_includes_manifest_json(self, client):
+        payload = client.get(
+            "/api/v1/companies/TCS/export",
+            params={"as_of": AS_OF_ISO},
+        ).json()
+        assert "manifest.json" in payload["files"]
+
+    def test_export_coverage_json_has_expected_fields(self, client):
+        import json
+        payload = client.get(
+            "/api/v1/companies/TCS/export",
+            params={"as_of": AS_OF_ISO},
+        ).json()
+        coverage = json.loads(payload["files"]["coverage.json"])
+        assert "coverage_by_kind" in coverage
+        assert "missing_categories" in coverage
+        assert "item_count" in coverage
+
+    def test_export_manifest_json_has_expected_fields(self, client):
+        import json
+        payload = client.get(
+            "/api/v1/companies/TCS/export",
+            params={"as_of": AS_OF_ISO},
+        ).json()
+        manifest = json.loads(payload["files"]["manifest.json"])
+        assert manifest["symbol"] == "TCS"
+        assert manifest["schema_version"] == "2.0.0"
+        assert "files_included" in manifest
+
+    def test_export_still_verifies(self, client):
+        payload = client.get(
+            "/api/v1/companies/TCS/export",
+            params={"as_of": AS_OF_ISO},
+        ).json()
+        from src.research.export import ExportPackage
+        pkg = ExportPackage(**payload)
+        assert pkg.verify()
+
+    def test_export_deterministic(self, client):
+        first = client.get(
+            "/api/v1/companies/TCS/export",
+            params={"as_of": AS_OF_ISO},
+        ).json()
+        second = client.get(
+            "/api/v1/companies/TCS/export",
+            params={"as_of": AS_OF_ISO},
+        ).json()
+        assert first == second

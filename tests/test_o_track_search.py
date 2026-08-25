@@ -373,3 +373,125 @@ class TestRecordedLineageSearch:
         assert first.model_dump(mode="json") == second.model_dump(
             mode="json"
         )
+
+
+class TestSearch20:
+    """T1 expansion: phrases, tiers, snippets, observation windows."""
+
+    def test_exact_phrase_filters_non_contiguous(self):
+        result = search_evidence(
+            _lineage(
+                [
+                    _item(
+                        "ev-1",
+                        title="Order strengthens book",
+                    )
+                ]
+            ),
+            text="order book",
+        )
+        # Terms match individually; the contiguous phrase must not.
+        assert result.hit_count == 1
+
+        phrase_result = search_evidence(
+            _lineage(
+                [
+                    _item(
+                        "ev-1",
+                        title="Order strengthens book",
+                    )
+                ]
+            ),
+            text="order book",
+            exact_phrase="order book",
+        )
+        assert phrase_result.hit_count == 0
+
+    def test_exact_phrase_matches_contiguous(self):
+        result = search_evidence(
+            _lineage([_item("ev-1")]),
+            text="",
+            exact_phrase="Order book strengthens",
+        )
+        assert result.hit_count == 1
+        assert result.query.exact_phrase == "Order book strengthens"
+
+    def test_match_tier_title_when_all_terms_in_title(self):
+        result = search_evidence(
+            _lineage([_item("ev-1")]),
+            text="order book",
+        )
+        assert result.hits[0].match_tier == "title"
+        assert "title" in result.hits[0].matched_fields
+
+    def test_match_tier_is_label_not_score(self):
+        result = search_evidence(
+            _lineage([_item("ev-1"), _item("ev-2", title="Other thing")]),
+            text="order book",
+        )
+        for hit in result.hits:
+            assert hit.match_tier in {"title", "text", "metadata"}
+        _scan_forbidden(result.model_dump(mode="json"))
+
+    def test_snippet_is_deterministic_excerpt(self):
+        item = _item(
+            "ev-1",
+            explanation=(
+                "Quarter after quarter the large order win pipeline "
+                "keeps expanding across markets and verticals."
+            ),
+        )
+        first = search_evidence(_lineage([item]), text="pipeline")
+        second = search_evidence(_lineage([item]), text="pipeline")
+        snippet = first.hits[0].snippet
+        assert snippet is not None
+        assert "pipeline" in snippet.lower()
+        assert first.model_dump(mode="json") == second.model_dump(
+            mode="json"
+        )
+
+    def test_observation_window_inclusive(self):
+        inside = _item(
+            "ev-in",
+            observation_at=datetime(2026, 5, 5, tzinfo=TZ),
+            published_at=datetime(2026, 5, 5, tzinfo=TZ),
+        )
+        outside = _item(
+            "ev-out",
+            observation_at=datetime(2024, 1, 1, tzinfo=TZ),
+            published_at=datetime(2024, 1, 1, tzinfo=TZ),
+        )
+        from datetime import date as _date
+
+        result = search_evidence(
+            _lineage([inside, outside]),
+            text="order",
+            observation_from=_date(2026, 1, 1),
+            observation_to=_date(2026, 12, 31),
+        )
+        ids = [hit.evidence_id for hit in result.hits]
+        assert ids == ["ev-in"]
+
+    def test_observation_window_excludes_unobserved(self):
+        undated = _item("ev-x", observation_at=None)
+        from datetime import date as _date
+
+        result = search_evidence(
+            _lineage([undated]),
+            text="order",
+            observation_from=_date(2020, 1, 1),
+        )
+        assert result.hit_count == 0
+
+
+def _scan_forbidden(node, forbidden=None):
+    if forbidden is None:
+        forbidden = {"score", "ranking", "rank", "winner",
+                     "recommendation", "rating"}
+    if isinstance(node, dict):
+        for key, value in node.items():
+            assert key.lower() not in forbidden, key
+            _scan_forbidden(value, forbidden)
+    elif isinstance(node, list):
+        for entry in node:
+            _scan_forbidden(entry, forbidden)

@@ -11,7 +11,10 @@ its unit or an explicit unavailable null:
 - events: recorded business-event and corporate-action counts;
 - evidence: recorded evidence and technology-evidence counts;
 - coverage: source freshness and research-gap state counts;
-- sources: provenance completeness.
+- sources: provenance completeness;
+- observations: recorded research observations per company;
+- conflicts: conflict summary per company;
+- PIT consistency: shared vs mixed as_of disclosure.
 
 There are deliberately NO winner/loser, score, or ranking fields:
 the table states facts side by side and nothing else.
@@ -29,8 +32,11 @@ _CATEGORY_ORDER = {
     "DERIVED": 2,
     "EVENTS": 3,
     "EVIDENCE": 4,
-    "COVERAGE": 5,
-    "SOURCES": 6,
+    "OBSERVATIONS": 5,
+    "CONFLICTS": 6,
+    "COVERAGE": 7,
+    "SOURCES": 8,
+    "PIT": 9,
 }
 
 _FINANCIAL_METRICS = (
@@ -68,6 +74,8 @@ class ComparisonCell(BaseModel):
     value: str | None = None
     available: bool = False
     unit: str | None = None
+    source: str | None = None
+    provenance: tuple[str, ...] = ()
 
 
 class ComparisonRow(BaseModel):
@@ -100,10 +108,18 @@ class CompanyComparison(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+    comparison_context: str = "side_by_side"
+    shared_as_of: datetime | None = None
+    mixed_as_of_warning: str | None = None
+
     as_of: datetime
     companies: tuple[ComparisonCompany, ...] = ()
     rows: tuple[ComparisonRow, ...] = ()
     row_count: int = Field(ge=0)
+
+    coverage_summary: dict[str, dict[str, int]] = Field(default_factory=dict)
+    conflict_summary: dict[str, int] = Field(default_factory=dict)
+
     notes: tuple[str, ...] = ()
 
 
@@ -256,6 +272,10 @@ def _fact_rows(
     stale_counts: dict[str, int] = {}
     provenance_counts: dict[str, int] = {}
     gap_counts: dict[str, dict[str, int]] = {}
+    coverage_counts: dict[str, int] = {}
+    missing_category_counts: dict[str, int] = {}
+    conflict_counts: dict[str, int] = {}
+    freshness_stamps: dict[str, str | None] = {}
 
     cutoff = as_of.timestamp() - _RECENT_EVENT_WINDOW_DAYS * 86400
 
@@ -296,6 +316,28 @@ def _fact_rows(
                 )
         gap_counts[symbol] = per_status
 
+        status = intel.status if intel is not None else None
+        coverage_counts[symbol] = (
+            status.coverage.item_count if status else 0
+        )
+        missing_category_counts[symbol] = (
+            len(status.coverage.missing_categories) if status else 0
+        )
+        conflict_counts[symbol] = (
+            status.quality.conflict_count if status else 0
+        )
+        newest = max(
+            (
+                i.published_at
+                for i in items
+                if i.published_at is not None
+            ),
+            default=None,
+        )
+        freshness_stamps[symbol] = (
+            newest.isoformat() if newest is not None else None
+        )
+
     def simple_row(metric, label, category, counts):
         return ComparisonRow(
             metric=metric,
@@ -317,7 +359,27 @@ def _fact_rows(
     rows.append(simple_row("technology_evidence", "Technology evidence items", "EVIDENCE", tech_counts))
     rows.append(simple_row("sources", "Research sources", "COVERAGE", source_counts))
     rows.append(simple_row("stale_sources", "Stale sources", "COVERAGE", stale_counts))
+    rows.append(simple_row("coverage_items", "Recorded coverage items", "COVERAGE", coverage_counts))
+    rows.append(simple_row("missing_categories", "Missing research categories", "COVERAGE", missing_category_counts))
+    rows.append(simple_row("conflicts_recorded", "Conflicting evidence pairs recorded", "EVIDENCE", conflict_counts))
     rows.append(simple_row("provenance_complete_sources", "Sources with complete provenance", "SOURCES", provenance_counts))
+
+    # Freshness fact: newest published intel timestamp per company.
+    rows.append(
+        ComparisonRow(
+            metric="newest_intel_published_at",
+            label="Newest intelligence published at (UTC)",
+            category="COVERAGE",
+            cells=tuple(
+                ComparisonCell(
+                    symbol=s,
+                    value=freshness_stamps.get(s),
+                    available=freshness_stamps.get(s) is not None,
+                )
+                for s in symbols
+            ),
+        )
+    )
 
     all_statuses = sorted(
         {status for per in gap_counts.values() for status in per}
@@ -410,7 +472,38 @@ def build_company_comparison(
         + _fact_rows(results_by_symbol, as_of, symbols)
     )
 
-    rows.sort(key=lambda r: (_CATEGORY_ORDER[r.category], r.metric))
+    rows.sort(key=lambda r: (_CATEGORY_ORDER.get(r.category, 99), r.metric))
+
+    # Coverage summary per company.
+    coverage_summary: dict[str, dict[str, int]] = {}
+    conflict_summary: dict[str, int] = {}
+    for symbol, result in results_by_symbol.items():
+        intel = result.intelligence
+        status = intel.status if intel is not None else None
+        if status is not None:
+            coverage_summary[symbol] = dict(sorted(status.coverage.by_kind.items())) if hasattr(status.coverage, 'by_kind') else {}
+        else:
+            coverage_summary[symbol] = {}
+        conflict_summary[symbol] = (
+            status.quality.conflict_count if status is not None and hasattr(status, 'quality') else 0
+        )
+
+    # Determine PIT consistency.
+    mismatched = sorted(
+        symbol
+        for symbol, result in results_by_symbol.items()
+        if result.as_of != as_of
+    )
+    shared_as_of = as_of if not mismatched else None
+    mixed_as_of_warning = None
+    if mismatched:
+        mixed_as_of_warning = (
+            "Point-in-time notice: recorded state for "
+            + ", ".join(mismatched)
+            + " was captured at an earlier as_of than the comparison "
+            "timestamp; cells for those companies reflect their own "
+            "recorded as_of."
+        )
 
     notes = [
         "Comparison states recorded facts side by side. It does not "
@@ -419,11 +512,24 @@ def build_company_comparison(
         "data at as_of.",
     ]
 
+    if mismatched:
+        notes.append(mixed_as_of_warning)
+    else:
+        notes.append(
+            "All compared states were captured at the same point in "
+            "time (as_of), so columns are directly comparable."
+        )
+
     return CompanyComparison(
+        comparison_context="side_by_side",
+        shared_as_of=shared_as_of,
+        mixed_as_of_warning=mixed_as_of_warning,
         as_of=as_of,
         companies=companies,
         rows=tuple(rows),
         row_count=len(rows),
+        coverage_summary=dict(sorted(coverage_summary.items())),
+        conflict_summary=dict(sorted(conflict_summary.items())),
         notes=tuple(notes),
     )
 

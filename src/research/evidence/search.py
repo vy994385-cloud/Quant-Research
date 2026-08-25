@@ -5,9 +5,14 @@ Searches the recorded evidence lineage (titles, explanations,
 categories, topics, linked claims) with plain term matching:
 
 - every term must appear (AND semantics), case-insensitive;
+- an optional exact phrase must appear as a contiguous substring;
 - no similarity scores, no embeddings, no ranking heuristics —
   ordering is fully determined by timestamps and ids;
-- optional company / category / source / date-range filters;
+- each hit carries a categorical match_tier (title / text /
+  metadata-only) and the explicit list of fields that matched —
+  these are labels for transparency, never relevance scores;
+- optional company / category / source / date-range / observation-
+  window filters;
 - optional point-in-time cutoff: only evidence that is provably
   knowable at as_of is returned.
 """
@@ -31,11 +36,14 @@ class EvidenceSearchQuery(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     text_terms: tuple[str, ...] = ()
+    exact_phrase: str | None = None
     symbol: str | None = None
     category: str | None = None
     source_id: str | None = None
     published_from: date | None = None
     published_to: date | None = None
+    observation_from: date | None = None
+    observation_to: date | None = None
     as_of: datetime | None = None
 
 
@@ -66,6 +74,11 @@ class EvidenceSearchHit(BaseModel):
     source_ids: tuple[str, ...] = ()
     provenance_ids: tuple[str, ...] = ()
     matched_claim_ids: tuple[str, ...] = ()
+
+    # Transparency labels (never scores): where the terms matched.
+    match_tier: str = Field(default="text")
+    matched_fields: tuple[str, ...] = ()
+    snippet: str | None = None
 
 
 class EvidenceSearchResult(BaseModel):
@@ -110,15 +123,106 @@ def _item_stamp(item) -> datetime | None:
     return item.published_at or item.observation_at or item.available_at
 
 
+_SNIPPET_RADIUS = 90
+
+
+def _snippet_for(text: str, terms: tuple[str, ...]) -> str | None:
+    """Deterministic excerpt around the first term occurrence."""
+
+    positions = [
+        text.find(term)
+        for term in terms
+        if text.find(term) >= 0
+    ]
+    if not positions:
+        return None
+    start = max(0, min(positions) - _SNIPPET_RADIUS)
+    end = min(len(text), min(positions) + _SNIPPET_RADIUS)
+    prefix = "…" if start > 0 else ""
+    suffix = "…" if end < len(text) else ""
+    return f"{prefix}{text[start:end]}{suffix}"
+
+
+def _match_fields_and_tier(
+    item,
+    claims_by_evidence,
+    terms: tuple[str, ...],
+) -> tuple[str, tuple[str, ...]]:
+    """
+    Categorical match labeling (never a score).
+
+    Returns (tier, matched_fields):
+    - tier 'title': every term matches within the title;
+    - tier 'text': every term matches across title + explanation +
+      linked claim texts;
+    - tier 'metadata': some term only matches category/topic/type/
+      source identifiers.
+    """
+
+    title = item.title.lower()
+    body_parts = [item.explanation.lower()]
+    for claim in claims_by_evidence.get(item.evidence_id, ()):
+        body_parts.append(str(claim.text).lower())
+    body = " ".join(body_parts)
+    metadata = " ".join(
+        [
+            (item.category or "").lower(),
+            (item.topic or "").lower(),
+            item.evidence_type.value
+            if hasattr(item.evidence_type, "value")
+            else str(item.evidence_type),
+            " ".join(item.source_ids).lower(),
+        ]
+    )
+
+    matched: list[str] = []
+    in_title_all = True
+    in_text_all = True
+
+    for term in terms:
+        in_title = term in title
+        in_body = term in body
+        in_meta = term in metadata
+        if in_title and "title" not in matched:
+            matched.append("title")
+        if in_body and "text" not in matched:
+            matched.append("text")
+        if in_meta and "metadata" not in matched:
+            matched.append("metadata")
+        if not in_title:
+            in_title_all = False
+        if not (in_title or in_body or in_meta):
+            in_title_all = False
+            in_text_all = False
+        elif not in_body and not in_title:
+            in_text_all = False
+
+    if in_title_all:
+        tier = "title"
+    elif in_text_all:
+        tier = "text"
+    else:
+        tier = "metadata"
+
+    field_order = {"title": 0, "text": 1, "metadata": 2}
+    ordered = tuple(
+        sorted(matched, key=lambda name: field_order.get(name, 9))
+    )
+    return tier, ordered
+
+
 def search_evidence(
     lineage,
     *,
     text: str = "",
+    exact_phrase: str | None = None,
     symbol: str | None = None,
     category: str | None = None,
     source_id: str | None = None,
     published_from: date | None = None,
     published_to: date | None = None,
+    observation_from: date | None = None,
+    observation_to: date | None = None,
     as_of: datetime | None = None,
 ) -> EvidenceSearchResult:
     """
@@ -132,6 +236,11 @@ def search_evidence(
 
     terms = tuple(
         t for t in (part.lower() for part in text.split()) if t
+    )
+    phrase = (
+        exact_phrase.strip().lower()
+        if exact_phrase and exact_phrase.strip()
+        else None
     )
 
     claims_by_evidence = _claim_index(getattr(lineage, "claims", ()))
@@ -176,11 +285,30 @@ def search_evidence(
             if published_to is not None and day > published_to:
                 continue
 
+        if observation_from is not None or observation_to is not None:
+            observed = item.observation_at
+            if observed is None:
+                continue
+            day = observed.date()
+            if observation_from is not None and day < observation_from:
+                continue
+            if observation_to is not None and day > observation_to:
+                continue
+
         haystack = _haystack_for(item, claims_by_evidence)
 
         missing = [t for t in terms if t not in haystack]
         if missing:
             continue
+
+        if phrase is not None and phrase not in haystack:
+            continue
+
+        match_tier, matched_fields = _match_fields_and_tier(
+            item,
+            claims_by_evidence,
+            terms,
+        )
 
         matched_claims = tuple(
             sorted(
@@ -221,6 +349,13 @@ def search_evidence(
                 source_ids=tuple(sorted(item.source_ids)),
                 provenance_ids=tuple(sorted(item.provenance_ids)),
                 matched_claim_ids=matched_claims,
+                match_tier=match_tier,
+                matched_fields=matched_fields,
+                snippet=_snippet_for(
+                    item.explanation, terms
+                )
+                if terms
+                else None,
             )
         )
 
@@ -247,11 +382,14 @@ def search_evidence(
     return EvidenceSearchResult(
         query=EvidenceSearchQuery(
             text_terms=terms,
+            exact_phrase=exact_phrase if phrase else None,
             symbol=symbol.strip().upper() if symbol else None,
             category=category,
             source_id=source_id,
             published_from=published_from,
             published_to=published_to,
+            observation_from=observation_from,
+            observation_to=observation_to,
             as_of=as_of,
         ),
         hits=tuple(hits),

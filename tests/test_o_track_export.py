@@ -178,3 +178,121 @@ class TestRecordedExport:
         )
 
         assert first.package_sha256 == second.package_sha256
+
+
+class TestExportManifestExpansion:
+    """T1 expansion: evidence / pit / source manifests in exports."""
+
+    @pytest.fixture(scope="class")
+    def export_response(self, tmp_path_factory):
+        from datetime import timezone as _tz
+
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+
+        from src.api.capability_router import (
+            create_capability_router,
+        )
+        from src.api.errors import register_api_error_handlers
+        from src.api.recorded_research import (
+            RecordedCompanyResearchService,
+        )
+
+        archive = tmp_path_factory.mktemp("o11-expansion-archive")
+        service = RecordedCompanyResearchService(archive_root=archive)
+        app = FastAPI()
+        register_api_error_handlers(app)
+        app.include_router(
+            create_capability_router(service=service)
+        )
+        client = TestClient(app)
+        as_of_iso = "2026-08-10T12:00:00+00:00"
+        response = client.get(
+            "/api/v1/companies/TCS/export",
+            params={"as_of": as_of_iso},
+        )
+        assert response.status_code == 200
+        return response.json()
+
+    def test_package_includes_evidence_pit_and_sources(
+        self, export_response
+    ):
+        filenames = set(export_response["files"])
+        assert {
+            "research.json",
+            "screener_fields.csv",
+            "evidence.json",
+            "pit.json",
+            "sources.csv",
+        } <= filenames
+
+    def test_evidence_manifest_carries_lineage(self, export_response):
+        import json as _json
+
+        rows = _json.loads(export_response["files"]["evidence.json"])
+        assert isinstance(rows, list) and rows
+        for row in rows:
+            assert row["evidence_id"]
+            assert "source_ids" in row
+            assert "provenance_ids" in row
+            assert "pit_eligible" in row
+
+    def test_pit_manifest_is_point_in_time_block(
+        self, export_response
+    ):
+        import json as _json
+
+        pit = _json.loads(export_response["files"]["pit.json"])
+        assert pit["evidence_included"] >= 0
+        assert "future_evidence_excluded" in pit
+        assert isinstance(pit["pit_checks_passed"], bool)
+
+    def test_sources_manifest_lists_staleness(self, export_response):
+        import csv as _csv
+        import io as _io
+
+        content = export_response["files"]["sources.csv"]
+        if not content:
+            return
+        reader = _csv.DictReader(_io.StringIO(content))
+        for row in reader:
+            assert "source_name" in row
+            assert "stale" in row
+
+    def test_expanded_package_verifies_and_rebuilds_identically(
+        self, tmp_path_factory
+    ):
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+
+        from src.api.capability_router import (
+            create_capability_router,
+        )
+        from src.api.errors import register_api_error_handlers
+        from src.api.recorded_research import (
+            RecordedCompanyResearchService,
+        )
+        from src.research.export import ExportPackage
+
+        archive = tmp_path_factory.mktemp("o11-rebuild-archive")
+        service = RecordedCompanyResearchService(archive_root=archive)
+        app = FastAPI()
+        register_api_error_handlers(app)
+        app.include_router(
+            create_capability_router(service=service)
+        )
+        client = TestClient(app)
+
+        first = client.get(
+            "/api/v1/companies/TCS/export",
+            params={"as_of": "2026-08-10T12:00:00+00:00"},
+        ).json()
+        second = client.get(
+            "/api/v1/companies/TCS/export",
+            params={"as_of": "2026-08-10T12:00:00+00:00"},
+        ).json()
+
+        assert ExportPackage.model_validate(first).verify() is True
+        assert (
+            first["package_sha256"] == second["package_sha256"]
+        )

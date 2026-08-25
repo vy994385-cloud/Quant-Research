@@ -49,6 +49,7 @@ class _StubResult(BaseModel):
     sector: str | None = None
     intelligence: object = None
     evidence_items: tuple = ()
+    as_of: datetime = AS_OF
 
 
 def _period(symbol: str, period_id: str, end: date, **metrics) -> FinancialPeriod:
@@ -99,6 +100,20 @@ def _intel_item(symbol: str, item_id: str, kind: IntelKind) -> CorporateIntelIte
     )
 
 
+class _StubCoverage(BaseModel):
+    item_count: int = 0
+    missing_categories: tuple = ()
+
+
+class _StubQuality(BaseModel):
+    conflict_count: int = 0
+
+
+class _StubStatus(BaseModel):
+    coverage: _StubCoverage = _StubCoverage()
+    quality: _StubQuality = _StubQuality()
+
+
 class _StubIntel(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
@@ -107,6 +122,7 @@ class _StubIntel(BaseModel):
     items: tuple = ()
     source_statuses: tuple = ()
     research_gaps: object = None
+    status: _StubStatus = _StubStatus()
 
 
 def _fi(symbol: str, periods) -> FinancialIntelligence:
@@ -373,3 +389,90 @@ class TestRecordedPairComparison:
         assert first.model_dump(mode="json") == second.model_dump(
             mode="json"
         )
+
+
+class TestCompare20Expansion:
+    """T1 expansion: coverage/conflict/freshness rows + PIT note."""
+
+    def _coverage_rows(self, comparison):
+        return {
+            row.metric: row
+            for row in comparison.rows
+            if row.metric
+            in {
+                "coverage_items",
+                "missing_categories",
+                "conflicts_recorded",
+                "newest_intel_published_at",
+            }
+        }
+
+    def test_new_coverage_and_conflict_rows_present(self):
+        intel = _StubIntel(
+            status=_StubStatus(
+                coverage=_StubCoverage(
+                    item_count=7, missing_categories=("OWNERSHIP",)
+                ),
+                quality=_StubQuality(conflict_count=2),
+            )
+        )
+        result_a = _StubResult(company="AAA", sector="IT", intelligence=intel)
+        result_b = _StubResult(company="BBB", sector="IT", intelligence=intel)
+        comparison = build_company_comparison(
+            [result_a, result_b], as_of=AS_OF
+        )
+        rows = self._coverage_rows(comparison)
+
+        assert set(rows) == {
+            "coverage_items",
+            "missing_categories",
+            "conflicts_recorded",
+            "newest_intel_published_at",
+        }
+        for cell in rows["coverage_items"].cells:
+            assert cell.value == "7"
+        for cell in rows["conflicts_recorded"].cells:
+            assert cell.value == "2"
+
+    def test_freshness_cell_null_when_no_dated_intel(self):
+        intel = _StubIntel()  # no items -> no published stamps
+        result_a = _StubResult(company="AAA", sector="IT", intelligence=intel)
+        result_b = _StubResult(company="BBB", sector="IT", intelligence=intel)
+        comparison = build_company_comparison(
+            [result_a, result_b], as_of=AS_OF
+        )
+        row = next(
+            r
+            for r in comparison.rows
+            if r.metric == "newest_intel_published_at"
+        )
+        for cell in row.cells:
+            assert cell.available is False
+            assert cell.value is None
+
+    def test_pit_consistency_note(self):
+        intel = _StubIntel()
+        aligned = build_company_comparison(
+            [
+                _StubResult(company="AAA", sector="IT", intelligence=intel),
+                _StubResult(company="BBB", sector="IT", intelligence=intel),
+            ],
+            as_of=AS_OF,
+        )
+        assert any("same point" in n for n in aligned.notes)
+
+        drifted_as_of = AS_OF.replace(hour=8)
+        mixed = build_company_comparison(
+            [
+                _StubResult(company="AAA", sector="IT", intelligence=intel),
+                _StubResult(
+                    company="BBB",
+                    sector="IT",
+                    intelligence=intel,
+                    as_of=drifted_as_of,
+                ),
+            ],
+            as_of=AS_OF,
+        )
+        assert any("Point-in-time notice" in n for n in mixed.notes)
+        assert any("BBB" in n for n in mixed.notes if "Point-in-time" in n)
