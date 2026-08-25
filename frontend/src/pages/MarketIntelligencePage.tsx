@@ -8,8 +8,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react"
 import {
-  Activity,
-  FileSearch,
   Search,
   TrendingUp,
   BarChart3,
@@ -27,7 +25,8 @@ import type {
   TechnicalIndicatorSet,
 } from "../api/types"
 import { formatIso, formatLabel } from "../lib/format"
-import { Tag } from "../components/ui"
+import { Section, Tag } from "../components/ui"
+import { LoadingState, EmptyState, ErrorState } from "../components/States"
 import { DataStatus } from "../components/ResearchPrimitives"
 import type { DataAvailability } from "../components/ResearchPrimitives"
 
@@ -106,30 +105,6 @@ function MarketMetric({
         {regime && <Tag text={formatLabel(regime)} tone={regimeTone(regime)} />}
       </div>
     </div>
-  )
-}
-
-/* ── Section Card ─────────────────────────────────────────────────────── */
-
-function SectionCard({
-  id,
-  title,
-  subtitle,
-  children,
-}: {
-  id: string
-  title: string
-  subtitle?: string
-  children: React.ReactNode
-}) {
-  return (
-    <section id={id} className="mi-section">
-      <div className="mi-section-head">
-        <h3>{title}</h3>
-        {subtitle && <span>{subtitle}</span>}
-      </div>
-      <div className="mi-section-body">{children}</div>
-    </section>
   )
 }
 
@@ -283,6 +258,7 @@ export default function MarketIntelligencePage() {
   return (
     <div className="page-market-intelligence">
       <section className="page-hero">
+        <p className="page-kicker">Research</p>
         <h1>Market Intelligence</h1>
         <p className="page-subtitle">
           Observed market behavior: price movement, returns, trend and volatility regimes,
@@ -290,20 +266,9 @@ export default function MarketIntelligencePage() {
         </p>
       </section>
 
-      {loading && (
-        <div className="loading-state" role="status">
-          <Activity className="spin" size={26} />
-          <strong>Loading market data</strong>
-        </div>
-      )}
+      {loading && <LoadingState label="Loading market data" />}
 
-      {error && (
-        <div className="empty-state error" role="alert">
-          <FileSearch size={28} />
-          <strong>Discovery unavailable</strong>
-          <p>{error}</p>
-        </div>
-      )}
+      {error && <ErrorState error={error} />}
 
       {!loading && !error && (
         <div className="fi-layout">
@@ -350,39 +315,31 @@ export default function MarketIntelligencePage() {
           {/* RIGHT: Market intelligence content */}
           <div className="fi-content">
             {!selectedSymbol && (
-              <div className="empty-state">
-                <BarChart3 size={28} />
-                <strong>Select a company</strong>
-                <p>Choose a company from the list to view market intelligence.</p>
-              </div>
+              <EmptyState
+                icon={BarChart3}
+                title="Select a company"
+                description="Choose a company from the list to view market intelligence."
+              />
             )}
 
             {selectedSymbol && dataLoading && (
-              <div className="loading-state" role="status">
-                <Activity className="spin" size={26} />
-                <strong>Loading market data</strong>
-                <span>Fetching market observations for {selectedSymbol}...</span>
-              </div>
+              <LoadingState label={`Fetching market observations for ${selectedSymbol}...`} />
             )}
 
             {selectedSymbol && dataError && (
-              <div className="empty-state error" role="alert">
-                <FileSearch size={28} />
-                <strong>Market data unavailable</strong>
-                <p>{dataError}</p>
-                <p className="error-hint">
-                  Market observations could not be produced for {selectedSymbol}. The rest of
-                  the research record for this company is unaffected.
-                </p>
-              </div>
+              <ErrorState
+                error={dataError}
+                retryLabel={`Retry for ${selectedSymbol}`}
+                onRetry={() => void loadCompany(selectedSymbol)}
+              />
             )}
 
             {selectedSymbol && !dataLoading && !dataError && !ind && (
-              <div className="empty-state">
-                <BarChart3 size={28} />
-                <strong>No market data available</strong>
-                <p>No market observations are available for {selectedSymbol}.</p>
-              </div>
+              <EmptyState
+                icon={BarChart3}
+                title="No market data available"
+                description={`No market observations are available for ${selectedSymbol}.`}
+              />
             )}
 
             {selectedSymbol && ind && !dataLoading && (
@@ -398,7 +355,8 @@ export default function MarketIntelligencePage() {
                 </div>
 
                 {/* 1. MARKET OVERVIEW */}
-                <SectionCard id="overview" title="Market Overview" subtitle="Price context and key market metrics">
+                <Section id="overview" title="Market Overview" subtitle="Price context and key market metrics">
+                  <div className="mi-section-body">
                   <div className="mi-overview-grid">
                     <MarketMetric label="52-Week High" value={ind.high_52w} />
                     <MarketMetric label="52-Week Low" value={ind.low_52w} />
@@ -409,10 +367,12 @@ export default function MarketIntelligencePage() {
                     <MarketMetric label="Volatility (ATR %)" value={ind.atr_pct} />
                     <MarketMetric label="Current Drawdown" value={ind.current_drawdown} />
                   </div>
-                </SectionCard>
+                  </div>
+                </Section>
 
                 {/* 2. RETURNS */}
-                <SectionCard id="returns" title="Period Returns" subtitle="Observed price changes over multiple time horizons">
+                <Section id="returns" title="Period Returns" subtitle="Observed price changes over multiple time horizons">
+                  <div className="mi-section-body">
                   <div className="mi-returns-section">
                     <ReturnBar label="1-Day" value={ind.return_1d} />
                     <ReturnBar label="5-Day" value={ind.return_5d} />
@@ -422,10 +382,12 @@ export default function MarketIntelligencePage() {
                     <ReturnBar label="100-Day" value={ind.return_100d} />
                     <ReturnBar label="200-Day" value={ind.return_200d} />
                   </div>
-                </SectionCard>
+                  </div>
+                </Section>
 
                 {/* 3. TREND & VOLATILITY CONTEXT */}
-                <SectionCard id="trend-volatility" title="Trend & Volatility" subtitle="Regime classification and trend assessment">
+                <Section id="trend-volatility" title="Trend & Volatility" subtitle="Regime classification and trend assessment">
+                  <div className="mi-section-body">
                   <div className="mi-trend-vol-grid">
                     <div className="mi-trend-vol-card">
                       <div className="mi-trend-vol-head">
@@ -484,10 +446,12 @@ export default function MarketIntelligencePage() {
                       </div>
                     </div>
                   </div>
-                </SectionCard>
+                  </div>
+                </Section>
 
                 {/* 4. VOLUME & ACTIVITY */}
-                <SectionCard id="volume" title="Volume & Activity" subtitle="Trading volume behavior and gap events">
+                <Section id="volume" title="Volume & Activity" subtitle="Trading volume behavior and gap events">
+                  <div className="mi-section-body">
                   <div className="mi-volume-grid">
                     <div className="mi-volume-card">
                       <div className="mi-trend-vol-head">
@@ -539,10 +503,12 @@ export default function MarketIntelligencePage() {
                       </div>
                     </div>
                   </div>
-                </SectionCard>
+                  </div>
+                </Section>
 
                 {/* 5. 52-WEEK CONTEXT */}
-                <SectionCard id="52week" title="52-Week Context" subtitle="Distance from yearly highs and lows">
+                <Section id="52week" title="52-Week Context" subtitle="Distance from yearly highs and lows">
+                  <div className="mi-section-body">
                   <div className="mi-52w-grid">
                     <div className="mi-52w-card">
                       <span className="mi-52w-label">52-Week High</span>
@@ -565,17 +531,21 @@ export default function MarketIntelligencePage() {
                       <Tag text={ind.high_low_signal ? formatLabel(ind.high_low_signal) : "Unknown"} tone={regimeTone(ind.high_low_signal)} />
                     </div>
                   </div>
-                </SectionCard>
+                  </div>
+                </Section>
 
                 {/* 6. MARKET OBSERVATIONS (from research intelligence) */}
                 {marketObs.length > 0 && (
-                  <SectionCard id="observations" title="Market Observations" subtitle="Text observations from research intelligence">
+                  <Section id="observations" title="Market Observations" subtitle="Text observations from research intelligence">
+                    <div className="mi-section-body">
                     <ObservationTextList observations={marketObs} />
-                  </SectionCard>
+                    </div>
+                  </Section>
                 )}
 
                 {/* 7. DATA QUALITY */}
-                <SectionCard id="data-quality" title="Data Quality" subtitle="Availability and freshness of market data">
+                <Section id="data-quality" title="Data Quality" subtitle="Availability and freshness of market data">
+                  <div className="mi-section-body">
                   <div className="mi-data-quality">
                     <div className="mi-dq-row">
                       <span>Bars used</span>
@@ -597,7 +567,8 @@ export default function MarketIntelligencePage() {
                       </div>
                     )}
                   </div>
-                </SectionCard>
+                  </div>
+                </Section>
 
                 {/* Note */}
                 <div className="fi-note">

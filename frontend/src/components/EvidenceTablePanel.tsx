@@ -204,8 +204,8 @@ function EvidenceDetail({ record }: { record: EvidenceRecord }) {
       </dl>
       {(record.provenanceId || record.checksum) && (
         <p className="evidence-provenance mono">
-          {record.provenanceId && <span>provenance {record.provenanceId} </span>}
-          {record.checksum && <span>checksum {record.checksum}</span>}
+          {record.provenanceId && <span>Lineage {record.provenanceId.length > 12 ? `${record.provenanceId.slice(0, 12)}…` : record.provenanceId} </span>}
+          {record.checksum && <span>Checksum {record.checksum.length > 16 ? `${record.checksum.slice(0, 16)}…` : record.checksum}</span>}
         </p>
       )}
     </div>

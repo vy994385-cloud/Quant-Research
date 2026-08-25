@@ -21,11 +21,9 @@ const OBS_PREVIEW_COUNT = 12
 
 import { useCallback, useEffect, useMemo, useState } from "react"
 import {
-  Activity,
-  FileSearch,
   TrendingUp,
   Search,
-  Database,
+  FileSearch,
   ArrowDownRight,
   ArrowUpRight,
   Minus,
@@ -45,7 +43,8 @@ import { ApiError } from "../api/client"
 import type { CompanyResearch, DeepMetricObservation, DiscoveryItem } from "../api/types"
 import { formatCrore, formatCroreNumber, formatIso, formatLabel, pluralize, toCrore } from "../lib/format"
 import { observationTypeTone } from "../lib/signal"
-import { Tag, SectionDivider } from "../components/ui"
+import { Tag, Section } from "../components/ui"
+import { LoadingState, EmptyState, ErrorState } from "../components/States"
 
 /* ── Helpers ──────────────────────────────────────────────────────────── */
 
@@ -250,8 +249,7 @@ function FinancialOverview({
   const fcf = findObs(latestObs, ["free_cash_flow", "FCF"])
 
   return (
-    <div className="fi-overview">
-      <SectionDivider label="FINANCIAL OVERVIEW" />
+    <Section title="Financial overview" className="fi-overview">
       <div className="fi-overview-meta">
         <span>Latest period: <strong>{latestPeriod ? formatIso(latestPeriod) : "\u2014"}</strong></span>
         <span>{latestObs.length} observations available</span>
@@ -292,7 +290,7 @@ function FinancialOverview({
           {fcf && <span className="fi-overview-sub">{periodLabel(fcf.period_id)}</span>}
         </div>
       </div>
-    </div>
+    </Section>
   )
 }
 
@@ -322,8 +320,7 @@ function FundamentalsTable({
   const periods = [...byPeriod.keys()].sort()
 
   return (
-    <div className="fi-table-section">
-      <SectionDivider label={label} />
+    <Section title={label} className="fi-table-section">
       <div className="fi-table-wrap">
         <table className="fi-table">
           <thead>
@@ -342,7 +339,7 @@ function FundamentalsTable({
                   <td className="fi-table-metric">
                     {formatLabel(metric)}
                     {metricObs.some((o) => o.observation_type === "DERIVED") && (
-                      <Tag text="Derived" tone="amber" />
+                      <Tag text="Derived" tone="blue" />
                     )}
                   </td>
                   {periods.map((p) => {
@@ -368,7 +365,7 @@ function FundamentalsTable({
           </tbody>
         </table>
       </div>
-    </div>
+    </Section>
   )
 }
 
@@ -388,8 +385,7 @@ function BalanceSheetSection({ observations }: { observations: DeepMetricObserva
   if (!hasAny) return null
 
   return (
-    <div className="fi-balance-sheet">
-      <SectionDivider label="BALANCE SHEET" />
+    <Section title="Balance sheet" className="fi-balance-sheet">
       <div className="fi-balance-grid">
         {groups.map((g) => {
           const obs = findObs(observations, g.candidates)
@@ -407,7 +403,7 @@ function BalanceSheetSection({ observations }: { observations: DeepMetricObserva
           )
         })}
       </div>
-    </div>
+    </Section>
   )
 }
 
@@ -420,8 +416,7 @@ function FinancialObservations({ observations }: { observations: DeepMetricObser
   const deteriorating = observations.filter((o) => o.delta_pct !== null && parseNum(o.delta_pct) !== null && parseNum(o.delta_pct)! < 0 && !matchMetric(o, MARGIN_METRICS))
 
   return (
-    <div className="fi-observations-section">
-      <SectionDivider label="FINANCIAL OBSERVATIONS" />
+    <Section title="Financial observations" className="fi-observations-section">
 
       {improving.length > 0 && (
         <div className="fi-obs-group">
@@ -504,7 +499,7 @@ function FinancialObservations({ observations }: { observations: DeepMetricObser
           No financial observations to display.
         </div>
       )}
-    </div>
+    </Section>
   )
 }
 
@@ -521,6 +516,7 @@ export default function FinancialIntelligencePage() {
   const [researchError, setResearchError] = useState<string | null>(null)
   const [periodBasis, setPeriodBasis] = useState<"all" | "annual" | "quarterly">("annual")
   const [showAllObs, setShowAllObs] = useState(false)
+  const [chartView, setChartView] = useState<"revenue" | "profitability" | "margins">("revenue")
 
   useEffect(() => {
     let cancelled = false
@@ -664,6 +660,7 @@ export default function FinancialIntelligencePage() {
   return (
     <div className="page-financial-intelligence">
       <section className="page-hero">
+        <p className="page-kicker">Research</p>
         <h1>Financial Intelligence</h1>
         <p className="page-subtitle">
           Deep financial research: revenue trends, profitability, margins, cash flow, balance sheet.
@@ -672,18 +669,11 @@ export default function FinancialIntelligencePage() {
       </section>
 
       {loading && (
-        <div className="loading-state" role="status">
-          <Activity className="spin" size={26} />
-          <strong>Loading financial data</strong>
-        </div>
+        <LoadingState label="Loading financial data" />
       )}
 
       {error && (
-        <div className="empty-state error" role="alert">
-          <FileSearch size={28} />
-          <strong>Discovery unavailable</strong>
-          <p>{error}</p>
-        </div>
+        <ErrorState error={error} />
       )}
 
       {!loading && !error && (
@@ -731,175 +721,196 @@ export default function FinancialIntelligencePage() {
           {/* RIGHT: Financial intelligence content */}
           <div className="fi-content">
             {!selectedSymbol && (
-              <div className="empty-state">
-                <TrendingUp size={28} />
-                <strong>Select a company</strong>
-                <p>Choose a company from the list to view its deep financial observations.</p>
-              </div>
+              <EmptyState title="Select a company" description="Choose a company from the list to view its deep financial observations." />
             )}
 
             {selectedSymbol && researchLoading && (
-              <div className="loading-state" role="status">
-                <Activity className="spin" size={26} />
-                <strong>Loading research</strong>
-                <span>Fetching financial data for {selectedSymbol}...</span>
-              </div>
+              <LoadingState label={`Fetching financial data for ${selectedSymbol}...`} />
             )}
 
             {selectedSymbol && researchError && (
-              <div className="empty-state error" role="alert">
-                <FileSearch size={28} />
-                <strong>Could not load research</strong>
-                <p>{researchError}</p>
-              </div>
+              <ErrorState error={researchError} />
             )}
 
             {selectedSymbol && research && !researchLoading && (
               <>
                 {!insights ? (
-                  <div className="empty-state">
-                    <TrendingUp size={28} />
-                    <strong>No deep financial data</strong>
-                    <p>No deep financial insights are available for {selectedSymbol}.</p>
-                  </div>
+                  <EmptyState title="No deep financial data" description={`No deep financial insights are available for ${selectedSymbol}.`} />
                 ) : (
                   <>
-                    {/* Summary stats */}
-                    <div className="fi-summary">
-                      <div className="fi-stat">
-                        <strong>{insights.series.length}</strong>
-                        <span>series</span>
-                      </div>
-                      <div className="fi-stat">
-                        <strong>{insights.observations.length}</strong>
-                        <span>observations</span>
-                      </div>
-                      <div className="fi-stat">
-                        <strong>{reported.length}</strong>
-                        <span>reported</span>
-                      </div>
-                      <div className="fi-stat">
-                        <strong>{derived.length}</strong>
-                        <span>derived</span>
-                      </div>
-                      {unavailable.length > 0 && (
-                        <div className="fi-stat fi-stat-warn">
-                          <strong>{unavailable.length}</strong>
-                          <span>unavailable</span>
+                    {/* ── 1. FINANCIAL CONTEXT ──────────────────────────── */}
+                    <Section title="Financial context" subtitle="Comparability notes and data coverage for this company">
+                      {insights.comparability_notes.length > 0 ? (
+                        <div className="fi-comparability">
+                          {insights.comparability_notes.map((note, i) => (
+                            <div className="fi-comparability-note" key={i}>
+                              <span>{note}</span>
+                            </div>
+                          ))}
                         </div>
+                      ) : (
+                        <div className="fi-comparability-note"><span>No comparability issues recorded.</span></div>
                       )}
-                    </div>
-
-                    {/* Comparability notes */}
-                    {insights.comparability_notes.length > 0 && (
-                      <div className="fi-comparability">
-                        <strong>Comparability Notes</strong>
-                        {insights.comparability_notes.map((note, i) => (
-                          <div className="fi-comparability-note" key={i}>
-                            <span>{note}</span>
-                          </div>
-                        ))}
+                      <div className="fi-context-meta">
+                        <span>{insights.series.length} series</span>
+                        <span>{insights.observations.length} observations</span>
+                        <span>{reported.length} reported</span>
+                        <span>{derived.length} derived</span>
+                        {unavailable.length > 0 && <span>{unavailable.length} unavailable</span>}
                       </div>
-                    )}
+                    </Section>
 
-                    {/* Period basis */}
-                    <div className="fi-period-controls">
-                      <span className="fi-period-label">Period basis</span>
-                      <div className="filter-chips" role="group" aria-label="Period basis">
-                        {([
-                          ["annual", "Annual"],
-                          ["quarterly", "Quarterly"],
-                          ["all", "All"],
-                        ] as const).map(([value, label]) => (
-                          <button
-                            key={value}
-                            type="button"
-                            className={periodBasis === value ? "filter-chip active" : "filter-chip"}
-                            onClick={() => setPeriodBasis(value)}
-                            aria-pressed={periodBasis === value}
-                          >
-                            {label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    {scopedObservations.length === 0 && insights.observations.length > 0 && (
-                      <div className="fi-empty-obs">
-                        No {periodBasis === "quarterly" ? "quarterly" : "annual"}-basis observations recorded
-                        for this company yet — switch the period basis above to see recorded periods.
-                      </div>
-                    )}
-
-                    {/* Financial Overview */}
+                    {/* ── 2. LATEST SNAPSHOT ────────────────────────────── */}
                     <FinancialOverview
                       observations={scopedObservations}
                       periodEnds={insights.series[0]?.period_ends ?? []}
                     />
 
-                    {/* Trend Charts */}
+                    {/* ── 3. HISTORICAL PERFORMANCE ──────────────────────── */}
                     {chartData.revenue.length > 0 && (
-                      <TrendChart
-                        title="Revenue Trend"
-                        data={chartData.revenue}
-                        lines={[{ key: "revenue", color: CHART.primary, label: "Revenue" }]}
-                        unit="currency"
-                      />
-                    )}
-                    {chartData.profit.length > 0 && (
-                      <TrendChart
-                        title="Profitability Trend"
-                        data={chartData.profit}
-                        lines={[
-                          { key: "operating_income", color: CHART.primary, label: "Operating Income" },
-                          { key: "net_income", color: CHART.positive, label: "Net Income" },
-                        ]}
-                        unit="currency"
-                      />
-                    )}
-                    {chartData.margin.length > 0 && (
-                      <TrendChart
-                        title="Margin Trend"
-                        data={chartData.margin}
-                        lines={[
-                          { key: "operating_margin", color: CHART.primary, label: "Operating Margin" },
-                          { key: "net_margin", color: CHART.positive, label: "Net Margin" },
-                          { key: "gross_margin", color: CHART.amber, label: "Gross Margin" },
-                        ]}
-                        unit="pct"
-                      />
+                      <Section title="Historical performance" subtitle="Trend analysis across recorded periods">
+                        <div className="fi-chart-controls">
+                          <div className="filter-chips" role="group" aria-label="Chart view">
+                            {(["revenue", "profitability", "margins"] as const).map((value) => (
+                              <button
+                                key={value}
+                                type="button"
+                                className={chartView === value ? "filter-chip active" : "filter-chip"}
+                                onClick={() => setChartView(value)}
+                                aria-pressed={chartView === value}
+                              >
+                                {value.charAt(0).toUpperCase() + value.slice(1)}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        {chartView === "revenue" && chartData.revenue.length > 0 && (
+                          <TrendChart title="Revenue Trend" data={chartData.revenue} lines={[{ key: "revenue", color: CHART.primary, label: "Revenue" }]} unit="currency" />
+                        )}
+                        {chartView === "profitability" && chartData.profit.length > 0 && (
+                          <TrendChart title="Profitability Trend" data={chartData.profit} lines={[{ key: "operating_income", color: CHART.primary, label: "Operating Income" }, { key: "net_income", color: CHART.positive, label: "Net Income" }]} unit="currency" />
+                        )}
+                        {chartView === "margins" && chartData.margin.length > 0 && (
+                          <TrendChart title="Margin Trend" data={chartData.margin} lines={[{ key: "operating_margin", color: CHART.primary, label: "Operating Margin" }, { key: "net_margin", color: CHART.positive, label: "Net Margin" }, { key: "gross_margin", color: CHART.amber, label: "Gross Margin" }]} unit="pct" />
+                        )}
+                      </Section>
                     )}
 
-                    {/* Fundamentals Tables */}
+                    {/* ── 4. REPORTED FINANCIAL HISTORY ─────────────────── */}
                     <FundamentalsTable
                       observations={scopedObservations}
                       candidates={REVENUE_METRICS}
-                      label="REVENUE"
+                      label="Revenue"
                     />
                     <FundamentalsTable
                       observations={scopedObservations}
                       candidates={[...OPERATING_INCOME_METRICS, ...NET_INCOME_METRICS]}
-                      label="PROFITABILITY"
+                      label="Profitability"
                     />
                     <FundamentalsTable
                       observations={scopedObservations}
                       candidates={[...CASH_FLOW_METRICS, ...CAPEX_METRICS]}
-                      label="CASH FLOW"
+                      label="Cash flow"
                     />
-
-                    {/* Balance Sheet */}
                     <BalanceSheetSection observations={scopedObservations} />
 
-                    {/* Financial Observations */}
+                    {/* ── 5. DERIVED METRICS ────────────────────────────── */}
+                    {derived.length > 0 && (
+                      <Section title="Derived metrics" subtitle="Calculated from reported values">
+                        <div className="fi-obs-list">
+                          {derived.slice(0, showAllObs ? derived.length : 10).map((obs) => (
+                            <div key={obs.observation_id} className="fi-obs-row">
+                              <span className="fi-obs-metric">{formatLabel(obs.metric)}</span>
+                              <span className="fi-obs-value mono">{fmtObsValue(obs, obs.value)}</span>
+                              {obs.derivation && <span className="fi-obs-derivation">{obs.derivation}</span>}
+                              <Tag text={periodLabel(obs.period_id)} tone="slate" />
+                            </div>
+                          ))}
+                        </div>
+                        {derived.length > 10 && (
+                          <button type="button" className="refresh-button" onClick={() => setShowAllObs((v) => !v)}>
+                            {showAllObs ? "Show fewer" : `Show all ${derived.length} derived metrics`}
+                          </button>
+                        )}
+                      </Section>
+                    )}
+
+                    {/* ── 6. RESEARCH OBSERVATIONS ──────────────────────── */}
                     <FinancialObservations observations={scopedObservations} />
 
-                    {/* All raw observations */}
+                    {/* ── 7. FINANCIAL TENSIONS ─────────────────────────── */}
+                    {(() => {
+                      const improving = scopedObservations.filter((o) => o.delta_pct !== null && parseNum(o.delta_pct) !== null && parseNum(o.delta_pct)! > 0 && !matchMetric(o, MARGIN_METRICS))
+                      const deteriorating = scopedObservations.filter((o) => o.delta_pct !== null && parseNum(o.delta_pct) !== null && parseNum(o.delta_pct)! < 0 && !matchMetric(o, MARGIN_METRICS))
+                      const hasTensions = improving.length > 0 && deteriorating.length > 0
+                      if (!hasTensions) return null
+                      return (
+                        <Section title="Financial tensions" subtitle="Conflicting signals across metrics — evidence of mixed trajectory">
+                          <div className="fi-tensions-grid">
+                            <div className="fi-tension-col">
+                              <div className="fi-tension-head pos">
+                                <ArrowUpRight size={13} />
+                                <strong>Improving</strong>
+                                <span>{improving.length} metrics</span>
+                              </div>
+                              <div className="fi-obs-list">
+                                {improving.slice(0, 6).map((obs) => (
+                                  <div key={obs.observation_id} className="fi-obs-row">
+                                    <span className="fi-obs-metric">{formatLabel(obs.metric)}</span>
+                                    <span className="fi-obs-change pos mono">{fmtPct(obs.delta_pct)}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                            <div className="fi-tension-col">
+                              <div className="fi-tension-head neg">
+                                <ArrowDownRight size={13} />
+                                <strong>Deteriorating</strong>
+                                <span>{deteriorating.length} metrics</span>
+                              </div>
+                              <div className="fi-obs-list">
+                                {deteriorating.slice(0, 6).map((obs) => (
+                                  <div key={obs.observation_id} className="fi-obs-row">
+                                    <span className="fi-obs-metric">{formatLabel(obs.metric)}</span>
+                                    <span className="fi-obs-change neg mono">{fmtPct(obs.delta_pct)}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        </Section>
+                      )
+                    })()}
+
+                    {/* ── 8. FULL OBSERVATION RECORD ────────────────────── */}
                     {scopedObservations.length > 0 && (
-                      <div className="fi-all-observations">
-                        <div className="fi-section-head">
-                          <Database size={14} />
-                          <strong>All Observations</strong>
-                          <span>{pluralize(scopedObservations.length, "data point")}</span>
+                      <Section title="Full observation record" meta={<span>{pluralize(scopedObservations.length, "data point")}</span>}>
+                        <div className="fi-period-controls">
+                          <span className="fi-period-label">Period basis</span>
+                          <div className="filter-chips" role="group" aria-label="Period basis">
+                            {([
+                              ["annual", "Annual"],
+                              ["quarterly", "Quarterly"],
+                              ["all", "All"],
+                            ] as const).map(([value, label]) => (
+                              <button
+                                key={value}
+                                type="button"
+                                className={periodBasis === value ? "filter-chip active" : "filter-chip"}
+                                onClick={() => setPeriodBasis(value)}
+                                aria-pressed={periodBasis === value}
+                              >
+                                {label}
+                              </button>
+                            ))}
+                          </div>
                         </div>
+                        {scopedObservations.length === 0 && insights.observations.length > 0 && (
+                          <div className="fi-empty-obs">
+                            No {periodBasis === "quarterly" ? "quarterly" : "annual"}-basis observations recorded
+                            for this company yet — switch the period basis above.
+                          </div>
+                        )}
                         <div className="fi-observations">
                           {(showAllObs ? scopedObservations : scopedObservations.slice(0, OBS_PREVIEW_COUNT)).map((obs) => (
                             <div key={obs.observation_id} className="obs-row">
@@ -953,8 +964,40 @@ export default function FinancialIntelligencePage() {
                               : `Show all ${pluralize(scopedObservations.length, "observation")}`}
                           </button>
                         )}
-                      </div>
+                      </Section>
                     )}
+
+                    {/* ── 9. SOURCE / PIT ──────────────────────────────── */}
+                    <Section title="Source and point-in-time" subtitle="Data provenance and freshness">
+                      <div className="fi-source-grid">
+                        <div className="fi-source-item">
+                          <span className="fi-source-label">Observations</span>
+                          <span className="fi-source-value mono">{insights.observations.length}</span>
+                        </div>
+                        <div className="fi-source-item">
+                          <span className="fi-source-label">Series</span>
+                          <span className="fi-source-value mono">{insights.series.length}</span>
+                        </div>
+                        <div className="fi-source-item">
+                          <span className="fi-source-label">Reported</span>
+                          <span className="fi-source-value mono">{reported.length}</span>
+                        </div>
+                        <div className="fi-source-item">
+                          <span className="fi-source-label">Derived</span>
+                          <span className="fi-source-value mono">{derived.length}</span>
+                        </div>
+                        <div className="fi-source-item">
+                          <span className="fi-source-label">Unavailable</span>
+                          <span className="fi-source-value mono">{unavailable.length}</span>
+                        </div>
+                      </div>
+                      <div className="fi-note">
+                        <span>
+                          Each observation includes source provenance and period context.
+                          Derived metrics are calculated from reported values. No scores, no rankings.
+                        </span>
+                      </div>
+                    </Section>
                   </>
                 )}
               </>

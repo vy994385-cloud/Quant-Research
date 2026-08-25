@@ -146,14 +146,14 @@ export default function ScreenerPage() {
   return (
     <div className="page-screener">
       {/* ── Page header ─────────────────────────────────────────── */}
-      <header className="scr-header">
-        <span className="eyebrow">Universe screen</span>
+      <section className="page-hero">
+        <p className="page-kicker">Screen</p>
         <h1>Research Screener</h1>
-        <p className="scr-subtitle">
+        <p className="page-subtitle">
           Search the tracked universe, compose evidence-backed filters, and inspect what
           matches. Every result states which conditions it satisfied. No scores, no rankings.
         </p>
-      </header>
+      </section>
 
       {loading && (
         <div className="loading-state" role="status">
@@ -173,7 +173,7 @@ export default function ScreenerPage() {
       {!loading && !error && (
         <>
           {/* ── Universe context ──────────────────────────────────── */}
-          <div className="scr-context scr-section" style={{ marginTop: "var(--space-5)" }}>
+          <div className="scr-context scr-section mt-5">
             <span className="scr-context-item">
               <strong>{items.length}</strong> tracked companies
             </span>
@@ -342,7 +342,7 @@ export default function ScreenerPage() {
                 {results.length} <small>of {items.length}</small>
               </span>
               <div className="scr-results-tools">
-                <ArrowUpDown size={13} style={{ color: "var(--color-text-faint)" }} />
+                <ArrowUpDown size={13} className="icon-muted" />
                 <select
                   className="scr-sort"
                   value={sortKey}

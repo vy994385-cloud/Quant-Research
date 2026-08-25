@@ -9,14 +9,13 @@ import { useNavigate } from "react-router-dom"
 import {
   Activity,
   Building2,
-  FileSearch,
-  GitCompareArrows,
   XCircle,
   Clock,
 } from "lucide-react"
 import { fetchDiscovery, fetchResearch } from "../api/client"
 import { ApiError } from "../api/client"
 import type { CompanyResearch, DiscoveryItem } from "../api/types"
+import { LoadingState, ErrorState, EmptyState } from "../components/States"
 import { formatConfidence, formatIso, formatLabel, pluralize } from "../lib/format"
 
 interface CompanyData {
@@ -111,6 +110,7 @@ export default function ComparePage() {
   return (
     <div className="page-compare">
       <section className="page-hero">
+        <p className="page-kicker">Screen</p>
         <h1>Compare</h1>
         <p className="page-subtitle">
           Evidence-based comparison. Side-by-side factual data — no winner, no loser, no score.
@@ -119,18 +119,11 @@ export default function ComparePage() {
       </section>
 
       {loading && (
-        <div className="loading-state" role="status">
-          <Activity className="spin" size={26} />
-          <strong>Loading comparison data</strong>
-        </div>
+        <LoadingState label="Loading comparison data" />
       )}
 
       {error && (
-        <div className="empty-state error" role="alert">
-          <FileSearch size={28} />
-          <strong>Discovery unavailable</strong>
-          <p>{error}</p>
-        </div>
+        <ErrorState error={error} />
       )}
 
       {!loading && !error && (
@@ -165,11 +158,10 @@ export default function ComparePage() {
           </section>
 
           {selectedItems.length < 2 && (
-            <div className="empty-state">
-              <GitCompareArrows size={28} />
-              <strong>Select at least 2 companies</strong>
-              <p>Choose companies from the list above to enable comparison.</p>
-            </div>
+            <EmptyState
+              title="Select at least 2 companies"
+              description="Choose companies from the list above to enable comparison."
+            />
           )}
 
           {selectedItems.length >= 2 && (
@@ -273,7 +265,7 @@ export default function ComparePage() {
                   />
 
                   {/* Thesis / Assessment */}
-                  <CompareSection label="RESEARCH ASSESSMENT" />
+                  <CompareSection label="Research assessment" />
                   <CompareRow
                     label="Thesis"
                     values={companyDataList.map((cd) =>
@@ -299,7 +291,7 @@ export default function ComparePage() {
                   />
 
                   {/* Intelligence sections */}
-                  <CompareSection label="INTELLIGENCE SECTIONS" />
+                  <CompareSection label="Intelligence sections" />
                   {(
                     [
                       ["Business Quality", "business_quality"],
@@ -341,7 +333,7 @@ export default function ComparePage() {
                   ))}
 
                   {/* Evidence summary */}
-                  <CompareSection label="EVIDENCE SUMMARY" />
+                  <CompareSection label="Evidence summary" />
                   <CompareRow
                     label="Positive Evidence"
                     values={companyDataList.map((cd) =>
@@ -385,7 +377,7 @@ export default function ComparePage() {
                   />
 
                   {/* Data quality */}
-                  <CompareSection label="DATA QUALITY" />
+                  <CompareSection label="Data quality" />
                   <CompareRow
                     label="Market Validation"
                     values={companyDataList.map((cd) =>
@@ -410,12 +402,12 @@ export default function ComparePage() {
                     })}
                     tone={companyDataList.map((cd) => {
                       const pf = cd.research?.data_quality.provider_failures
-                      return pf && pf.length > 0 ? "red" : undefined
+                      return pf && pf.length > 0 ? "slate" : undefined
                     })}
                   />
 
                   {/* Unknown / missing */}
-                  <CompareSection label="RESEARCH GAPS" />
+                  <CompareSection label="Research gaps" />
                   <CompareRow
                     label="Unknown Categories"
                     values={companyDataList.map((cd) => {
@@ -452,7 +444,7 @@ export default function ComparePage() {
                       canonical; here only risks and gaps add new detail. */}
                   {companyDataList.some((cd) => cd.research?.narrative) && (
                     <>
-                      <CompareSection label="NARRATIVE" />
+                      <CompareSection label="Narrative" />
                       <CompareRow
                         label="Key Risks"
                         values={companyDataList.map((cd) => {

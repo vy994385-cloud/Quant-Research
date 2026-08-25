@@ -99,8 +99,8 @@ function actionsToEvents(items: CorporateActionItem[]): UnifiedEvent[] {
   return items.map((item) => {
     const details = [
       item.description,
-      item.value !== null ? `Reported value: ${item.value}` : null,
-      item.ratio !== null ? `Reported ratio: ${item.ratio}` : null,
+      item.value !== null ? `Reported value: ${formatLabel(String(item.value))}` : null,
+      item.ratio !== null ? `Reported ratio: ${formatLabel(String(item.ratio))}` : null,
     ]
       .filter((part): part is string => Boolean(part))
       .join(" · ")

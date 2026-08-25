@@ -101,7 +101,7 @@ export function Section({
   title: string
   subtitle?: string
   meta?: ReactNode
-  children: ReactNode
+  children?: ReactNode
   className?: string
 }) {
   return (
@@ -115,6 +115,30 @@ export function Section({
       </header>
       {children}
     </section>
+  )
+}
+
+/** Reusable section header with title, subtitle, meta, and optional aside. */
+export function SectionHeader({
+  title,
+  subtitle,
+  meta,
+  aside,
+}: {
+  title: string
+  subtitle?: string
+  meta?: ReactNode
+  aside?: ReactNode
+}) {
+  return (
+    <div className="section-head">
+      <div>
+        <h3 className="section-title">{title}</h3>
+        {subtitle && <p className="section-subtitle">{subtitle}</p>}
+        {meta && <span className="section-meta">{meta}</span>}
+      </div>
+      {aside && <div className="section-aside">{aside}</div>}
+    </div>
   )
 }
 
@@ -247,6 +271,33 @@ export function MetricTile({
         {unit ? <span className="metric-tile-unit">{unit}</span> : null}
       </div>
       {detail ? <small className="metric-tile-detail">{detail}</small> : null}
+    </article>
+  )
+}
+
+/* ── Metric: primary standalone metric primitive ─────────────────── */
+
+export function Metric({
+  label,
+  value,
+  unit,
+  detail,
+  tone,
+  className = "",
+}: {
+  label: string
+  value: ReactNode
+  unit?: string
+  detail?: string
+  tone?: Tone
+  className?: string
+}) {
+  return (
+    <article className={`metric-tile${tone ? ` ${tone}` : ""} ${className}`.trim()}>
+      <span className="metric-tile-label">{label}</span>
+      <strong className="metric-tile-value">{value}</strong>
+      {unit && <span className="metric-tile-unit">{unit}</span>}
+      {detail && <span className="metric-tile-detail">{detail}</span>}
     </article>
   )
 }

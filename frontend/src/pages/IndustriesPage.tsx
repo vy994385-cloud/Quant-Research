@@ -24,9 +24,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import {
-  Activity,
   Building2,
-  FileSearch,
   TrendingUp,
   Shield,
   Zap,
@@ -36,6 +34,7 @@ import { fetchDiscovery } from "../api/client"
 import type { DiscoveryItem } from "../api/types"
 import { formatLabel } from "../lib/format"
 import { SectionDivider, Tag } from "../components/ui"
+import { LoadingState, EmptyState, ErrorState } from "../components/States"
 import {
   ResearchSection,
   DataStatus,
@@ -145,6 +144,7 @@ export default function IndustriesPage() {
   return (
     <div className="page-industries">
       <section className="page-hero">
+        <p className="page-kicker">Discover</p>
         <h1>Industry Intelligence</h1>
         <p className="page-subtitle">
           Sector overview and company distribution. Industry-specific context
@@ -153,21 +153,9 @@ export default function IndustriesPage() {
         </p>
       </section>
 
-      {loading && (
-        <div className="loading-state" role="status">
-          <Activity className="spin" size={26} />
-          <strong>Loading industry data</strong>
-          <span>Fetching discovery information...</span>
-        </div>
-      )}
+      {loading && <LoadingState label="Fetching discovery information..." />}
 
-      {error && (
-        <div className="empty-state error" role="alert">
-          <FileSearch size={28} />
-          <strong>Discovery unavailable</strong>
-          <p>{error}</p>
-        </div>
-      )}
+      {error && <ErrorState error={error} />}
 
       {!loading && !error && (
         <>
@@ -202,14 +190,11 @@ export default function IndustriesPage() {
             {/* RIGHT: Sector detail */}
             <div className="industry-detail">
               {!selectedSector ? (
-                <div className="empty-state">
-                  <BarChart3 size={28} />
-                  <strong>Select a sector</strong>
-                  <p>
-                    Click a sector on the left to view details. Each sector
-                    shows the companies it covers and links to their research pages.
-                  </p>
-                </div>
+                <EmptyState
+                  icon={BarChart3}
+                  title="Select a sector"
+                  description="Click a sector on the left to view details. Each sector shows the companies it covers and links to their research pages."
+                />
               ) : selectedSectorData ? (
                 <SectorDetail sector={selectedSectorData} onCompanyClick={(sym) => navigate(`/companies/${sym}`)} />
               ) : null}
@@ -218,7 +203,7 @@ export default function IndustriesPage() {
 
           {/* Industry intelligence capability note */}
           <div className="industry-architecture-note">
-            <SectionDivider label="HOW INDUSTRY COVERAGE WORKS TODAY" />
+            <SectionDivider label="How industry coverage works" />
             <div className="architecture-note-content">
               <p>
                 Sectors here come from the discovery record: they group the tracked

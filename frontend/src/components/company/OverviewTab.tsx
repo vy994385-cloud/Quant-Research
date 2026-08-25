@@ -18,6 +18,7 @@ import {
   formatLabel,
   formatSourceNote,
   formatTitle,
+  humanizeNarrative,
 } from "../../lib/format"
 import { directionTone } from "../../lib/signal"
 import { Tag } from "../ui"
@@ -148,7 +149,7 @@ export default function OverviewTab({
         <div className="ov-chips">
           <Tag
             text={pit.pit_checks_passed ? "Point-in-time verified" : "PIT checks failed"}
-            tone={pit.pit_checks_passed ? "blue" : "red"}
+            tone={pit.pit_checks_passed ? "blue" : "slate"}
           />
           <Tag
             text={`Evidence window: ${pit.evidence_included} included · ${pit.future_evidence_excluded} future excluded`}
@@ -260,9 +261,9 @@ export default function OverviewTab({
                 <li key={area.key}>
                   <strong>{area.label}</strong>
                   <span>
-                    {area.section!.observations[0].length > 180
-                      ? `${area.section!.observations[0].slice(0, 177)}…`
-                      : area.section!.observations[0]}
+                    {humanizeNarrative(area.section!.observations[0]).length > 180
+                      ? `${humanizeNarrative(area.section!.observations[0]).slice(0, 177)}…`
+                      : humanizeNarrative(area.section!.observations[0])}
                   </span>
                   {area.section!.observations.length > 1 && (
                     <small className="feed-type">
@@ -296,7 +297,7 @@ export default function OverviewTab({
         {market && market.observations.length > 0 ? (
           <ul className="ov-market-notes">
             {market.observations.slice(0, 3).map((observation) => (
-              <li key={observation}>{observation}</li>
+              <li key={observation}>{humanizeNarrative(observation)}</li>
             ))}
           </ul>
         ) : (
@@ -317,7 +318,7 @@ export default function OverviewTab({
             {techSections.map((section) => (
               <li key={section.label}>
                 <strong>{section.label}</strong>
-                <span>{section.section!.observations[0]}</span>
+                <span>{humanizeNarrative(section.section!.observations[0])}</span>
               </li>
             ))}
           </ul>
@@ -327,6 +328,36 @@ export default function OverviewTab({
           </p>
         )}
       </section>
+
+      {/* Conflicts / Uncertainty */}
+      {(conflictDetected || data.provider_failures.length > 0) && (
+        <section className="ov-block">
+          <h3 className="ov-heading">Conflicts &amp; Uncertainty</h3>
+          <div className="ov-chips">
+            {conflictDetected && (
+              <Tag text="Conflicting evidence recorded" tone="amber" />
+            )}
+            {data.provider_failures.length > 0 && (
+              <Tag
+                text={`${data.provider_failures.length} provider failure${data.provider_failures.length !== 1 ? "s" : ""} isolated`}
+                tone="slate"
+              />
+            )}
+          </div>
+          {data.provider_failures.length > 0 && (
+            <p className="ov-limited-line">
+              {data.provider_failures.length} research provider{data.provider_failures.length !== 1 ? "s" : ""} failed
+              and were isolated from this snapshot ({data.provider_failures.join(", ")}).
+            </p>
+          )}
+          {!pit.pit_checks_passed && (
+            <p className="ov-pit-warning">
+              Point-in-time checks did not all pass for this snapshot; review evidence timestamps
+              with extra caution.
+            </p>
+          )}
+        </section>
+      )}
 
       {/* Coverage limitations */}
       <section className="ov-block">
@@ -353,16 +384,10 @@ export default function OverviewTab({
             <Tag text={`${missingCategories} event categories without coverage`} tone="slate" />
           )}
           {data.provider_failures.length > 0 && (
-            <Tag text={`${data.provider_failures.length} provider failures isolated`} tone="red" />
+            <Tag text={`${data.provider_failures.length} provider failures isolated`} tone="slate" />
           )}
           <Tag text={`${data.source_statuses.length} sources in record`} tone="slate" />
         </div>
-        {!pit.pit_checks_passed && (
-          <p className="ov-pit-warning">
-            Point-in-time checks did not all pass for this snapshot; review evidence timestamps
-            with extra caution.
-          </p>
-        )}
       </section>
     </div>
   )

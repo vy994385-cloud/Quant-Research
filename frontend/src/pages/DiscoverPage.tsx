@@ -2,13 +2,16 @@
  * RESEARCH HOME — the daily entry point of the evidence-first research terminal.
  *
  * Layout order:
- *   1. Global research search — one search across the tracked universe
- *   2. Research activity — everything recorded, recency-ordered
+ *   1. Research context — universe overview with freshness
+ *   2. Global research search — one search across the tracked universe
+ *   3. What changed — recent changes summary
+ *   4. Research activity — everything recorded, recency-ordered
  *      Financial disclosures · Company developments · Technology · Corporate actions
- *   3. Recently researched — your latest company visits
- *   4. Themes & Industries — quick navigation to research domains
- *   5. Research gaps — what's missing across the universe
- *   6. Company index — the full tracked universe
+ *   5. Coverage changes — gap status changes across the universe
+ *   6. Recently researched — your latest company visits
+ *   7. Themes & Industries — quick navigation to research domains
+ *   8. Research gaps — what's missing across the universe
+ *   9. Company index — the full tracked universe
  *
  * Recency only — nothing here is ranked or scored.
  */
@@ -155,7 +158,7 @@ export default function DiscoverPage() {
             title,
             detail:
               item.action_type === "DIVIDEND" && item.value !== null
-                ? `Per-share value as reported: ${item.value}`
+                ? `Per-share value as reported: ${formatLabel(String(item.value))}`
                 : undefined,
             kind: "Corporate action",
             origin: formatSourceName(item.source_name),
@@ -380,7 +383,7 @@ export default function DiscoverPage() {
           </thead>
           <tbody>
             {rows.map((row) => (
-              <tr key={`${row.kind}-${row.key}`}>
+              <tr key={`${row.kind}-${row.symbol}-${row.key}`}>
                 <td className="feed-date">
                   {row.date ? formatIsoShort(row.date) : "\u2014"}
                 </td>
@@ -425,7 +428,7 @@ export default function DiscoverPage() {
     <div className="page-discover">
       {/* 1. Research Home hero — global search */}
       <section className="discover-hero" aria-label="Search the research universe">
-        <p className="page-kicker">RESEARCH HOME</p>
+        <p className="page-kicker">Research home</p>
         <h1>What&apos;s new in the research universe?</h1>
         <p className="page-subtitle">
           The most recent recorded activity across the tracked universe — developments,
@@ -509,9 +512,34 @@ export default function DiscoverPage() {
             </div>
           </section>
 
-          {/* 2. Research activity stream — the visual primary */}
+          {/* 2. What changed — recent changes across the universe */}
+          {!feedsLoading && activity.length > 0 && (
+            <section className="discover-section discover-compact" aria-label="What changed">
+              <SectionDivider label="What changed" />
+              <div className="what-changed-grid">
+                <div className="what-changed-stat">
+                  <strong>{disclosures.length}</strong>
+                  <span>Financial disclosures</span>
+                </div>
+                <div className="what-changed-stat">
+                  <strong>{businessDevelopments.length}</strong>
+                  <span>Business developments</span>
+                </div>
+                <div className="what-changed-stat">
+                  <strong>{actionsFeed.length}</strong>
+                  <span>Corporate actions</span>
+                </div>
+                <div className="what-changed-stat">
+                  <strong>{techRows.length}</strong>
+                  <span>Technology activity</span>
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* 3. Research activity stream — the visual primary */}
           <section className="discover-section discover-primary" aria-label="Research activity">
-            <SectionDivider label="RESEARCH ACTIVITY" />
+            <SectionDivider label="Research activity" />
             <div className="stream-controls">
               <SegmentedControl
                 options={KIND_OPTIONS}
@@ -542,7 +570,7 @@ export default function DiscoverPage() {
             {/* Financial disclosures */}
             {!feedsLoading && disclosures.length > 0 && (
               <section className="discover-section discover-compact" aria-label="Financial disclosures">
-                <SectionDivider label="FINANCIAL DISCLOSURES" />
+                <SectionDivider label="Financial disclosures" />
                 {renderStreamTable(disclosures, STREAM_HEADERS)}
               </section>
             )}
@@ -550,7 +578,7 @@ export default function DiscoverPage() {
             {/* Business developments */}
             {!feedsLoading && businessDevelopments.length > 0 && (
               <section className="discover-section discover-compact" aria-label="Company developments">
-                <SectionDivider label="COMPANY DEVELOPMENTS" />
+                <SectionDivider label="Company developments" />
                 {renderStreamTable(businessDevelopments, STREAM_HEADERS)}
               </section>
             )}
@@ -558,7 +586,7 @@ export default function DiscoverPage() {
             {/* Corporate actions */}
             {!feedsLoading && actionsFeed.length > 0 && (
               <section className="discover-section discover-compact" aria-label="Corporate actions">
-                <SectionDivider label="CORPORATE ACTIONS" />
+                <SectionDivider label="Corporate actions" />
                 {renderStreamTable(actionsFeed, STREAM_HEADERS)}
               </section>
             )}
@@ -566,7 +594,7 @@ export default function DiscoverPage() {
             {/* Technology activity */}
             {!feedsLoading && techRows.length > 0 && (
               <section className="discover-section discover-compact" aria-label="Technology developments">
-                <SectionDivider label="TECHNOLOGY DEVELOPMENTS" />
+                <SectionDivider label="Technology developments" />
                 <div className="table-scroll">
                   <table className="feed-table">
                     <thead>
@@ -591,10 +619,54 @@ export default function DiscoverPage() {
             )}
           </div>
 
-          {/* 4. Recently researched — quick return to recent work */}
+          {/* 4. Coverage changes — gap status across the universe */}
+          {!feedsLoading && gaps.length > 0 && (
+            <section className="discover-section discover-compact" aria-label="Coverage changes">
+              <SectionDivider label="Coverage changes" />
+              <div className="table-scroll">
+                <table className="feed-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">Companies</th>
+                      <th scope="col">Area</th>
+                      <th scope="col">Status</th>
+                      <th scope="col">Missing / limited information</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {gapGroups.slice(0, 8).map((group) => (
+                      <tr key={`cov-${group.key}`}>
+                        <td>
+                          <span className="gap-company-chips">
+                            {group.symbols.map((symbol) => (
+                              <span key={symbol} className="gap-company-cell">
+                                {companyCell(symbol)}
+                              </span>
+                            ))}
+                          </span>
+                        </td>
+                        <td><span className="feed-type">{group.category}</span></td>
+                        <td>
+                          {group.statuses.map((status) => (
+                            <Tag key={status} text={formatLabel(status)} tone="amber" />
+                          ))}
+                        </td>
+                        <td className="feed-event">{group.description}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p className="feed-more">
+                Full coverage center in <Link to="/research-gaps">Coverage &amp; Gaps</Link>.
+              </p>
+            </section>
+          )}
+
+          {/* 5. Recently researched — quick return to recent work */}
           {recentVisits.length > 0 && (
             <section className="discover-section" aria-label="Recently researched">
-              <SectionDivider label="RECENTLY RESEARCHED" />
+              <SectionDivider label="Recently researched" />
               <div className="company-table">
                 <div className="company-table-head">
                   <span className="col-symbol">Symbol</span>
@@ -620,7 +692,7 @@ export default function DiscoverPage() {
 
           {/* 5. Themes & Industries — quick navigation to research domains */}
           <section className="discover-section" aria-label="Themes and industries">
-            <SectionDivider label="THEMES &amp; INDUSTRIES" />
+            <SectionDivider label="Themes &amp; industries" />
             <div className="discover-domains">
               <Link to="/themes" className="discover-domain-card">
                 <Lightbulb size={16} />
@@ -648,7 +720,7 @@ export default function DiscoverPage() {
           {/* 6. Research gaps — what's missing */}
           {!feedsLoading && gapGroups.length > 0 && (
             <section className="discover-section discover-compact discover-wide" aria-label="Research gaps">
-              <SectionDivider label="RESEARCH GAPS" />
+              <SectionDivider label="Research gaps" />
               <div className="table-scroll">
                 <table className="feed-table">
                   <thead>
@@ -691,7 +763,7 @@ export default function DiscoverPage() {
 
           {/* 7. Company index — the full tracked universe */}
           <section className="discover-section discover-index" aria-label="Company index">
-            <SectionDivider label="COMPANY INDEX" />
+            <SectionDivider label="Company index" />
             <div className="company-table">
               <div className="company-table-head">
                 <span className="col-symbol">Symbol</span>

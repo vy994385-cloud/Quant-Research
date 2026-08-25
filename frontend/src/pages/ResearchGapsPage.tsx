@@ -410,7 +410,7 @@ export default function ResearchGapsPage() {
       </header>
 
       {/* ── Company picker + context ──────────────────────────────── */}
-      <section className="rgx-context scr-section" style={{ marginTop: "var(--space-5)" }}>
+      <section className="rgx-context scr-section mt-5">
         <div className="rgx-picker" role="group" aria-label="Select companies">
           {researchable.map((item) => (
             <button

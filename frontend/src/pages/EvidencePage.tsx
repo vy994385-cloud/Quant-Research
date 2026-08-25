@@ -12,10 +12,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react"
 import {
-  Activity,
   AlertTriangle,
   ChevronRight,
-  FileSearch,
   Search,
   Shield,
 } from "lucide-react"
@@ -31,8 +29,10 @@ import {
   formatEvidenceObservation,
   formatIso,
   formatLabel,
+  formatSourceName,
 } from "../lib/format"
 import { DetailDrawer } from "../components/ui"
+import { LoadingState, EmptyState, ErrorState } from "../components/States"
 
 /* ── Epistemic visual language ──────────────────────────────────────
    Reported = neutral/high-trust · Derived = teal · Inferred = steel
@@ -191,19 +191,8 @@ export default function EvidencePage() {
           <span className="eyebrow">Evidence universe</span>
           <h1>Evidence Explorer</h1>
         </header>
-        {loading && (
-          <div className="loading-state" role="status">
-            <Activity className="spin" size={26} />
-            <strong>Loading companies</strong>
-          </div>
-        )}
-        {error && (
-          <div className="empty-state error" role="alert">
-            <FileSearch size={28} />
-            <strong>Discovery unavailable</strong>
-            <p>{error}</p>
-          </div>
-        )}
+        {loading && <LoadingState label="Loading companies" />}
+        {error && <ErrorState error={error} />}
       </div>
     )
   }
@@ -211,17 +200,17 @@ export default function EvidencePage() {
   return (
     <div className="page-evidence page-evidence--workflow">
       {/* ── Header ─────────────────────────────────────────────────── */}
-      <header className="scr-header">
-        <span className="eyebrow">Evidence universe</span>
+      <section className="page-hero">
+        <p className="page-kicker">Research</p>
         <h1>Evidence Explorer</h1>
-        <p className="scr-subtitle">
+        <p className="page-subtitle">
           Search the recorded evidence universe. Every item carries its source,
           epistemic type, and point-in-time validation.
         </p>
-      </header>
+      </section>
 
       {/* ── Search / filter bar ───────────────────────────────────── */}
-      <section className="evx-bar scr-section" style={{ marginTop: "var(--space-5)" }} aria-label="Evidence filters">
+      <section className="evx-bar scr-section mt-5" aria-label="Evidence filters">
         <div className="evx-bar-row">
           <div className="evx-search">
             <Search size={14} />
@@ -309,29 +298,18 @@ export default function EvidencePage() {
 
       {/* ── Evidence stream ────────────────────────────────────────── */}
       <section className="scr-section" aria-label="Evidence stream">
-        {lineageLoading && (
-          <div className="loading-state" role="status">
-            <Activity className="spin" size={26} />
-            <strong>Loading evidence lineage</strong>
-          </div>
-        )}
+        {lineageLoading && <LoadingState label="Loading evidence lineage" />}
 
-        {lineageError && !lineageLoading && (
-          <div className="empty-state error" role="alert">
-            <FileSearch size={28} />
-            <strong>Could not load evidence</strong>
-            <p>{lineageError}</p>
-          </div>
-        )}
+        {lineageError && !lineageLoading && <ErrorState error={lineageError} />}
 
         {lineage && !lineageLoading && filteredEvidence.length === 0 && (
-          <div className="empty-state">
-            <Search size={24} />
-            <strong>No matching evidence</strong>
-            <p>{evidence.length === 0
+          <EmptyState
+            icon={Search}
+            title="No matching evidence"
+            description={evidence.length === 0
               ? `No evidence was included for ${selectedSymbol}.`
-              : "Try adjusting the filters."}</p>
-          </div>
+              : "Try adjusting the filters."}
+          />
         )}
 
         {!lineageLoading && filteredEvidence.length > 0 && (
@@ -570,8 +548,8 @@ function EvidenceDrawer({
               <>
                 {item.source_records.map((rec, i) => (
                   <div className="evx-record" key={i}>
-                    <span className="evx-record-source">{rec.source}</span>
-                    {rec.dataset_id && <span className="mono">dataset {rec.dataset_id}</span>}
+                    <span className="evx-record-source">{formatSourceName(rec.source)}</span>
+                    {rec.dataset_id && <span className="mono">Source record</span>}
                     {rec.checksum && <span className="mono">checksum {rec.checksum.slice(0, 16)}…</span>}
                     {rec.available_at && <span>available {formatIso(rec.available_at)}</span>}
                   </div>

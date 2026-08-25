@@ -31,6 +31,7 @@ import type {
   IntelCategory,
   TimelineEntry,
 } from "../api/types"
+import { LoadingState, ErrorState, EmptyState } from "../components/States"
 import { formatIso, formatLabel, formatSourceName } from "../lib/format"
 import { statusTone } from "../lib/signal"
 import type { Tone } from "../lib/signal"
@@ -105,19 +106,19 @@ function directionIcon(direction: string) {
 function semanticBadge(semantic: string): { label: string; tone: Tone } {
   switch (semantic?.toUpperCase()) {
     case "FACT":
-      return { label: "FACT", tone: "green" }
+      return { label: "Fact", tone: "green" }
     case "MANAGEMENT_COMMENTARY":
-      return { label: "COMMENTARY", tone: "amber" }
+      return { label: "Commentary", tone: "amber" }
     case "DERIVED_METRIC":
-      return { label: "DERIVED", tone: "blue" }
+      return { label: "Derived", tone: "blue" }
     case "OBSERVATION":
-      return { label: "OBSERVATION", tone: "slate" }
+      return { label: "Observation", tone: "slate" }
     case "REPORTED_CLAIM":
-      return { label: "CLAIM", tone: "amber" }
+      return { label: "Claim", tone: "amber" }
     case "ALLEGATION":
-      return { label: "ALLEGATION", tone: "red" }
+      return { label: "Allegation", tone: "red" }
     case "CONCLUSION":
-      return { label: "CONCLUSION", tone: "blue" }
+      return { label: "Conclusion", tone: "blue" }
     default:
       return { label: formatLabel(semantic), tone: "slate" }
   }
@@ -561,6 +562,7 @@ export default function TimelinePage() {
   return (
     <div className="page-event-intelligence">
       <section className="page-hero">
+        <p className="page-kicker">Research</p>
         <h1>Event Intelligence</h1>
         <p className="page-subtitle">
           Chronological company events: what happened, when, from which source, and its verification status.
@@ -569,19 +571,11 @@ export default function TimelinePage() {
       </section>
 
       {loading && (
-        <div className="loading-state" role="status">
-          <Activity className="spin" size={26} />
-          <strong>Loading event data</strong>
-          <span>Fetching supported companies...</span>
-        </div>
+        <LoadingState label="Loading event data" description="Fetching supported companies..." />
       )}
 
       {error && (
-        <div className="empty-state error" role="alert">
-          <FileSearch size={28} />
-          <strong>Discovery unavailable</strong>
-          <p>{error}</p>
-        </div>
+        <ErrorState error={error} />
       )}
 
       {!loading && !error && (
@@ -654,11 +648,10 @@ export default function TimelinePage() {
           {/* RIGHT: Timeline content */}
           <div className="ei-content">
             {selected.length === 0 ? (
-              <div className="empty-state">
-                <Calendar size={28} />
-                <strong>Select companies to view events</strong>
-                <p>Choose companies from the list to see their event timelines.</p>
-              </div>
+              <EmptyState
+                title="Select companies to view events"
+                description="Choose companies from the list to see their event timelines."
+              />
             ) : (
               <>
                 {/* Summary Stats */}
@@ -748,11 +741,10 @@ export default function TimelinePage() {
 
                 {/* Clustered Event List */}
                 {filteredEntries.length === 0 ? (
-                  <div className="empty-state">
-                    <Search size={28} />
-                    <strong>No matching events</strong>
-                    <p>Try adjusting your filters or search query.</p>
-                  </div>
+                  <EmptyState
+                    title="No matching events"
+                    description="Try adjusting your filters or search query."
+                  />
                 ) : (
                   <div className="ei-clusters">
                     {[...clusteredEntries.entries()].map(([month, entries]) => (

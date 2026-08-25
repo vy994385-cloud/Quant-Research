@@ -1,25 +1,31 @@
 /**
  * COMPANIES — the research directory.
  *
- * One dense, sortable table of every tracked company: symbol, name, sector
- * and evidence-coverage state, with quick access into each company
- * workspace. Filter by text or sector; sort by any column.
+ * One dense, sortable table of every tracked company: symbol, name, sector,
+ * research state, latest activity, and freshness, with quick access into
+ * each company workspace. Filter by text or sector; sort by any column.
  *
  * Factual metadata only — no scores, no rankings.
  */
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Link } from "react-router-dom"
 import { Activity, ArrowUpRight, Building2, FileSearch } from "lucide-react"
 import { useDiscovery } from "../useDiscovery"
 import type { DiscoveryItem } from "../api/types"
-import { formatLabel } from "../lib/format"
+import { fetchTimeline } from "../api/client"
+import { formatLabel, formatIsoShort } from "../lib/format"
 import { Tag } from "../components/ui"
 
-type SortKey = "symbol" | "company" | "sector" | "research"
+type SortKey = "symbol" | "company" | "sector" | "research" | "freshness"
 type SortDir = "asc" | "desc"
 
 const SECTOR_ALL = "__all__"
+
+interface CompanyMeta {
+  latestDate: string | null
+  eventCount: number
+}
 
 export default function CompaniesPage() {
   const { items, loading, error } = useDiscovery()
@@ -27,12 +33,57 @@ export default function CompaniesPage() {
   const [sector, setSector] = useState<string>(SECTOR_ALL)
   const [sortKey, setSortKey] = useState<SortKey>("symbol")
   const [sortDir, setSortDir] = useState<SortDir>("asc")
+  const [meta, setMeta] = useState<Map<string, CompanyMeta>>(new Map())
+  const [metaLoading, setMetaLoading] = useState(false)
+  const [now] = useState(() => Date.now())
 
   const sectors = useMemo(() => {
     const set = new Set<string>()
     for (const item of items) set.add(item.sector)
     return [...set].sort()
   }, [items])
+
+  useEffect(() => {
+    const tracked = items.filter((i) => i.research_available)
+    if (tracked.length === 0) return undefined
+    let cancelled = false
+
+    async function run() {
+      setMetaLoading(true)
+      const results = await Promise.allSettled(
+        tracked.map((i) => fetchTimeline(i.symbol)),
+      )
+      if (cancelled) return
+
+      const next = new Map<string, CompanyMeta>()
+      for (const result of results) {
+        if (result.status !== "fulfilled") continue
+        const { timeline } = result.value
+        const entries = timeline.entries
+        if (entries.length === 0) continue
+
+        let latestDate: string | null = null
+        for (const entry of entries) {
+          const date = entry.timeline_at ?? entry.published_at ?? entry.effective_at
+          if (date && (!latestDate || date > latestDate)) latestDate = date
+        }
+        next.set(timeline.company, { latestDate, eventCount: entries.length })
+      }
+      setMeta(next)
+      setMetaLoading(false)
+    }
+
+    void run()
+    return () => { cancelled = true }
+  }, [items])
+
+  function freshness(date: string | null): { label: string; tone: "green" | "amber" | "slate" } {
+    if (!date) return { label: "No activity", tone: "slate" }
+    const daysSince = (now - new Date(date).getTime()) / (1000 * 60 * 60 * 24)
+    if (daysSince <= 7) return { label: "Fresh", tone: "green" }
+    if (daysSince <= 30) return { label: "Recent", tone: "amber" }
+    return { label: "Stale", tone: "slate" }
+  }
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -56,11 +107,16 @@ export default function CompaniesPage() {
           return dir * a.sector.localeCompare(b.sector)
         case "research":
           return dir * (Number(b.research_available) - Number(a.research_available))
+        case "freshness": {
+          const aDate = meta.get(a.symbol)?.latestDate ?? ""
+          const bDate = meta.get(b.symbol)?.latestDate ?? ""
+          return dir * bDate.localeCompare(aDate)
+        }
         default:
           return dir * a.symbol.localeCompare(b.symbol)
       }
     })
-  }, [items, query, sector, sortKey, sortDir])
+  }, [items, query, sector, sortKey, sortDir, meta])
 
   const availableCount = rows.filter((item) => item.research_available).length
 
@@ -151,7 +207,7 @@ export default function CompaniesPage() {
             <div className="table-scroll">
               <table className="directory-table">
                 <caption className="visually-hidden">
-                  Company research directory: symbol, company, sector, coverage state
+                  Company research directory: symbol, company, sector, research state, latest activity, freshness
                 </caption>
                 <thead>
                   <tr>
@@ -172,43 +228,66 @@ export default function CompaniesPage() {
                     </th>
                     <th scope="col" aria-sort={sortKey === "research" ? "descending" : undefined}>
                       <button type="button" onClick={() => toggleSort("research")}>
-                        Coverage{sortIndicator("research")}
+                        Research State{sortIndicator("research")}
+                      </button>
+                    </th>
+                    <th scope="col">
+                      <span>Latest Activity</span>
+                    </th>
+                    <th scope="col" aria-sort={sortKey === "freshness" ? "descending" : undefined}>
+                      <button type="button" onClick={() => toggleSort("freshness")}>
+                        Freshness{sortIndicator("freshness")}
                       </button>
                     </th>
                     <th scope="col" aria-label="Open workspace" />
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map((item) => (
-                    <tr key={item.symbol} className="directory-row">
-                      <td><Link className="mono directory-symbol" to={`/companies/${encodeURIComponent(item.symbol)}`}>{item.symbol}</Link></td>
-                      <td>{item.company_name ?? "\u2014"}</td>
-                      <td><Tag text={formatLabel(item.sector)} tone="slate" /></td>
-                      <td>
-                        <span className={`status-badge ${item.research_available ? "green" : "slate"}`}>
-                          <span className="status-badge-dot" />
-                          {item.research_available ? "Research available" : "Directory only"}
-                        </span>
-                      </td>
-                      <td className="directory-action">
-                        <Link
-                          to={`/companies/${encodeURIComponent(item.symbol)}`}
-                          className="directory-open"
-                          aria-label={`Open ${item.symbol} workspace`}
-                        >
-                          <ArrowUpRight size={13} />
-                          Open
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
+                  {rows.map((item) => {
+                    const companyMeta = meta.get(item.symbol)
+                    const fresh = freshness(companyMeta?.latestDate ?? null)
+                    return (
+                      <tr key={item.symbol} className="directory-row">
+                        <td><Link className="mono directory-symbol" to={`/companies/${encodeURIComponent(item.symbol)}`}>{item.symbol}</Link></td>
+                        <td>{item.company_name ?? "\u2014"}</td>
+                        <td><Tag text={formatLabel(item.sector)} tone="slate" /></td>
+                        <td>
+                          <span className={`status-badge ${item.research_available ? "green" : "slate"}`}>
+                            <span className="status-badge-dot" />
+                            {item.research_available ? "Research available" : "Directory only"}
+                          </span>
+                        </td>
+                        <td className="directory-activity">
+                          {companyMeta?.latestDate ? (
+                            <span className="mono">{formatIsoShort(companyMeta.latestDate)}</span>
+                          ) : (
+                            <span className="text-muted">—</span>
+                          )}
+                        </td>
+                        <td>
+                          <Tag text={fresh.label} tone={fresh.tone} />
+                        </td>
+                        <td className="directory-action">
+                          <Link
+                            to={`/companies/${encodeURIComponent(item.symbol)}`}
+                            className="directory-open"
+                            aria-label={`Open ${item.symbol} workspace`}
+                          >
+                            <ArrowUpRight size={13} />
+                            Open
+                          </Link>
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
             <p className="directory-footnote">
               Showing {rows.length} of {items.length} companies · {availableCount} with full
-              research · companies marked “Directory only” are listed without a generated
+              research · companies marked "Directory only" are listed without a generated
               research snapshot yet.
+              {metaLoading && " Loading freshness data…"}
             </p>
           </section>
         </>

@@ -9,7 +9,7 @@
 
 import { Link } from "react-router-dom"
 import type { CompanyResearch } from "../api/types"
-import { formatIso, formatLabel, formatSourceName } from "../lib/format"
+import { formatIso, formatLabel, formatNumber, formatSourceName } from "../lib/format"
 import { DataField, EmptyCopy, PanelHead, StatusBadge } from "./ui"
 
 export default function MarketContextPanel({ data }: { data: CompanyResearch }) {
@@ -66,8 +66,8 @@ export default function MarketContextPanel({ data }: { data: CompanyResearch }) 
                 />
               </dd>
             </div>
-            <DataField label="Accepted records" value={quality.market_accepted_records} />
-            <DataField label="Rejected records" value={quality.market_rejected_records} />
+            <DataField label="Accepted records" value={formatNumber(String(quality.market_accepted_records))} />
+            <DataField label="Rejected records" value={formatNumber(String(quality.market_rejected_records))} />
             {provenance?.source && (
               <DataField label="Market source" value={formatSourceName(provenance.source)} />
             )}

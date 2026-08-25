@@ -8,7 +8,7 @@ import { useEffect, useState } from "react"
 import { Landmark } from "lucide-react"
 import { fetchCorporateActions, ApiError } from "../api/client"
 import type { CompanyCorporateActionsResponse, CorporateActionItem } from "../api/types"
-import { formatIso, formatLabel } from "../lib/format"
+import { formatIso, formatLabel, formatSourceName } from "../lib/format"
 import { Tag } from "../components/ui"
 
 function actionTone(t: string): "green" | "red" | "slate" {
@@ -23,7 +23,7 @@ function ActionCard({ item }: { item: CorporateActionItem }) {
     <div className="ca-item">
       <div className="ca-item-head">
         <Tag text={formatLabel(item.action_type)} tone={actionTone(item.action_type)} />
-        {item.source_name && <span className="ca-source">{item.source_name}</span>}
+        {item.source_name && <span className="ca-source">{formatSourceName(item.source_name)}</span>}
       </div>
       <strong>{item.title}</strong>
       {item.description && <p className="ca-desc">{item.description}</p>}
@@ -33,8 +33,8 @@ function ActionCard({ item }: { item: CorporateActionItem }) {
         {item.record_date && <span>Record: {formatIso(item.record_date)}</span>}
       </div>
       <div className="ca-meta">
-        {item.value && <span>Value: {item.value}</span>}
-        {item.ratio && <span>Ratio: {item.ratio}</span>}
+        {item.value && <span>Value: {formatLabel(String(item.value))}</span>}
+        {item.ratio && <span>Ratio: {formatLabel(String(item.ratio))}</span>}
       </div>
       {item.source_url && (
         <a className="ca-link" href={item.source_url} target="_blank" rel="noopener noreferrer">

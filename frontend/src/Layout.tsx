@@ -21,9 +21,11 @@ import { NavLink, Outlet, useNavigate } from "react-router-dom"
 import {
   Activity,
   AlertTriangle,
+  ArrowUpRight,
   BarChart3,
   Bookmark,
   Building2,
+  Calendar,
   ChevronDown,
   Clock,
   Compass,
@@ -32,17 +34,17 @@ import {
   FileSearch,
   FileText,
   Filter,
-  GitBranch,
   GitCompareArrows,
+  Globe,
   Home,
   Layers,
   Landmark,
   Lightbulb,
   LineChart,
+  List,
   Menu,
   Search,
   Shield,
-  Signal,
   SlidersHorizontal,
   TrendingUp,
   UserRound,
@@ -71,9 +73,9 @@ const NAV_GROUPS: NavGroup[] = [
     icon: Compass,
     items: [
       { to: "/discover", label: "Research Home", icon: Home },
-      { to: "/companies", label: "Companies", icon: Building2 },
-      { to: "/industries", label: "Industries", icon: BarChart3 },
+      { to: "/discover/search", label: "Global Search", icon: Globe },
       { to: "/themes", label: "Themes", icon: Lightbulb },
+      { to: "/industries", label: "Industries", icon: BarChart3 },
     ],
   },
   {
@@ -81,6 +83,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Research",
     icon: Search,
     items: [
+      { to: "/companies", label: "Companies", icon: Building2 },
       { to: "/financial-intelligence", label: "Financial Intelligence", icon: LineChart },
       { to: "/market-intelligence", label: "Market Intelligence", icon: Eye },
       { to: "/technical", label: "Technical", icon: TrendingUp },
@@ -94,8 +97,9 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Screen",
     icon: SlidersHorizontal,
     items: [
-      { to: "/screener", label: "Screener", icon: Filter },
+      { to: "/screener", label: "Advanced Screener", icon: Filter },
       { to: "/compare", label: "Compare", icon: GitCompareArrows },
+      { to: "/peer-research", label: "Peer Research", icon: GitCompareArrows },
     ],
   },
   {
@@ -104,8 +108,10 @@ const NAV_GROUPS: NavGroup[] = [
     icon: Activity,
     items: [
       { to: "/my-research", label: "My Research", icon: UserRound },
-      { to: "/signals", label: "Signals", icon: Signal },
-      { to: "/cross-domain", label: "Cross-Domain", icon: GitBranch },
+      { to: "/watchlists", label: "Watchlists", icon: List },
+      { to: "/research-changes", label: "Research Changes", icon: ArrowUpRight },
+      { to: "/evidence-alerts", label: "Evidence Alerts", icon: AlertTriangle },
+      { to: "/calendar", label: "Calendar", icon: Calendar },
     ],
   },
   {
@@ -123,7 +129,11 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Asset Classes",
     icon: Landmark,
     items: [
-      { to: "/asset-classes", label: "Asset Classes", icon: Bookmark },
+      { to: "/asset-classes/stocks", label: "Stocks", icon: TrendingUp },
+      { to: "/asset-classes/etf", label: "ETF", icon: Layers },
+      { to: "/asset-classes/mutual-funds", label: "Mutual Funds", icon: Landmark },
+      { to: "/asset-classes/ipo", label: "IPO", icon: ArrowUpRight },
+      { to: "/asset-classes/fno", label: "F&O", icon: Bookmark },
     ],
   },
 ]
@@ -161,7 +171,7 @@ function SideNav({
         <span className="brand-mark">QR</span>
         <span className="brand-text">
           <strong>Quant Research</strong>
-          <small>EVIDENCE TERMINAL</small>
+          <small>Evidence terminal</small>
         </span>
         <button
           type="button"

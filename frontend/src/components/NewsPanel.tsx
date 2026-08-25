@@ -8,7 +8,7 @@ import { useEffect, useState } from "react"
 import { Newspaper } from "lucide-react"
 import { fetchCompanyNews, ApiError } from "../api/client"
 import type { CompanyNewsResponse, CompanyNewsItem } from "../api/types"
-import { formatIso, formatLabel } from "../lib/format"
+import { formatIso, formatLabel, formatSourceName } from "../lib/format"
 import { directionTone } from "../lib/signal"
 import { Tag } from "../components/ui"
 
@@ -18,7 +18,7 @@ function NewsItemCard({ item }: { item: CompanyNewsItem }) {
       <div className="news-item-head">
         <Tag text={formatLabel(item.category)} tone="slate" />
         <Tag text={formatLabel(item.direction)} tone={directionTone(item.direction)} />
-        {item.source_name && <span className="news-source">{item.source_name}</span>}
+        {item.source_name && <span className="news-source">{formatSourceName(item.source_name)}</span>}
       </div>
       <strong className="news-headline">{item.headline}</strong>
       {item.summary && <p className="news-summary">{item.summary}</p>}

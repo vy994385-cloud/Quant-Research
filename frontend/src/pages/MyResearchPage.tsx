@@ -10,11 +10,9 @@
 import { useMemo, useState } from "react"
 import { Link } from "react-router-dom"
 import {
-  Activity,
   BellOff,
   Bookmark,
   Clock,
-  FileSearch,
   MonitorPlay,
   Save,
   Settings2,
@@ -29,6 +27,7 @@ import {
 import type { DiscoveryItem } from "../api/types"
 import { useDiscovery } from "../useDiscovery"
 import { formatLabel } from "../lib/format"
+import { LoadingState, ErrorState } from "../components/States"
 import { EmptyCopy, PanelHead, SectionDivider, Tag } from "../components/ui"
 
 interface CompanyRow {
@@ -125,6 +124,7 @@ export default function MyResearchPage() {
   return (
     <div className="page-my-research">
       <section className="page-hero">
+        <p className="page-kicker">Monitor</p>
         <h1>My Research</h1>
         <p className="page-subtitle">
           Your working context. Watchlist and history live on this device only —
@@ -133,18 +133,11 @@ export default function MyResearchPage() {
       </section>
 
       {loading && (
-        <div className="loading-state compact" role="status">
-          <Activity className="spin" size={18} />
-          <span>Loading your research context…</span>
-        </div>
+        <LoadingState label="Loading your research context…" />
       )}
 
       {error && (
-        <div className="empty-state error" role="alert">
-          <FileSearch size={28} />
-          <strong>Discovery unavailable</strong>
-          <p>{error}</p>
-        </div>
+        <ErrorState error={error} />
       )}
 
       {!loading && !error && (
@@ -199,7 +192,7 @@ export default function MyResearchPage() {
             )}
           </section>
 
-          <SectionDivider label="NOT YET AVAILABLE" />
+          <SectionDivider label="Not yet available" />
 
           <section aria-label="Capabilities not yet available" className="capability-grid">
             {UNAVAILABLE.map((item) => (

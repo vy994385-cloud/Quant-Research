@@ -23,6 +23,7 @@ import "./App.css"
 
 /* ── DISCOVER ─────────────────────────────────────────────────── */
 const DiscoverPage = lazy(() => import("./pages/DiscoverPage"))
+const GlobalSearchPage = lazy(() => import("./pages/GlobalSearchPage"))
 const CompaniesPage = lazy(() => import("./pages/CompaniesPage"))
 const IndustriesPage = lazy(() => import("./pages/IndustriesPage"))
 const ThemesPage = lazy(() => import("./pages/ThemesPage"))
@@ -39,11 +40,14 @@ const ResearchGapsPage = lazy(() => import("./pages/ResearchGapsPage"))
 /* ── SCREEN ───────────────────────────────────────────────────── */
 const ScreenerPage = lazy(() => import("./pages/ScreenerPage"))
 const ComparePage = lazy(() => import("./pages/ComparePage"))
+const PeerResearchPage = lazy(() => import("./pages/PeerResearchPage"))
 
 /* ── MONITOR ──────────────────────────────────────────────────── */
 const MyResearchPage = lazy(() => import("./pages/MyResearchPage"))
-const SignalsPage = lazy(() => import("./pages/SignalsPage"))
-const CrossDomainPage = lazy(() => import("./pages/CrossDomainPage"))
+const WatchlistsPage = lazy(() => import("./pages/WatchlistsPage"))
+const ResearchChangesPage = lazy(() => import("./pages/ResearchChangesPage"))
+const EvidenceAlertsPage = lazy(() => import("./pages/EvidenceAlertsPage"))
+const CalendarPage = lazy(() => import("./pages/CalendarPage"))
 
 /* ── OUTPUT ───────────────────────────────────────────────────── */
 const ReportsPage = lazy(() => import("./pages/ReportsPage"))
@@ -76,6 +80,7 @@ export function AppRoutes() {
 
         {/* ── DISCOVER ─────────────────────────────────────────── */}
         <Route path="/discover" element={<Page><DiscoverPage /></Page>} />
+        <Route path="/discover/search" element={<Page><GlobalSearchPage /></Page>} />
         <Route path="/companies" element={<Page><CompaniesPage /></Page>} />
         <Route path="/companies/:symbol" element={<Page><CompanyResearchPage /></Page>} />
         <Route path="/industries" element={<Page><IndustriesPage /></Page>} />
@@ -92,11 +97,14 @@ export function AppRoutes() {
         {/* ── SCREEN ───────────────────────────────────────────── */}
         <Route path="/screener" element={<Page><ScreenerPage /></Page>} />
         <Route path="/compare" element={<Page><ComparePage /></Page>} />
+        <Route path="/peer-research" element={<Page><PeerResearchPage /></Page>} />
 
         {/* ── MONITOR ──────────────────────────────────────────── */}
         <Route path="/my-research" element={<Page><MyResearchPage /></Page>} />
-        <Route path="/signals" element={<Page><SignalsPage /></Page>} />
-        <Route path="/cross-domain" element={<Page><CrossDomainPage /></Page>} />
+        <Route path="/watchlists" element={<Page><WatchlistsPage /></Page>} />
+        <Route path="/research-changes" element={<Page><ResearchChangesPage /></Page>} />
+        <Route path="/evidence-alerts" element={<Page><EvidenceAlertsPage /></Page>} />
+        <Route path="/calendar" element={<Page><CalendarPage /></Page>} />
 
         {/* ── OUTPUT ───────────────────────────────────────────── */}
         <Route path="/reports" element={<Page><ReportsPage /></Page>} />
@@ -105,6 +113,7 @@ export function AppRoutes() {
 
         {/* ── ASSET CLASSES ────────────────────────────────────── */}
         <Route path="/asset-classes" element={<Page><AssetClassesPage /></Page>} />
+        <Route path="/asset-classes/:classId" element={<Page><AssetClassesPage /></Page>} />
 
         {/* ── Legacy redirects (backward compat) ───────────────── */}
         <Route path="/timeline" element={<Navigate to="/events" replace />} />

@@ -7,17 +7,17 @@
 
 import { useMemo } from "react"
 import type { CompanyResearch, SourceStatus } from "../api/types"
-import { formatIso, formatLabel, formatSourceName } from "../lib/format"
+import { formatIso, formatLabel, formatNumber, formatSourceName } from "../lib/format"
 import { EmptyCopy, PanelHead, Tag } from "./ui"
 
 function SourceRow({ source }: { source: SourceStatus }) {
   return (
     <tr className={source.stale ? "source-row stale" : "source-row"}>
-      <th scope="row" title={source.source_name}>
+      <th scope="row" title={formatSourceName(source.source_name)}>
         {formatSourceName(source.source_name)}
       </th>
       <td>{formatLabel(source.source_type)}</td>
-      <td className="num">{source.item_count}</td>
+      <td className="num">{formatNumber(String(source.item_count))}</td>
       <td>{source.latest_published_at ? formatIso(source.latest_published_at) : "\u2014"}</td>
       <td>
         {source.days_since_latest_published !== null
@@ -27,7 +27,7 @@ function SourceRow({ source }: { source: SourceStatus }) {
       <td>
         <Tag
           text={source.stale ? "Stale" : "Fresh"}
-          tone={source.stale ? "red" : "green"}
+          tone={source.stale ? "amber" : "green"}
         />
       </td>
       <td>

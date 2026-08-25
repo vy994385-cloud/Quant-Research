@@ -28,7 +28,7 @@ import {
   Database,
 } from "lucide-react"
 import { formatIso, formatLabel } from "../lib/format"
-import { Tag, StatusBadge } from "./ui"
+import { Tag, StatusBadge, Metric, SectionHeader } from "./ui"
 import type { Tone } from "../lib/signal"
 
 /* ── ResearchSection ────────────────────────────────────────────────── */
@@ -48,13 +48,11 @@ export function ResearchSection({
 }) {
   return (
     <section id={id} className="section-anchor">
-      <div className="research-section-head">
-        <div>
-          <h3>{title}</h3>
-          {subtitle && <span className="research-section-subtitle">{subtitle}</span>}
-        </div>
-        {status && <Tag text={status.label} tone={status.tone} />}
-      </div>
+      <SectionHeader
+        title={title}
+        subtitle={subtitle}
+        aside={status && <Tag text={status.label} tone={status.tone} />}
+      />
       {children}
     </section>
   )
@@ -66,12 +64,12 @@ export type DataAvailability = "available" | "partial" | "missing" | "stale" | "
 
 export function DataStatus({ availability, detail }: { availability: DataAvailability; detail?: string }) {
   const config: Record<DataAvailability, { icon: React.ComponentType<{ size?: number }>; tone: Tone; label: string }> = {
-    available: { icon: CheckCircle2, tone: "green", label: "AVAILABLE" },
-    partial: { icon: AlertTriangle, tone: "amber", label: "PARTIAL" },
-    missing: { icon: XCircle, tone: "red", label: "MISSING" },
-    stale: { icon: Clock, tone: "amber", label: "STALE" },
-    invalid: { icon: XCircle, tone: "red", label: "INVALID" },
-    unavailable: { icon: HelpCircle, tone: "slate", label: "NOT AVAILABLE" },
+    available: { icon: CheckCircle2, tone: "green", label: "Available" },
+    partial: { icon: AlertTriangle, tone: "amber", label: "Partial" },
+    missing: { icon: XCircle, tone: "slate", label: "Missing" },
+    stale: { icon: Clock, tone: "amber", label: "Stale" },
+    invalid: { icon: XCircle, tone: "slate", label: "Invalid" },
+    unavailable: { icon: HelpCircle, tone: "slate", label: "Not available" },
   }
   const c = config[availability]
   const Icon = c.icon
@@ -98,7 +96,7 @@ export function PITStatus({
   return (
     <span className={`pit-status ${passed ? "pit-ok" : "pit-fail"}`}>
       <Shield size={12} />
-      <StatusBadge text={passed ? "PIT OK" : "PIT FAILED"} tone={passed ? "green" : "red"} />
+      <StatusBadge text={passed ? "PIT passed" : "PIT failed"} tone={passed ? "green" : "red"} />
       {asOf && <span className="pit-date">as-of {formatIso(asOf)}</span>}
       {effectiveAsOf && <span className="pit-date">effective {formatIso(effectiveAsOf)}</span>}
     </span>
@@ -120,11 +118,7 @@ export function MetricTileCompact({
 }) {
   return (
     <div className="metric-tile-compact">
-      <span className="metric-tile-compact-label">{label}</span>
-      <div className="metric-tile-compact-value">
-        <strong>{value ?? "\u2014"}</strong>
-        {unit && <span className="metric-tile-compact-unit">{unit}</span>}
-      </div>
+      <Metric label={label} value={value ?? "\u2014"} unit={unit} />
       {status && <DataStatus availability={status} />}
     </div>
   )

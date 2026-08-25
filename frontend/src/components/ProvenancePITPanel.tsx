@@ -8,7 +8,7 @@
  */
 
 import type { CompanyResearch, PointInTime, Provenance, ProvenanceRecord } from "../api/types"
-import { formatIso, formatPitNote } from "../lib/format"
+import { formatIso, formatPitNote, formatSourceName } from "../lib/format"
 import {
   DataField,
   EmptyCopy,
@@ -29,8 +29,8 @@ function LineageRecord({
       <h4>{title}</h4>
       {record ? (
         <div className="data-field-grid">
-          <DataField label="Source" value={record.source} />
-          <DataField label="Record" value={record.record_id ?? "Not available"} mono />
+          <DataField label="Source" value={formatSourceName(record.source)} />
+          <DataField label="Record ID" value={record.record_id ? `${record.record_id.slice(0, 12)}${record.record_id.length > 12 ? "…" : ""}` : "Not available"} mono />
           <DataField label="Retrieved" value={record.retrieved_at ? formatIso(record.retrieved_at) : "Not available"} />
           <DataField label="Available" value={record.available_at ? formatIso(record.available_at) : "Not available"} />
         </div>
@@ -56,7 +56,7 @@ export default function ProvenancePITPanel({ data }: { data: CompanyResearch }) 
         <SectionDivider label="Point-in-time context" />
         <div className="pit-status-row">
           <StatusBadge
-            text={pit.pit_checks_passed ? "PIT CHECKS PASSED" : "PIT CHECKS FAILED"}
+            text={pit.pit_checks_passed ? "PIT checks passed" : "PIT checks failed"}
             tone={pit.pit_checks_passed ? "green" : "red"}
           />
         </div>
@@ -94,7 +94,7 @@ export default function ProvenancePITPanel({ data }: { data: CompanyResearch }) 
             </p>
             <ul className="archived-list">
               {provenance.archived_sources.map((sourceId) => (
-                <li key={sourceId} className="mono">{sourceId}</li>
+                <li key={sourceId} className="mono">{sourceId.length > 16 ? `${sourceId.slice(0, 16)}…` : sourceId}</li>
               ))}
             </ul>
           </div>

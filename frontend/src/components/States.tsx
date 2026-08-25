@@ -41,14 +41,17 @@ function StateShell({
 
 export function LoadingState({
   label,
+  description,
 }: {
   label: string
+  description?: string
 }) {
   return (
     <div className="loading-state" role="status">
       <Activity className="spin" size={24} />
       <strong>Loading research</strong>
       <span>{label}</span>
+      {description && <span>{description}</span>}
     </div>
   )
 }

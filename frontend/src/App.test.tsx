@@ -46,7 +46,7 @@ describe("App", () => {
     expect(within(sideNav).getByText("Companies")).toBeInTheDocument()
     expect(within(sideNav).getByText("Industries")).toBeInTheDocument()
     expect(within(sideNav).getByText("Themes")).toBeInTheDocument()
-    expect(within(sideNav).getByText("Signals")).toBeInTheDocument()
+    expect(within(sideNav).getByText("Watchlists")).toBeInTheDocument()
     expect(within(sideNav).getByText("Compare")).toBeInTheDocument()
     expect(within(sideNav).getAllByText("Evidence").length).toBeGreaterThanOrEqual(1)
   })
@@ -101,7 +101,7 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("tab", { name: "Provenance" }))
     expect(await screen.findByText("Recorded Intel Sources")).toBeInTheDocument()
     expect(screen.getByText("Market source record")).toBeInTheDocument()
-    expect(screen.getAllByText("yahoo_finance_market").length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText("Yahoo Finance Market").length).toBeGreaterThanOrEqual(1)
 
     // Coverage tab: structured data coverage matrix
     fireEvent.click(screen.getByRole("tab", { name: "Coverage" }))

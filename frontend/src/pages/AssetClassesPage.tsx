@@ -73,6 +73,7 @@ export default function AssetClassesPage() {
   return (
     <div className="page-asset-classes">
       <section className="page-hero">
+        <p className="page-kicker">Asset Classes</p>
         <h1>Asset Classes</h1>
         <p className="page-subtitle">
           Dedicated research workspaces beyond single equities. Coverage today is
@@ -95,7 +96,7 @@ export default function AssetClassesPage() {
         </div>
       </section>
 
-      <SectionDivider label="ADDITIONAL ASSET CLASSES" />
+      <SectionDivider label="Additional asset classes" />
 
       <div className="filter-chips" role="group" aria-label="Select asset class">
         {TABS.map((option) => (

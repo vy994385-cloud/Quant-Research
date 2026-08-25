@@ -10,7 +10,7 @@
 import { useState } from "react"
 import { Building2, RefreshCw, Star } from "lucide-react"
 import type { CompanyResearch } from "../api/types"
-import { formatIso } from "../lib/format"
+import { formatIso, formatLabel } from "../lib/format"
 import { isWatched, toggleWatch } from "../lib/localResearch"
 import { StatusBadge } from "./ui"
 
@@ -58,7 +58,7 @@ export default function CompanyHeader({
             <p className="ticker">{company.symbol}</p>
             <h1>{company.company_name ?? company.symbol}</h1>
             <div className="company-meta">
-              <span>{company.sector ? company.sector : "Sector not available"}</span>
+              <span>{company.sector ? formatLabel(company.sector) : "Sector not available"}</span>
               <span aria-hidden>·</span>
               <span>Effective as of {formatIso(point_in_time.effective_as_of)}</span>
               {point_in_time.market_as_of ? (
@@ -72,30 +72,30 @@ export default function CompanyHeader({
         </div>
 
         <div className="header-tags">
-          <StatusBadge text={`${point_in_time.evidence_included} EVIDENCE`} tone="slate" />
+          <StatusBadge text={`${point_in_time.evidence_included} evidence`} tone="slate" />
           {freshness?.days_since_latest_published !== null &&
             freshness?.days_since_latest_published !== undefined && (
               <StatusBadge
                 text={
                   freshness.stale
-                    ? `STALE · ${freshness.days_since_latest_published}D`
-                    : `UPDATED ${freshness.days_since_latest_published}D AGO`
+                    ? `Stale · ${freshness.days_since_latest_published}d`
+                    : `Updated ${freshness.days_since_latest_published}d ago`
                 }
                 tone={freshness.stale ? "amber" : "green"}
               />
             )}
           {assessment.research_ready ? (
-            <StatusBadge text="RESEARCH READY" tone="blue" />
+            <StatusBadge text="Research ready" tone="blue" />
           ) : (
-            <StatusBadge text="PARTIAL RESEARCH" tone="slate" />
+            <StatusBadge text="Partial research" tone="slate" />
           )}
           {data_quality.market_validation_status === "VALIDATED" && (
-            <StatusBadge text="DATA VALIDATED" tone="green" />
+            <StatusBadge text="Data validated" tone="green" />
           )}
           {point_in_time.pit_checks_passed ? (
-            <StatusBadge text="PIT VERIFIED" tone="blue" />
+            <StatusBadge text="PIT verified" tone="blue" />
           ) : (
-            <StatusBadge text="PIT CHECKS FAILED" tone="red" />
+            <StatusBadge text="PIT checks failed" tone="slate" />
           )}
           <button
             type="button"

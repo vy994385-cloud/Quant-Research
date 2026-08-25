@@ -36,13 +36,12 @@ import {
   Zap,
   CreditCard,
   Factory,
-  Activity,
-  FileSearch,
   AlertTriangle,
 } from "lucide-react"
 import { fetchDiscovery } from "../api/client"
 import type { DiscoveryItem } from "../api/types"
 import { SectionDivider, Tag } from "../components/ui"
+import { LoadingState, EmptyState, ErrorState } from "../components/States"
 import {
   ResearchSection,
   DataStatus,
@@ -183,6 +182,7 @@ export default function ThemesPage() {
   return (
     <div className="page-themes">
       <section className="page-hero">
+        <p className="page-kicker">Discover</p>
         <h1>Themes & Technologies</h1>
         <p className="page-subtitle">
           Technology and theme exploration. Company-specific evidence of exposure
@@ -191,21 +191,9 @@ export default function ThemesPage() {
         </p>
       </section>
 
-      {loading && (
-        <div className="loading-state" role="status">
-          <Activity className="spin" size={26} />
-          <strong>Loading theme data</strong>
-          <span>Fetching discovery information...</span>
-        </div>
-      )}
+      {loading && <LoadingState label="Fetching discovery information..." />}
 
-      {error && (
-        <div className="empty-state error" role="alert">
-          <FileSearch size={28} />
-          <strong>Discovery unavailable</strong>
-          <p>{error}</p>
-        </div>
-      )}
+      {error && <ErrorState error={error} />}
 
       {!loading && !error && (
         <>
@@ -263,11 +251,11 @@ export default function ThemesPage() {
                 <ThemeDetail theme={activeTheme} onCompanyClick={(sym) => navigate(`/companies/${sym}`)} />
               ) : (
                 <div className="panel">
-                  <div className="empty-state">
-                    <Cpu size={28} />
-                    <strong>Select a theme</strong>
-                    <p>Choose a technology theme from the list to view its overview.</p>
-                  </div>
+                  <EmptyState
+                    icon={Cpu}
+                    title="Select a theme"
+                    description="Choose a technology theme from the list to view its overview."
+                  />
                 </div>
               )}
             </div>
@@ -275,7 +263,7 @@ export default function ThemesPage() {
 
           {/* Theme intelligence capability note */}
           <div className="theme-architecture-note">
-            <SectionDivider label="HOW THEME COVERAGE WORKS TODAY" />
+            <SectionDivider label="How theme coverage works" />
             <div className="architecture-note-content">
               <p>
                 Themes are evidence-backed technology classifications: each company's

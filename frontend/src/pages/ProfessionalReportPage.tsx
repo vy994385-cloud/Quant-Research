@@ -340,7 +340,7 @@ function RailSourceHealth({ health }: { health: F8SourceHealth }) {
           {problemSources.slice(0, 6).map((entry) => (
             <li key={entry.source_id}>
               <strong>{formatSourceName(entry.name)}</strong>
-              <Tag text={formatLabel(entry.freshness_status)} tone="red" />
+              <Tag text={formatLabel(entry.freshness_status)} tone="amber" />
             </li>
           ))}
         </ul>
@@ -492,6 +492,7 @@ export default function ProfessionalReportPage() {
       {/* Compact company selector bar */}
       <section className="page-hero pr-hero">
         <div>
+          <p className="page-kicker">Output</p>
           <h1>Professional Research Report</h1>
           <p className="page-subtitle">
             Canonical report assembled from evidence lineage, labelled by epistemic type.

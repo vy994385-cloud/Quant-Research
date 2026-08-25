@@ -140,6 +140,7 @@
   --text-2xl: 17px;
   --text-3xl: 20px;
   --text-4xl: 24px;
+  --text-micro: 8px;
 
   --leading-tight: 1.25;
   --leading-normal: 1.5;
@@ -210,6 +211,9 @@
   --transition-smooth: var(--dur-enter) var(--ease-out);
   --anim-page-enter: page-enter var(--dur-enter) var(--ease-out) both;
   --anim-panel-enter: panel-enter var(--dur-enter) var(--ease-out) both;
+  --anim-section-enter: section-enter var(--dur-enter) var(--ease-out) both;
+  --anim-drawer-in: drawer-in var(--dur-drawer) var(--ease-out) both;
+  --anim-disclosure-in: disclosure-in var(--dur-base) var(--ease-out) both;
   --anim-chip-in: chip-in var(--dur-base) var(--ease-out) both;
   --anim-results-in: results-in var(--dur-base) var(--ease-out) both;
 
@@ -326,4 +330,16 @@ select {
 @keyframes results-in {
   from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: translateY(0); }
+}
+@keyframes section-enter {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes drawer-in {
+  from { opacity: 0; transform: translateX(12px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes disclosure-in {
+  from { opacity: 0; max-height: 0; }
+  to { opacity: 1; max-height: 500px; }
 }

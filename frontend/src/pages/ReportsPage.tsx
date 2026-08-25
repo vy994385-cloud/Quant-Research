@@ -7,12 +7,12 @@
 import { useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import {
-  Activity,
   FileSearch,
   Layers,
   Search,
 } from "lucide-react"
 import { useDiscovery } from "../useDiscovery"
+import { LoadingState, ErrorState } from "../components/States"
 import { formatLabel } from "../lib/format"
 import { Tag } from "../components/ui"
 
@@ -62,6 +62,7 @@ export default function ReportsPage() {
   return (
     <div className="page-reports">
       <section className="page-hero">
+        <p className="page-kicker">Output</p>
         <h1>Research Reports</h1>
         <p className="page-subtitle">
           Structured research reports combining evidence, provenance, and
@@ -71,18 +72,11 @@ export default function ReportsPage() {
       </section>
 
       {loading && (
-        <div className="loading-state" role="status">
-          <Activity className="spin" size={26} />
-          <strong>Loading reports</strong>
-        </div>
+        <LoadingState label="Loading reports" />
       )}
 
       {error && (
-        <div className="empty-state error" role="alert">
-          <FileSearch size={28} />
-          <strong>Discovery unavailable</strong>
-          <p>{error}</p>
-        </div>
+        <ErrorState error={error} />
       )}
 
       {!loading && !error && (
