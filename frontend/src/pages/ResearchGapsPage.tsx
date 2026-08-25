@@ -1,20 +1,18 @@
 /**
- * Research Gaps & Coverage Intelligence page.
+ * RESEARCH COVERAGE — what is known, limited, stale, conflicting,
+ * insufficient or missing.
  *
- * Structured workspace for understanding what is KNOWN, UNKNOWN,
- * PARTIALLY KNOWN, STALE, CONFLICTING, and PIT-LIMITED about a company.
+ *   header → context → status overview strip → grouped gap stream → limitations
  *
- * Sections: Coverage Summary, Attention Required, Domain Coverage,
- * Historical Gaps, Evidence Problems, Research Limitations, Gap Details.
- *
- * No scores, no rankings, no recommendations, no investment decisions.
+ * Gaps merge across selected companies so identical reasons render once.
+ * Status is descriptive, never a score; missing evidence never reads as
+ * negative evidence (slate, not red).
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react"
 import {
   Activity,
   AlertTriangle,
-  Building2,
   CheckCircle2,
   ChevronDown,
   ChevronRight,
@@ -23,86 +21,58 @@ import {
   HelpCircle,
   Search,
   Shield,
-  XCircle,
 } from "lucide-react"
 import { ApiError, fetchDiscovery, fetchResearchGaps } from "../api/client"
 import type { DiscoveryItem, ResearchGap } from "../api/types"
 import { formatIso, formatLabel, formatSourceName } from "../lib/format"
-import { Tag } from "../components/ui"
 import type { Tone } from "../lib/signal"
 
-/* ── Helpers ──────────────────────────────────────────────────────────── */
+/* ── Status language ──────────────────────────────────────────────────── */
 
-function statusTone(status: string): Tone {
-  switch (status?.toUpperCase()) {
-    case "KNOWN":
-      return "green"
-    case "PARTIALLY_KNOWN":
-      return "amber"
-    case "UNAVAILABLE":
-      return "slate"
-    case "CONFLICTING":
-      return "amber"
-    case "STALE":
-      return "amber"
-    case "INSUFFICIENT_EVIDENCE":
-      return "amber"
-    default:
-      return "slate"
-  }
+type GapStatus = "KNOWN" | "PARTIALLY_KNOWN" | "UNAVAILABLE" | "CONFLICTING" | "STALE" | "INSUFFICIENT_EVIDENCE"
+
+const STATUS_ORDER: GapStatus[] = [
+  "KNOWN",
+  "PARTIALLY_KNOWN",
+  "STALE",
+  "INSUFFICIENT_EVIDENCE",
+  "CONFLICTING",
+  "UNAVAILABLE",
+]
+
+const STATUS_META: Record<GapStatus, { label: string; blurb: string; tone: Tone }> = {
+  KNOWN: { label: "Available", blurb: "recorded and in force", tone: "green" },
+  PARTIALLY_KNOWN: { label: "Limited", blurb: "partial coverage", tone: "amber" },
+  STALE: { label: "Stale", blurb: "dated observations", tone: "amber" },
+  INSUFFICIENT_EVIDENCE: { label: "Insufficient", blurb: "not enough evidence", tone: "slate" },
+  CONFLICTING: { label: "Conflicting", blurb: "sources disagree", tone: "amber" },
+  UNAVAILABLE: { label: "Missing", blurb: "no recorded data", tone: "slate" },
+}
+
+function statusMeta(status: string) {
+  const key = (status?.toUpperCase() ?? "") as GapStatus
+  return STATUS_META[key] ?? { label: formatLabel(status), blurb: "", tone: "slate" as Tone }
 }
 
 function severityTone(severity: string): Tone {
   switch (severity?.toUpperCase()) {
-    case "HIGH":
-      return "red"
-    case "MEDIUM":
-      return "amber"
-    case "LOW":
-    default:
-      return "slate"
+    case "HIGH": return "red"
+    case "MEDIUM": return "amber"
+    default: return "slate"
   }
 }
 
 function statusIcon(status: string) {
   switch (status?.toUpperCase()) {
-    case "KNOWN":
-      return <CheckCircle2 size={12} />
-    case "PARTIALLY_KNOWN":
-      return <AlertTriangle size={12} />
-    case "UNAVAILABLE":
-      return <XCircle size={12} />
-    case "CONFLICTING":
-      return <AlertTriangle size={12} />
-    case "STALE":
-      return <Clock size={12} />
-    case "INSUFFICIENT_EVIDENCE":
-      return <HelpCircle size={12} />
-    default:
-      return <HelpCircle size={12} />
+    case "KNOWN": return <CheckCircle2 size={12} />
+    case "PARTIALLY_KNOWN": return <AlertTriangle size={12} />
+    case "CONFLICTING": return <AlertTriangle size={12} />
+    case "STALE": return <Clock size={12} />
+    default: return <HelpCircle size={12} />
   }
 }
 
-function statusLabel(status: string): string {
-  switch (status?.toUpperCase()) {
-    case "KNOWN":
-      return "KNOWN"
-    case "PARTIALLY_KNOWN":
-      return "PARTIAL"
-    case "UNAVAILABLE":
-      return "MISSING"
-    case "CONFLICTING":
-      return "CONFLICT"
-    case "STALE":
-      return "STALE"
-    case "INSUFFICIENT_EVIDENCE":
-      return "INSUFFICIENT"
-    default:
-      return formatLabel(status)
-  }
-}
-
-/* ── Interface ────────────────────────────────────────────────────────── */
+/* ── Grouping ─────────────────────────────────────────────────────────── */
 
 /** A research gap merged across companies with identical content. */
 type GroupedGap = ResearchGap & { symbols: string[] }
@@ -129,207 +99,24 @@ function groupGaps(gaps: Array<ResearchGap & { symbol: string }>): GroupedGap[] 
 interface CompanyGapsData {
   symbol: string
   company_name: string | null
-  research_gaps: {
-    symbol: string
-    as_of: string
-    gap_count: number
-    gaps: ResearchGap[]
-    status_counts: Record<string, number>
-    category_counts: Record<string, number>
-    coverage_score: string | null
-    coverage_explanation: string
-    notes: string[]
-  } | null
+  research_gaps: ResearchGapsShape | null
   loading: boolean
   error: string | null
 }
 
-/* ── Coverage Summary ─────────────────────────────────────────────────── */
-
-function CoverageSummary({ gaps }: { gaps: ResearchGap[] }) {
-  const total = gaps.length
-  const byStatus: Record<string, number> = {}
-  for (const g of gaps) {
-    byStatus[g.status] = (byStatus[g.status] ?? 0) + 1
-  }
-
-  return (
-    <div className="rg-summary">
-      <div className="rg-stat">
-        <strong>{total}</strong>
-        <span>gaps</span>
-      </div>
-      {byStatus["UNAVAILABLE"] && (
-        <div className="rg-stat rg-stat-slate">
-          <strong>{byStatus["UNAVAILABLE"]}</strong>
-          <span>missing</span>
-        </div>
-      )}
-      {byStatus["INSUFFICIENT_EVIDENCE"] && (
-        <div className="rg-stat rg-stat-warn">
-          <strong>{byStatus["INSUFFICIENT_EVIDENCE"]}</strong>
-          <span>insufficient</span>
-        </div>
-      )}
-      {byStatus["STALE"] && (
-        <div className="rg-stat rg-stat-warn">
-          <strong>{byStatus["STALE"]}</strong>
-          <span>stale</span>
-        </div>
-      )}
-      {byStatus["CONFLICTING"] && (
-        <div className="rg-stat rg-stat-warn">
-          <strong>{byStatus["CONFLICTING"]}</strong>
-          <span>conflicting</span>
-        </div>
-      )}
-      {byStatus["PARTIALLY_KNOWN"] && (
-        <div className="rg-stat rg-stat-warn">
-          <strong>{byStatus["PARTIALLY_KNOWN"]}</strong>
-          <span>partial</span>
-        </div>
-      )}
-      {byStatus["KNOWN"] && (
-        <div className="rg-stat rg-stat-pos">
-          <strong>{byStatus["KNOWN"]}</strong>
-          <span>known</span>
-        </div>
-      )}
-    </div>
-  )
+interface ResearchGapsShape {
+  symbol: string
+  as_of: string
+  gap_count: number
+  gaps: ResearchGap[]
+  status_counts: Record<string, number>
+  category_counts: Record<string, number>
+  coverage_score: string | null
+  coverage_explanation: string
+  notes: string[]
 }
 
-/* ── Attention Required ───────────────────────────────────────────────── */
-
-function AttentionRequired({ gaps }: { gaps: GroupedGap[] }) {
-  const attention = gaps.filter(
-    (g) =>
-      g.severity.toUpperCase() === "HIGH" ||
-      g.status.toUpperCase() === "UNAVAILABLE" ||
-      g.status.toUpperCase() === "CONFLICTING" ||
-      g.status.toUpperCase() === "INSUFFICIENT_EVIDENCE",
-  )
-
-  if (attention.length === 0) return null
-
-  return (
-    <div className="rg-section">
-      <div className="rg-section-head">
-        <AlertTriangle size={14} />
-        <strong>Attention Required</strong>
-        <span>{attention.length} gaps requiring research attention</span>
-      </div>
-      <div className="rg-attention-list">
-        {attention.map((g) => (
-          <div key={g.gap_id} className="rg-attention-item">
-            <span className={`rg-attention-sev ${severityTone(g.severity)}`}>
-              {formatLabel(g.severity)}
-            </span>
-            <div className="rg-attention-body">
-              <strong>{g.description}</strong>
-              {g.reason && <p>{g.reason}</p>}
-              {g.suggested_action && (
-                <span className="rg-attention-action">
-                  {g.suggested_action}
-                </span>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-/* ── Domain Coverage ──────────────────────────────────────────────────── */
-
-function DomainCoverage({
-  categoryCounts,
-  totalGaps,
-}: {
-  categoryCounts: Record<string, number>
-  totalGaps: number
-}) {
-  const entries = Object.entries(categoryCounts).sort((a, b) => b[1] - a[1])
-  if (entries.length === 0) return null
-
-  return (
-    <div className="rg-section">
-      <div className="rg-section-head">
-        <Shield size={14} />
-        <strong>Domain Coverage</strong>
-        <span>{entries.length} domains with gaps</span>
-      </div>
-      <div className="rg-domain-grid">
-        {entries.map(([cat, count]) => (
-          <div key={cat} className="rg-domain-tile">
-            <span className="rg-domain-label">{formatLabel(cat)}</span>
-            <span className="rg-domain-count">
-              {count} {count === 1 ? "gap" : "gaps"}
-            </span>
-            <div className="rg-domain-bar">
-              <div
-                className="rg-domain-bar-fill"
-                style={{ width: `${Math.min((count / totalGaps) * 100, 100)}%` }}
-              />
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-/* ── Evidence Problems ────────────────────────────────────────────────── */
-
-function EvidenceProblems({
-  gaps,
-  filter,
-}: {
-  gaps: GroupedGap[]
-  filter: "missing" | "stale" | "conflicting" | "insufficient"
-}) {
-  const filtered = gaps.filter((g) => {
-    switch (filter) {
-      case "missing":
-        return g.status.toUpperCase() === "UNAVAILABLE"
-      case "stale":
-        return g.status.toUpperCase() === "STALE"
-      case "conflicting":
-        return g.status.toUpperCase() === "CONFLICTING"
-      case "insufficient":
-        return g.status.toUpperCase() === "INSUFFICIENT_EVIDENCE"
-    }
-  })
-
-  if (filtered.length === 0) return null
-
-  const config = {
-    missing: { icon: XCircle, label: "Missing Evidence", tone: "red" as Tone },
-    stale: { icon: Clock, label: "Stale Evidence", tone: "amber" as Tone },
-    conflicting: { icon: AlertTriangle, label: "Conflicting Evidence", tone: "red" as Tone },
-    insufficient: { icon: HelpCircle, label: "Insufficient Evidence", tone: "amber" as Tone },
-  }
-  const c = config[filter]
-  const Icon = c.icon
-
-  return (
-    <div className="rg-section">
-      <div className="rg-section-head">
-        <Icon size={14} />
-        <strong>{c.label}</strong>
-        <Tag text={`${filtered.length}`} tone={c.tone} />
-      </div>
-      <div className="rg-gap-list">
-        {filtered.map((g) => (
-          <GapRow key={g.gap_id} gap={g} />
-        ))}
-      </div>
-    </div>
-  )
-}
-
-/* ── Gap Row ──────────────────────────────────────────────────────────── */
+/* ── Gap row with quiet expansion ─────────────────────────────────────── */
 
 function GapRow({
   gap,
@@ -337,118 +124,96 @@ function GapRow({
   onToggle,
 }: {
   gap: GroupedGap
-  expanded?: boolean
-  onToggle?: () => void
+  expanded: boolean
+  onToggle: () => void
 }) {
-  const supportingEntries = Object.entries(gap.supporting_data)
+  const meta = statusMeta(gap.status)
 
   return (
-    <div className={`rg-gap-row ${expanded ? "expanded" : ""}`}>
-      {onToggle && (
-        <button
-          className="rg-gap-toggle"
-          onClick={onToggle}
-          aria-label={expanded ? "Collapse" : "Expand"}
-        >
-          {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-        </button>
-      )}
-
-      <div className="rg-gap-body">
-        <div className="rg-gap-header">
-          {statusIcon(gap.status)}
-          <Tag text={statusLabel(gap.status)} tone={statusTone(gap.status)} />
-          <Tag text={formatLabel(gap.severity)} tone={severityTone(gap.severity)} />
-          <Tag text={formatLabel(gap.category)} tone="slate" />
-          <span className="rg-gap-symbols">
-            {gap.symbols.map((symbol) => (
-              <span key={symbol} className="rg-gap-symbol">
-                {symbol}
-              </span>
-            ))}
+    <div className={`rgx-row${expanded ? " expanded" : ""}`}>
+      <button
+        type="button"
+        className="rgx-row-head"
+        onClick={onToggle}
+        aria-expanded={expanded}
+      >
+        <span className="rgx-domain">{formatLabel(gap.category)}</span>
+        <span className="rgx-title">{gap.description}</span>
+        <span className="rgx-badges">
+          <span className={`status-badge ${meta.tone}`}>
+            {statusIcon(gap.status)}
+            {meta.label}
           </span>
-        </div>
+          <span className={`tag ${severityTone(gap.severity)}`}>
+            {formatLabel(gap.severity)}
+          </span>
+        </span>
+        <ChevronRight size={14} className="rgx-chevron" />
+      </button>
 
-        <strong className="rg-gap-desc">{gap.description}</strong>
+      {expanded && (
+        <div className="rgx-detail">
+          {gap.reason && (
+            <section className="evx-drawer-block">
+              <span className="evx-drawer-label">Why this gap exists</span>
+              <p>{gap.reason}</p>
+            </section>
+          )}
 
-        {!expanded && gap.reason && (
-          <p className="rg-gap-reason-preview">
-            {gap.reason.length > 120 ? gap.reason.slice(0, 120) + "..." : gap.reason}
-          </p>
-        )}
+          {gap.suggested_action && (
+            <section className="evx-drawer-block">
+              <span className="evx-drawer-label">What would resolve it</span>
+              <p>{gap.suggested_action}</p>
+            </section>
+          )}
 
-        {expanded && (
-          <div className="rg-gap-detail">
-            {gap.reason && (
-              <div className="rg-detail-section">
-                <span className="rg-detail-label">Reason</span>
-                <p className="rg-detail-text">{gap.reason}</p>
-              </div>
-            )}
-
-            {gap.suggested_action && (
-              <div className="rg-detail-section">
-                <span className="rg-detail-label">What Would Resolve</span>
-                <p className="rg-detail-text">{gap.suggested_action}</p>
-              </div>
-            )}
-
+          <div className="rgx-detail-cols">
             {gap.related_metrics.length > 0 && (
-              <div className="rg-detail-section">
-                <span className="rg-detail-label">Related Metrics</span>
-                <div className="rg-detail-tags">
+              <section className="evx-drawer-block">
+                <span className="evx-drawer-label">Affected research</span>
+                <div className="evx-drawer-tags">
                   {gap.related_metrics.map((m) => (
-                    <Tag key={m} text={formatLabel(m)} tone="slate" />
+                    <span key={m} className="tag slate">{formatLabel(m)}</span>
                   ))}
                 </div>
-              </div>
+              </section>
             )}
 
             {gap.sources_checked.length > 0 && (
-              <div className="rg-detail-section">
-                <span className="rg-detail-label">Sources Checked</span>
-                <div className="rg-detail-tags">
+              <section className="evx-drawer-block">
+                <span className="evx-drawer-label">Source availability</span>
+                <div className="evx-drawer-tags">
                   {gap.sources_checked.map((s) => (
-                    <Tag key={s} text={formatSourceName(s)} tone="slate" />
+                    <span key={s} className="tag slate">{formatSourceName(s)}</span>
                   ))}
                 </div>
-              </div>
+              </section>
             )}
-
-            {gap.evidence_refs.length > 0 && (
-              <div className="rg-detail-section">
-                <span className="rg-detail-label">Evidence References</span>
-                <div className="rg-detail-tags">
-                  {gap.evidence_refs.map((e) => (
-                    <Tag key={e} text={e} tone="slate" />
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {supportingEntries.length > 0 && (
-              <div className="rg-detail-section">
-                <span className="rg-detail-label">Supporting Data</span>
-                <div className="rg-detail-kv">
-                  {supportingEntries.map(([k, v]) => (
-                    <div key={k} className="rg-detail-kv-row">
-                      <span className="rg-detail-kv-key">{formatLabel(k)}</span>
-                      <span className="rg-detail-kv-value mono">{v}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div className="rg-detail-provenance">
-              <span className="rg-detail-as-of">
-                <Shield size={11} />
-                As of {gap.as_of ? formatIso(gap.as_of) : "\u2014"}
-              </span>
-            </div>
           </div>
-        )}
-      </div>
+
+          {Object.keys(gap.supporting_data).length > 0 && (
+            <section className="evx-drawer-block">
+              <span className="evx-drawer-label">Recorded context</span>
+              <dl className="evx-kv">
+                {Object.entries(gap.supporting_data).map(([k, v]) => (
+                  <div key={k}>
+                    <dt>{formatLabel(k)}</dt>
+                    <dd className="mono">{v}</dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
+          )}
+
+          <div className="rgx-detail-foot">
+            <Shield size={11} />
+            <span>
+              Affected: {gap.symbols.join(" · ")} · As of{" "}
+              {gap.as_of ? formatIso(gap.as_of) : "—"}
+            </span>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -461,9 +226,6 @@ export default function ResearchGapsPage() {
   const [error, setError] = useState<string | null>(null)
   const [selected, setSelected] = useState<string[]>([])
   const [companies, setCompanies] = useState<Map<string, CompanyGapsData>>(new Map())
-  const [statusFilter, setStatusFilter] = useState<string | null>(null)
-  const [severityFilter, setSeverityFilter] = useState<string | null>(null)
-  const [categoryFilter, setCategoryFilter] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [expandedGaps, setExpandedGaps] = useState<Set<string>>(new Set())
 
@@ -484,6 +246,15 @@ export default function ResearchGapsPage() {
       })
     return () => { cancelled = true }
   }, [])
+
+  /** Open with the first tracked company so the page shows content immediately. */
+  useEffect(() => {
+    if (items.length > 0) {
+      const first = items.find((i) => i.research_available)
+      if (first) void selectCompany(first.symbol, false)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items])
 
   const researchable = useMemo(() => items.filter((i) => i.research_available), [items])
 
@@ -519,27 +290,24 @@ export default function ResearchGapsPage() {
     }
   }, [items])
 
-  function toggleCompany(sym: string) {
-    const isRemoving = selected.includes(sym)
-    setSelected((prev) =>
-      prev.includes(sym) ? prev.filter((s) => s !== sym) : [...prev, sym],
-    )
-    if (!isRemoving) {
-      const existing = companies.get(sym)
-      if (!existing || (!existing.loading && existing.research_gaps === null && existing.error === null)) {
-        void fetchCompanyGaps(sym)
-      }
-    }
+  function selectCompany(sym: string, toggle = true) {
+    setSelected((prev) => {
+      const has = prev.includes(sym)
+      if (toggle && has) return prev.filter((s) => s !== sym)
+      return toggle ? [...prev, sym] : prev.includes(sym) ? prev : [...prev, sym]
+    })
+    setCompanies((prev) => {
+      if (prev.get(sym)?.research_gaps || prev.get(sym)?.loading) return prev
+      void fetchCompanyGaps(sym)
+      return prev
+    })
   }
 
   function toggleExpand(gapId: string) {
     setExpandedGaps((prev) => {
       const next = new Set(prev)
-      if (next.has(gapId)) {
-        next.delete(gapId)
-      } else {
-        next.add(gapId)
-      }
+      if (next.has(gapId)) next.delete(gapId)
+      else next.add(gapId)
       return next
     })
   }
@@ -557,352 +325,205 @@ export default function ResearchGapsPage() {
     return gaps
   }, [selected, companies])
 
-  /** Attention-required view works on merged gaps so identical gaps across
-   * companies render once with company chips. */
-  const groupedAllGaps = useMemo(() => groupGaps(allGaps), [allGaps])
+  const groupedGaps = useMemo(() => groupGaps(allGaps), [allGaps])
 
   const filteredGaps = useMemo(() => {
-    let gaps = allGaps
-    if (statusFilter) {
-      gaps = gaps.filter((g) => g.status.toUpperCase() === statusFilter.toUpperCase())
-    }
-    if (severityFilter) {
-      gaps = gaps.filter((g) => g.severity.toUpperCase() === severityFilter.toUpperCase())
-    }
-    if (categoryFilter) {
-      gaps = gaps.filter((g) => g.category.toUpperCase() === categoryFilter.toUpperCase())
-    }
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase()
-      gaps = gaps.filter((g) =>
+    if (!searchQuery.trim()) return groupedGaps
+    const q = searchQuery.toLowerCase()
+    return groupedGaps.filter(
+      (g) =>
         g.description.toLowerCase().includes(q) ||
         g.category.toLowerCase().includes(q) ||
-        g.symbol.toLowerCase().includes(q) ||
-        (g.reason ?? "").toLowerCase().includes(q)
-      )
+        g.symbols.some((s) => s.toLowerCase().includes(q)) ||
+        (g.reason ?? "").toLowerCase().includes(q),
+    )
+  }, [groupedGaps, searchQuery])
+
+  /** Group the stream by status so related gaps read together. */
+  const streamGroups = useMemo(() => {
+    const byStatus = new Map<GapStatus, GroupedGap[]>()
+    for (const gap of filteredGaps) {
+      const key = (gap.status.toUpperCase()) as GapStatus
+      if (!byStatus.has(key)) byStatus.set(key, [])
+      byStatus.get(key)!.push(gap)
     }
-    return groupGaps(gaps)
-  }, [allGaps, statusFilter, severityFilter, categoryFilter, searchQuery])
+    return STATUS_ORDER.filter((s) => byStatus.has(s)).map((s) => ({
+      status: s,
+      gaps: byStatus.get(s)!,
+    }))
+  }, [filteredGaps])
 
   const statusCounts = useMemo(() => {
-    const counts: Record<string, number> = {}
-    for (const g of allGaps) {
-      counts[g.status] = (counts[g.status] ?? 0) + 1
-    }
+    const counts = new Map<string, number>()
+    for (const g of allGaps) counts.set(g.status, (counts.get(g.status) ?? 0) + 1)
     return counts
   }, [allGaps])
 
-  const severityCounts = useMemo(() => {
-    const counts: Record<string, number> = {}
-    for (const g of allGaps) {
-      counts[g.severity] = (counts[g.severity] ?? 0) + 1
-    }
-    return counts
-  }, [allGaps])
+  /** Context: as-of window across selected companies. */
+  const asOfWindow = useMemo(() => {
+    const dates = [...companies.values()]
+      .map((c) => c.research_gaps?.as_of)
+      .filter((d): d is string => Boolean(d))
+      .sort()
+    if (dates.length === 0) return null
+    const first = formatIso(dates[0])
+    const last = formatIso(dates[dates.length - 1])
+    return first === last ? first : `${first} → ${last}`
+  }, [companies])
 
-  const categoryCounts = useMemo(() => {
-    const counts: Record<string, number> = {}
-    for (const g of allGaps) {
-      counts[g.category] = (counts[g.category] ?? 0) + 1
-    }
-    return counts
-  }, [allGaps])
+  const anyLoading = [...companies.values()].some((c) => c.loading)
 
-  const selectedCompanyNames = useMemo(() => {
-    return selected.map((sym) => {
-      const data = companies.get(sym)
-      return {
-        symbol: sym,
-        name: data?.company_name ?? sym,
-        gapCount: data?.research_gaps?.gap_count ?? 0,
-      }
-    })
-  }, [selected, companies])
+  if (loading || error) {
+    return (
+      <div className="page-research-gaps">
+        <header className="scr-header">
+          <span className="eyebrow">Coverage intelligence</span>
+          <h1>Research Coverage</h1>
+        </header>
+        {loading && (
+          <div className="loading-state" role="status">
+            <Activity className="spin" size={26} />
+            <strong>Loading coverage data</strong>
+          </div>
+        )}
+        {error && (
+          <div className="empty-state error" role="alert">
+            <FileSearch size={28} />
+            <strong>Discovery unavailable</strong>
+            <p>{error}</p>
+          </div>
+        )}
+      </div>
+    )
+  }
 
   return (
-    <div className="page-research-gaps">
-      <section className="page-hero">
-        <h1>Research Gaps &amp; Coverage</h1>
-        <p className="page-subtitle">
-          What is known, unknown, partially known, stale, or conflicting about a company.
-          Each gap explains why information is missing and what would resolve it.
-          No scores, no rankings, no investment decisions.
+    <div className="page-research-gaps page-gaps--workflow">
+      {/* ── Header ─────────────────────────────────────────────────── */}
+      <header className="scr-header">
+        <span className="eyebrow">Coverage intelligence</span>
+        <h1>Research Coverage</h1>
+        <p className="scr-subtitle">
+          What is known, limited, stale, conflicting, insufficient or missing.
+          Each gap explains why information is absent and what would resolve it.
         </p>
+      </header>
+
+      {/* ── Company picker + context ──────────────────────────────── */}
+      <section className="rgx-context scr-section" style={{ marginTop: "var(--space-5)" }}>
+        <div className="rgx-picker" role="group" aria-label="Select companies">
+          {researchable.map((item) => (
+            <button
+              key={item.symbol}
+              type="button"
+              className={`rgx-pick${selected.includes(item.symbol) ? " active" : ""}`}
+              onClick={() => selectCompany(item.symbol)}
+              aria-pressed={selected.includes(item.symbol)}
+            >
+              {item.symbol}
+            </button>
+          ))}
+        </div>
+        <div className="scr-context rgx-context-strip">
+          <span className="scr-context-item">
+            <strong>{selected.length}</strong> of {researchable.length} companies
+          </span>
+          <span className="scr-context-sep" />
+          <span className="scr-context-item">
+            <strong>{filteredGaps.length}</strong> distinct gaps
+          </span>
+          {asOfWindow && (
+            <>
+              <span className="scr-context-sep" />
+              <span className="scr-context-item">as of <strong>{asOfWindow}</strong></span>
+            </>
+          )}
+          {anyLoading && <Activity className="spin" size={13} />}
+        </div>
       </section>
 
-      {loading && (
-        <div className="loading-state" role="status">
-          <Activity className="spin" size={26} />
-          <strong>Loading research gap data</strong>
-          <span>Fetching supported companies...</span>
-        </div>
-      )}
-
-      {error && (
-        <div className="empty-state error" role="alert">
+      {selected.length === 0 ? (
+        <div className="empty-state">
           <FileSearch size={28} />
-          <strong>Discovery unavailable</strong>
-          <p>{error}</p>
+          <strong>Select companies to view coverage</strong>
+          <p>Choose one or more companies above to see their research gaps.</p>
         </div>
-      )}
-
-      {!loading && !error && (
-        <div className="ei-layout">
-          {/* LEFT: Company selector */}
-          <div className="ei-sidebar">
-            <div className="panel">
-              <div className="panel-head">
-                <h3>Select Companies</h3>
-                <span>{selected.length} selected</span>
-              </div>
-              <div className="ei-search">
-                <Search size={14} />
-                <input
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Filter gaps..."
-                  aria-label="Filter gaps"
-                />
-              </div>
-              <div className="ei-company-list">
-                {researchable.map((item) => {
-                  const cd = companies.get(item.symbol)
-                  return (
-                    <button
-                      key={item.symbol}
-                      className={`ei-company-item ${selected.includes(item.symbol) ? "active" : ""}`}
-                      onClick={() => toggleCompany(item.symbol)}
-                    >
-                      <span className="ei-company-info">
-                        <Building2 size={14} />
-                        <div>
-                          <b>{item.symbol}</b>
-                          <small>{item.company_name ?? item.symbol}</small>
-                        </div>
-                      </span>
-                      <span className="ei-company-meta">
-                        {cd?.loading && <Activity className="spin" size={12} />}
-                        {cd?.research_gaps && (
-                          <span className="ei-entry-count">{cd.research_gaps.gap_count}</span>
-                        )}
-                        {cd?.error && (
-                          <span className="ei-entry-error" title={cd.error}>!</span>
-                        )}
-                      </span>
-                    </button>
-                  )
-                })}
-              </div>
-
-              {selectedCompanyNames.length > 0 && (
-                <div className="ei-selected-chips">
-                  {selectedCompanyNames.map((c) => (
-                    <span key={c.symbol} className="ei-selected-chip">
-                      <span>{c.symbol}</span>
-                      <span className="ei-selected-chip-count">{c.gapCount}</span>
-                      <button
-                        onClick={() => toggleCompany(c.symbol)}
-                        aria-label={`Remove ${c.symbol}`}
-                      >
-                        &times;
-                      </button>
-                    </span>
-                  ))}
+      ) : (
+        <>
+          {/* ── Status overview strip ───────────────────────────────── */}
+          <section className="rgx-status-strip" aria-label="Coverage status overview">
+            {STATUS_ORDER.map((status) => {
+              const count = statusCounts.get(status) ?? 0
+              const meta = STATUS_META[status]
+              return (
+                <div key={status} className={`rgx-status-cell ${meta.tone}${count === 0 ? " empty" : ""}`}>
+                  <span className="rgx-status-count mono">{count}</span>
+                  <span className="rgx-status-name">{meta.label}</span>
+                  <span className="rgx-status-blurb">{meta.blurb}</span>
                 </div>
-              )}
-            </div>
+              )
+            })}
+          </section>
+
+          {/* ── Search within gaps ──────────────────────────────────── */}
+          <div className="rgx-searchbar">
+            <Search size={14} />
+            <input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Filter gaps by keyword, domain, or company…"
+              aria-label="Filter gaps"
+            />
           </div>
 
-          {/* RIGHT: Gaps content */}
-          <div className="ei-content">
-            {selected.length === 0 ? (
-              <div className="empty-state">
-                <FileSearch size={28} />
-                <strong>Select companies to view research gaps</strong>
-                <p>Choose companies from the list to see their research gap analysis and coverage information.</p>
-              </div>
-            ) : (
-              <>
-                {/* Coverage Summary */}
-                <CoverageSummary gaps={allGaps} />
-
-                {/* Attention Required */}
-                <AttentionRequired gaps={groupedAllGaps} />
-
-                {/* Domain Coverage */}
-                <DomainCoverage categoryCounts={categoryCounts} totalGaps={allGaps.length} />
-
-                {/* Active Filters */}
-                {(statusFilter || severityFilter || categoryFilter) && (
-                  <div className="ei-active-filters">
-                    <AlertTriangle size={13} />
-                    {statusFilter && (
-                      <span className="ei-active-filter">
-                        <span>Status: {statusLabel(statusFilter)}</span>
-                        <button onClick={() => setStatusFilter(null)}>&times;</button>
+          {/* ── Grouped gap stream ──────────────────────────────────── */}
+          {streamGroups.length === 0 ? (
+            <div className="empty-state">
+              <CheckCircle2 size={28} />
+              <strong>No matching gaps</strong>
+              <p>Adjust the filter query to widen the view.</p>
+            </div>
+          ) : (
+            <div className="rgx-stream">
+              {streamGroups.map((group) => {
+                const meta = STATUS_META[group.status]
+                return (
+                  <details key={group.status} className="rgx-group" open>
+                    <summary>
+                      <ChevronDown size={13} />
+                      <span className={`status-badge ${meta.tone}`}>
+                        {statusIcon(group.status)}
+                        {meta.label}
                       </span>
-                    )}
-                    {severityFilter && (
-                      <span className="ei-active-filter">
-                        <span>Severity: {formatLabel(severityFilter)}</span>
-                        <button onClick={() => setSeverityFilter(null)}>&times;</button>
-                      </span>
-                    )}
-                    {categoryFilter && (
-                      <span className="ei-active-filter">
-                        <span>Domain: {formatLabel(categoryFilter)}</span>
-                        <button onClick={() => setCategoryFilter(null)}>&times;</button>
-                      </span>
-                    )}
-                    <button
-                      className="ei-clear-filters"
-                      onClick={() => { setStatusFilter(null); setSeverityFilter(null); setCategoryFilter(null) }}
-                    >
-                      Clear all
-                    </button>
-                  </div>
-                )}
-
-                {/* Filter Bar */}
-                <div className="ei-filter-bar">
-                  {Object.keys(statusCounts).length > 0 && (
-                    <div className="ei-filter-group">
-                      <span className="ei-filter-label">Status</span>
-                      <div className="ei-filter-chips">
-                        <button
-                          className={`ei-chip ${statusFilter === null ? "active" : ""}`}
-                          onClick={() => setStatusFilter(null)}
-                        >
-                          All
-                        </button>
-                        {Object.keys(statusCounts).sort().map((s) => (
-                          <button
-                            key={s}
-                            className={`ei-chip ${statusFilter === s ? "active" : ""}`}
-                            onClick={() => setStatusFilter(statusFilter === s ? null : s)}
-                          >
-                            {statusLabel(s)}
-                            <span className="ei-chip-count">{statusCounts[s]}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {Object.keys(severityCounts).length > 1 && (
-                    <div className="ei-filter-group">
-                      <span className="ei-filter-label">Severity</span>
-                      <div className="ei-filter-chips">
-                        <button
-                          className={`ei-chip ${severityFilter === null ? "active" : ""}`}
-                          onClick={() => setSeverityFilter(null)}
-                        >
-                          All
-                        </button>
-                        {Object.keys(severityCounts).sort().map((s) => (
-                          <button
-                            key={s}
-                            className={`ei-chip ${severityFilter === s ? "active" : ""}`}
-                            onClick={() => setSeverityFilter(severityFilter === s ? null : s)}
-                          >
-                            {formatLabel(s)}
-                            <span className="ei-chip-count">{severityCounts[s]}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {Object.keys(categoryCounts).length > 1 && (
-                    <div className="ei-filter-group">
-                      <span className="ei-filter-label">Domain</span>
-                      <div className="ei-filter-chips">
-                        <button
-                          className={`ei-chip ${categoryFilter === null ? "active" : ""}`}
-                          onClick={() => setCategoryFilter(null)}
-                        >
-                          All
-                        </button>
-                        {Object.keys(categoryCounts).sort().map((c) => (
-                          <button
-                            key={c}
-                            className={`ei-chip ${categoryFilter === c ? "active" : ""}`}
-                            onClick={() => setCategoryFilter(categoryFilter === c ? null : c)}
-                          >
-                            {formatLabel(c)}
-                            <span className="ei-chip-count">{categoryCounts[c]}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Gap Count */}
-                <div className="ei-event-count">
-                  <span>
-                    {filteredGaps.length} distinct gap{filteredGaps.length !== 1 ? "s" : ""}
-                  </span>
-                  {filteredGaps.length !== allGaps.length && (
-                    <span className="ei-event-count-filtered">
-                      (grouped from {allGaps.length} company ent{allGaps.length !== 1 ? "ries" : "ry"})
-                    </span>
-                  )}
-                </div>
-
-                {/* Evidence Problems: Missing */}
-                <EvidenceProblems gaps={filteredGaps} filter="missing" />
-
-                {/* Evidence Problems: Stale */}
-                <EvidenceProblems gaps={filteredGaps} filter="stale" />
-
-                {/* Evidence Problems: Conflicting */}
-                <EvidenceProblems gaps={filteredGaps} filter="conflicting" />
-
-                {/* Evidence Problems: Insufficient */}
-                <EvidenceProblems gaps={filteredGaps} filter="insufficient" />
-
-                {/* All Gaps (filtered) */}
-                {filteredGaps.length === 0 ? (
-                  <div className="empty-state">
-                    <CheckCircle2 size={28} />
-                    <strong>No matching gaps</strong>
-                    <p>Try adjusting your filters or search query.</p>
-                  </div>
-                ) : (
-                  <div className="rg-section">
-                    <div className="rg-section-head">
-                      <FileSearch size={14} />
-                      <strong>Gap Details</strong>
-                      <span>{filteredGaps.length} distinct gaps</span>
-                    </div>
-                    <div className="rg-gap-list">
-                      {filteredGaps.map((g) => (
+                      <span className="rgx-group-count mono">{group.gaps.length}</span>
+                      <span className="rgx-group-blurb">{meta.blurb}</span>
+                    </summary>
+                    <div className="rgx-group-body">
+                      {group.gaps.map((g) => (
                         <GapRow
-                          key={g.gap_id}
+                          key={`${g.gap_id}-${g.symbols.join("_")}`}
                           gap={g}
                           expanded={expandedGaps.has(g.gap_id)}
                           onToggle={() => toggleExpand(g.gap_id)}
                         />
                       ))}
                     </div>
-                  </div>
-                )}
+                  </details>
+                )
+              })}
+            </div>
+          )}
 
-                {/* Note */}
-                <div className="ei-note">
-                  <Shield size={13} />
-                  <span>
-                    Gaps are deterministic observations about missing, incomplete, stale,
-                    or conflicting research evidence. Each gap explains why information
-                    is unavailable and what would resolve it. Coverage is descriptive,
-                    not evaluative. No single number represents company quality.
-                  </span>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
+          {/* ── Limitations ─────────────────────────────────────────── */}
+          <footer className="evx-footnote">
+            <Shield size={12} />
+            <span>
+              Coverage is descriptive, not evaluative. Missing evidence is an observation about
+              recorded data — it is not negative evidence. No single number represents company
+              quality. Gaps are deterministic outputs of documented checks against available sources.
+            </span>
+          </footer>
+        </>
       )}
     </div>
   )

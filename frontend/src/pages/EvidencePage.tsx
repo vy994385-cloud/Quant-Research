@@ -1,24 +1,29 @@
 /**
- * Evidence Lineage page: canonical evidence with full provenance traceability.
- * Fetches from the dedicated F7 evidence lineage endpoint.
- * CLAIM -> EVIDENCE -> SOURCE -> RAW RECORD where available.
+ * EVIDENCE EXPLORER — vertical research workflow.
+ *
+ *   header → search/filter bar → result summary → evidence stream → detail drawer
+ *
+ * Every row leads with WHAT KIND of evidence it is (epistemic state:
+ * reported / derived / inferred / unknown); direction is deliberately
+ * subordinate. Raw backend identifiers never appear on the primary
+ * surface — they live inside the drawer's provenance section.
+ * CLAIM -> EVIDENCE -> SOURCE -> RAW RECORD traceability is preserved.
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react"
 import {
   Activity,
-  Building2,
+  AlertTriangle,
+  ChevronRight,
   FileSearch,
-  Database,
-  Shield,
-  ChevronDown,
   Search,
+  Shield,
 } from "lucide-react"
-import { fetchDiscovery, fetchEvidenceLineage } from "../api/client"
-import { ApiError } from "../api/client"
+import { fetchDiscovery, fetchEvidenceLineage, ApiError } from "../api/client"
 import type {
   CompanyEvidenceResponse,
   DiscoveryItem,
+  F7Claim,
   F7EvidenceItem,
 } from "../api/types"
 import {
@@ -26,108 +31,40 @@ import {
   formatEvidenceObservation,
   formatIso,
   formatLabel,
-  formatTitle,
-  pluralize,
 } from "../lib/format"
-import { Tag } from "../components/ui"
+import { DetailDrawer } from "../components/ui"
 
-/* ── Helpers ────────────────────────────────────────────────────── */
+/* ── Epistemic visual language ──────────────────────────────────────
+   Reported = neutral/high-trust · Derived = teal · Inferred = steel
+   Unknown = slate. Direction never outweighs epistemic class.       */
 
-function directionTone(d: string): "green" | "red" | "slate" {
-  if (d === "POSITIVE") return "green"
-  if (d === "NEGATIVE") return "red"
-  return "slate"
-}
-
-function epistemicBadge(ep: string): string {
-  switch (ep) {
-    case "REPORTED": return "REPORTED"
-    case "DERIVED": return "DERIVED"
-    case "INFERRED": return "INFERRED"
-    default: return "UNKNOWN"
+function epistemicClass(ep: string): string {
+  switch (ep?.toUpperCase()) {
+    case "REPORTED": return "reported"
+    case "DERIVED": return "derived"
+    case "INFERRED": return "inferred"
+    default: return "unknown"
   }
 }
 
-/* ── Evidence Card ─────────────────────────────────────────────── */
+function directionMark(d: string): { cls: string; label: string } | null {
+  const up = d?.toUpperCase()
+  if (up === "POSITIVE") return { cls: "positive", label: "Positive" }
+  if (up === "NEGATIVE") return { cls: "negative", label: "Negative" }
+  if (up === "NEUTRAL" || up === "MIXED") return { cls: "neutral", label: formatLabel(d) }
+  return null
+}
 
-function EvidenceCard({ item }: { item: F7EvidenceItem }) {
-  return (
-    <details className="ev-card">
-      <summary>
-        <div className="ev-card-head">
-          <div className="ev-card-tags">
-            <Tag text={formatLabel(item.direction)} tone={directionTone(item.direction)} />
-            <Tag text={formatLabel(epistemicBadge(item.epistemic_type))} tone="slate" />
-            {item.verification_status !== "UNVERIFIED" && (
-              <Tag text={formatLabel(item.verification_status)} tone="slate" />
-            )}
-          </div>
-          <strong>{formatTitle(item.title)}</strong>
-          <p>{item.explanation}</p>
-        </div>
-        <ChevronDown size={16} />
-      </summary>
-      <div className="ev-detail">
-        <div className="ev-detail-row">
-          <span className="ev-detail-label">Type</span>
-          <span>{formatLabel(item.evidence_type)}</span>
-        </div>
-        <div className="ev-detail-row">
-          <span className="ev-detail-label">Category</span>
-          <span>{item.category ? formatLabel(item.category) : "—"}</span>
-        </div>
-        <div className="ev-detail-row">
-          <span className="ev-detail-label">Confidence</span>
-          <span>{formatConfidence(item.confidence)}</span>
-        </div>
-        <div className="ev-detail-row">
-          <span className="ev-detail-label">Reliability</span>
-          <span>{formatLabel(item.reliability)}</span>
-        </div>
-        <div className="ev-detail-row">
-          <span className="ev-detail-label">Observed</span>
-          <span>{item.observation_at ? formatEvidenceObservation(item.observation_at) : "—"}</span>
-        </div>
-        {item.derivation && (
-          <div className="ev-detail-row">
-            <span className="ev-detail-label">Derivation</span>
-            <span>{item.derivation}</span>
-          </div>
-        )}
-        {item.source && (
-          <div className="ev-detail-row">
-            <span className="ev-detail-label">Source</span>
-            <span>{item.source.name} ({item.source.source_type}, {item.source.reliability_tier})</span>
-          </div>
-        )}
-        {item.source_ids.length > 0 && (
-          <div className="ev-detail-row">
-            <span className="ev-detail-label">Source IDs</span>
-            <span className="mono">{item.source_ids.join(", ")}</span>
-          </div>
-        )}
-        {item.provenance_ids.length > 0 && (
-          <div className="ev-detail-row">
-            <span className="ev-detail-label">Provenance IDs</span>
-            <span className="mono">{item.provenance_ids.join(", ")}</span>
-          </div>
-        )}
-        {item.source_records.length > 0 && (
-          <div className="ev-detail-records">
-            <span className="ev-detail-label">Raw Records</span>
-            {item.source_records.map((rec, i) => (
-              <div className="ev-record" key={i}>
-                <span>{rec.source}</span>
-                {rec.dataset_id && <span className="mono">dataset: {rec.dataset_id}</span>}
-                {rec.checksum && <span className="mono">checksum: {rec.checksum}</span>}
-                {rec.available_at && <span>Available: {formatIso(rec.available_at)}</span>}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </details>
-  )
+/** Observation window across the loaded stream — honest derived context. */
+function observationWindow(items: F7EvidenceItem[]): string | null {
+  const dates = items
+    .map((e) => e.observation_at ?? e.published_at)
+    .filter((d): d is string => Boolean(d))
+    .sort()
+  if (dates.length === 0) return null
+  const first = formatIso(dates[0])
+  const last = formatIso(dates[dates.length - 1])
+  return first === last ? first : `${first} → ${last}`
 }
 
 /* ── Main Component ─────────────────────────────────────────────── */
@@ -137,46 +74,13 @@ export default function EvidencePage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [query, setQuery] = useState("")
-  const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null)
+  const [selectedSymbol, setSelectedSymbol] = useState<string>("")
   const [lineage, setLineage] = useState<CompanyEvidenceResponse | null>(null)
   const [lineageLoading, setLineageLoading] = useState(false)
   const [lineageError, setLineageError] = useState<string | null>(null)
   const [filterDirection, setFilterDirection] = useState("ALL")
   const [filterEpistemic, setFilterEpistemic] = useState("ALL")
-
-  useEffect(() => {
-    let cancelled = false
-    fetchDiscovery()
-      .then((res) => {
-        if (!cancelled) {
-          setItems(res.results)
-          setLoading(false)
-        }
-      })
-      .catch((err: unknown) => {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Discovery unavailable")
-          setLoading(false)
-        }
-      })
-    return () => { cancelled = true }
-  }, [])
-
-  const researchable = useMemo(
-    () => items.filter((i) => i.research_available),
-    [items],
-  )
-
-  const filteredCompanies = useMemo(() => {
-    const q = query.toLowerCase()
-    if (!q) return researchable
-    return researchable.filter(
-      (i) =>
-        i.symbol.toLowerCase().includes(q) ||
-        (i.company_name ?? "").toLowerCase().includes(q) ||
-        i.sector.toLowerCase().includes(q),
-    )
-  }, [researchable, query])
+  const [drawerItem, setDrawerItem] = useState<F7EvidenceItem | null>(null)
 
   const loadEvidence = useCallback(async (sym: string) => {
     setSelectedSymbol(sym)
@@ -199,12 +103,39 @@ export default function EvidencePage() {
     }
   }, [])
 
+  useEffect(() => {
+    let cancelled = false
+    fetchDiscovery()
+      .then((res) => {
+        if (!cancelled) {
+          setItems(res.results)
+          setLoading(false)
+          const first = res.results.find((i) => i.research_available)
+          if (first) void loadEvidence(first.symbol)
+        }
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "Discovery unavailable")
+          setLoading(false)
+        }
+      })
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const researchable = useMemo(
+    () => items.filter((i) => i.research_available),
+    [items],
+  )
+
+
+
   const evidence = useMemo(
     () => lineage?.evidence_lineage?.evidence ?? [],
     [lineage],
   )
   const totalEvidence = lineage?.evidence_lineage?.total_evidence ?? 0
-  const totalClaims = lineage?.evidence_lineage?.total_claims ?? 0
   const totalSources = lineage?.evidence_lineage?.total_sources ?? 0
   const pitFiltered = lineage?.evidence_lineage?.pit_filtered_count ?? 0
   const notes = lineage?.evidence_lineage?.notes ?? []
@@ -214,10 +145,22 @@ export default function EvidencePage() {
     [lineage],
   )
   const sourceProfiles = lineage?.evidence_lineage?.source_profiles ?? []
-  const claims = lineage?.evidence_lineage?.claims ?? []
+  const claims = useMemo(
+    () => lineage?.evidence_lineage?.claims ?? [],
+    [lineage],
+  )
 
   const filteredEvidence = useMemo(() => {
     let result = evidence
+    if (query.trim()) {
+      const q = query.trim().toLowerCase()
+      result = result.filter(
+        (e) =>
+          e.title.toLowerCase().includes(q) ||
+          e.explanation.toLowerCase().includes(q) ||
+          (e.source?.name ?? "").toLowerCase().includes(q),
+      )
+    }
     if (filterDirection !== "ALL") {
       result = result.filter((e) => e.direction === filterDirection)
     }
@@ -225,305 +168,450 @@ export default function EvidencePage() {
       result = result.filter((e) => e.epistemic_type === filterEpistemic)
     }
     return result
-  }, [evidence, filterDirection, filterEpistemic])
+  }, [evidence, filterDirection, filterEpistemic, query])
 
-  const epistemicTypes = useMemo(() => {
-    return Object.keys(epistemicCounts).sort()
-  }, [epistemicCounts])
+  /** Claims that cite a given evidence item — shown in the drawer. */
+  const relatedClaims = useMemo(() => {
+    const map = new Map<string, F7Claim[]>()
+    for (const claim of claims) {
+      for (const id of claim.evidence_ids) {
+        map.set(id, [...(map.get(id) ?? []), claim])
+      }
+    }
+    return map
+  }, [claims])
+
+  const selectedCompany = items.find((i) => i.symbol === selectedSymbol)
+  const windowLabel = observationWindow(evidence)
+
+  if (loading || error) {
+    return (
+      <div className="page-evidence">
+        <header className="scr-header">
+          <span className="eyebrow">Evidence universe</span>
+          <h1>Evidence Explorer</h1>
+        </header>
+        {loading && (
+          <div className="loading-state" role="status">
+            <Activity className="spin" size={26} />
+            <strong>Loading companies</strong>
+          </div>
+        )}
+        {error && (
+          <div className="empty-state error" role="alert">
+            <FileSearch size={28} />
+            <strong>Discovery unavailable</strong>
+            <p>{error}</p>
+          </div>
+        )}
+      </div>
+    )
+  }
 
   return (
-    <div className="page-evidence">
-      <section className="page-hero">
-        <h1>Evidence Lineage</h1>
-        <p className="page-subtitle">
-          Canonical evidence with full provenance traceability. Every item
-          carries source, epistemic type, confidence, and point-in-time validation.
+    <div className="page-evidence page-evidence--workflow">
+      {/* ── Header ─────────────────────────────────────────────────── */}
+      <header className="scr-header">
+        <span className="eyebrow">Evidence universe</span>
+        <h1>Evidence Explorer</h1>
+        <p className="scr-subtitle">
+          Search the recorded evidence universe. Every item carries its source,
+          epistemic type, and point-in-time validation.
         </p>
+      </header>
+
+      {/* ── Search / filter bar ───────────────────────────────────── */}
+      <section className="evx-bar scr-section" style={{ marginTop: "var(--space-5)" }} aria-label="Evidence filters">
+        <div className="evx-bar-row">
+          <div className="evx-search">
+            <Search size={14} />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search claims, explanations, sources…"
+              aria-label="Search evidence"
+            />
+          </div>
+          <div className="evx-company">
+            <label className="evx-control-label" htmlFor="evx-company-select">Company</label>
+            <select
+              id="evx-company-select"
+              className="scr-select"
+              value={selectedSymbol}
+              onChange={(e) => void loadEvidence(e.target.value)}
+            >
+              {researchable.map((item) => (
+                <option key={item.symbol} value={item.symbol}>
+                  {item.symbol}{item.company_name ? ` — ${item.company_name}` : ""}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <div className="evx-bar-row">
+          <SegmentedGroup
+            label="Epistemic"
+            value={filterEpistemic}
+            onChange={setFilterEpistemic}
+            options={[
+              { key: "ALL", label: "All", count: totalEvidence },
+              ...Object.keys(epistemicCounts).sort().map((ep) => ({
+                key: ep,
+                label: formatLabel(ep),
+                count: epistemicCounts[ep],
+              })),
+            ]}
+          />
+          <SegmentedGroup
+            label="Direction"
+            value={filterDirection}
+            onChange={setFilterDirection}
+            options={[
+              { key: "ALL", label: "All", count: totalEvidence },
+              ...Object.keys(directionCounts).sort().map((dir) => ({
+                key: dir,
+                label: formatLabel(dir),
+                count: directionCounts[dir],
+              })),
+            ]}
+          />
+        </div>
       </section>
 
-      {loading && (
-        <div className="loading-state" role="status">
-          <Activity className="spin" size={26} />
-          <strong>Loading companies</strong>
-        </div>
-      )}
+      {/* ── Result summary ─────────────────────────────────────────── */}
+      <div className="scr-context">
+        <span className="scr-context-item">
+          <strong>{filteredEvidence.length}</strong> of {totalEvidence} evidence items
+        </span>
+        <span className="scr-context-sep" />
+        <span className="scr-context-item">
+          <strong>{selectedSymbol || "—"}</strong> {selectedCompany?.company_name ?? ""}
+        </span>
+        <span className="scr-context-sep" />
+        <span className="scr-context-item">
+          <strong>{totalSources > 0 ? totalSources : "—"}</strong> sources
+        </span>
+        {windowLabel && (
+          <>
+            <span className="scr-context-sep" />
+            <span className="scr-context-item">observed <strong>{windowLabel}</strong></span>
+          </>
+        )}
+        {pitFiltered > 0 && (
+          <>
+            <span className="scr-context-sep" />
+            <span className="scr-context-item evx-pit-note">
+              <Shield size={11} /> {pitFiltered} excluded by point-in-time rules
+            </span>
+          </>
+        )}
+      </div>
 
-      {error && (
-        <div className="empty-state error" role="alert">
-          <FileSearch size={28} />
-          <strong>Discovery unavailable</strong>
-          <p>{error}</p>
-        </div>
-      )}
-
-      {!loading && !error && (
-        <div className="ev-layout">
-          {/* LEFT: Company selector */}
-          <div className="ev-sidebar">
-            <div className="panel">
-              <div className="panel-head">
-                <h3>Select Company</h3>
-                <span>{researchable.length} companies</span>
-              </div>
-              <div className="ev-search">
-                <Search size={14} />
-                <input
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Filter companies..."
-                  aria-label="Filter companies"
-                />
-              </div>
-              <div className="ev-company-list">
-                {filteredCompanies.map((item) => (
-                  <button
-                    key={item.symbol}
-                    className={`ev-company-item ${selectedSymbol === item.symbol ? "active" : ""}`}
-                    onClick={() => void loadEvidence(item.symbol)}
-                  >
-                    <Building2 size={13} />
-                    <div>
-                      <strong>{item.symbol}</strong>
-                      <small>{item.company_name ?? item.symbol}</small>
-                    </div>
-                  </button>
-                ))}
-                {filteredCompanies.length === 0 && (
-                  <div className="ev-empty-list">
-                    <Search size={14} />
-                    <span>No matching companies</span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Traceability chain */}
-            <div className="panel">
-              <div className="panel-head">
-                <h3>Traceability Chain</h3>
-              </div>
-              <div className="ev-chain">
-                <div className="ev-chain-step">
-                  <Database size={16} />
-                  <strong>Source</strong>
-                  <small>Name, type, reliability</small>
-                </div>
-                <div className="ev-chain-arrow">→</div>
-                <div className="ev-chain-step">
-                  <Shield size={16} />
-                  <strong>Provenance</strong>
-                  <small>Dataset, record, checksum</small>
-                </div>
-                <div className="ev-chain-arrow">→</div>
-                <div className="ev-chain-step">
-                  <FileSearch size={16} />
-                  <strong>Evidence</strong>
-                  <small>Claim, type, direction</small>
-                </div>
-              </div>
-            </div>
+      {/* ── Evidence stream ────────────────────────────────────────── */}
+      <section className="scr-section" aria-label="Evidence stream">
+        {lineageLoading && (
+          <div className="loading-state" role="status">
+            <Activity className="spin" size={26} />
+            <strong>Loading evidence lineage</strong>
           </div>
+        )}
 
-          {/* RIGHT: Evidence content */}
-          <div className="ev-content">
-            {!selectedSymbol && (
-              <div className="empty-state">
-                <FileSearch size={28} />
-                <strong>Select a company</strong>
-                <p>Choose a company to view its canonical evidence lineage with full provenance.</p>
-              </div>
-            )}
+        {lineageError && !lineageLoading && (
+          <div className="empty-state error" role="alert">
+            <FileSearch size={28} />
+            <strong>Could not load evidence</strong>
+            <p>{lineageError}</p>
+          </div>
+        )}
 
-            {selectedSymbol && lineageLoading && (
-              <div className="loading-state" role="status">
-                <Activity className="spin" size={26} />
-                <strong>Loading evidence lineage</strong>
-                <span>Fetching evidence for {selectedSymbol}...</span>
-              </div>
-            )}
+        {lineage && !lineageLoading && filteredEvidence.length === 0 && (
+          <div className="empty-state">
+            <Search size={24} />
+            <strong>No matching evidence</strong>
+            <p>{evidence.length === 0
+              ? `No evidence was included for ${selectedSymbol}.`
+              : "Try adjusting the filters."}</p>
+          </div>
+        )}
 
-            {selectedSymbol && lineageError && (
-              <div className="empty-state error" role="alert">
-                <FileSearch size={28} />
-                <strong>Could not load evidence</strong>
-                <p>{lineageError}</p>
-              </div>
-            )}
-
-            {selectedSymbol && lineage && !lineageLoading && (
-              <>
-                {/* Summary stats */}
-                <div className="ev-summary">
-                  <div className="ev-stat">
-                    <strong>{totalEvidence}</strong>
-                    <span>evidence items</span>
-                  </div>
-                  {/* "claims" is only shown when it differs from the evidence
-                      count — otherwise the twin chips read as duplicated copy. */}
-                  {totalClaims !== totalEvidence && (
-                    <div className="ev-stat">
-                      <strong>{totalClaims}</strong>
-                      <span>claims</span>
-                    </div>
-                  )}
-                  <div className="ev-stat">
-                    {/* A zero with no source profiles means this extract did
-                        not report sources — show an explicit em-dash instead
-                        of a misleading hard zero. */}
-                    <strong>{totalSources > 0 ? totalSources : "—"}</strong>
-                    <span>sources</span>
-                  </div>
-                  {pitFiltered > 0 && (
-                    <div className="ev-stat ev-stat-warn">
-                      <strong>{pitFiltered}</strong>
-                      <span>PIT-filtered</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Direction counts */}
-                {Object.keys(directionCounts).length > 0 && (
-                  <div className="ev-direction-bar">
-                    {Object.entries(directionCounts).map(([dir, count]) => (
-                      <Tag key={dir} text={`${formatLabel(dir)}: ${count}`} tone={directionTone(dir)} />
-                    ))}
-                  </div>
-                )}
-
-                {/* Filters */}
-                <div className="ev-filter-bar">
-                  <span className="ev-filter-label">Direction:</span>
-                  <button
-                    className={`ev-filter-btn ${filterDirection === "ALL" ? "active" : ""}`}
-                    onClick={() => setFilterDirection("ALL")}
-                  >
-                    All
-                  </button>
-                  {Object.keys(directionCounts).sort().map((dir) => (
-                    <button
-                      key={dir}
-                      className={`ev-filter-btn ${filterDirection === dir ? "active" : ""}`}
-                      onClick={() => setFilterDirection(dir)}
-                    >
-                      {formatLabel(dir)} ({directionCounts[dir]})
-                    </button>
-                  ))}
-
-                  <span className="ev-filter-label" style={{ marginLeft: 12 }}>Epistemic:</span>
-                  <button
-                    className={`ev-filter-btn ${filterEpistemic === "ALL" ? "active" : ""}`}
-                    onClick={() => setFilterEpistemic("ALL")}
-                  >
-                    All
-                  </button>
-                  {epistemicTypes.map((ep) => (
-                    <button
-                      key={ep}
-                      className={`ev-filter-btn ${filterEpistemic === ep ? "active" : ""}`}
-                      onClick={() => setFilterEpistemic(ep)}
-                    >
-                      {formatLabel(ep)} ({epistemicCounts[ep]})
-                    </button>
-                  ))}
-                </div>
-
-                {/* Evidence list */}
-                {filteredEvidence.length === 0 ? (
-                  <div className="empty-state">
-                    <Search size={24} />
-                    <strong>No matching evidence</strong>
-                    <p>
-                      {evidence.length === 0
-                        ? `No evidence was included for ${selectedSymbol}.`
-                        : "Try adjusting the filters."}
-                    </p>
-                  </div>
-                ) : (
-                  <div className="ev-list">
-                    {filteredEvidence.map((item) => (
-                      <EvidenceCard key={item.evidence_id} item={item} />
-                    ))}
-                  </div>
-                )}
-
-                {/* Claims */}
-                {claims.length > 0 && (
-                  <div className="ev-claims-section">
-                    <div className="ev-section-head">
-                      <Shield size={14} />
-                      <strong>Claims ({claims.length})</strong>
-                    </div>
-                    <div className="ev-claims-list">
-                      {claims.map((claim) => (
-                        <div className="ev-claim" key={claim.claim_id}>
-                          <div className="ev-claim-head">
-                            <Tag text={formatLabel(claim.category)} tone="slate" />
-                            <Tag text={formatLabel(claim.epistemic_type)} tone="slate" />
-                          </div>
-                          <p>{claim.text}</p>
-                          <div className="ev-claim-meta">
-                            <span>Confidence: {formatConfidence(claim.confidence)}</span>
-                            <span>Status: {formatLabel(claim.verification_status)}</span>
-                            <span>Evidence: {pluralize(claim.evidence_ids.length, "item")}</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Source profiles */}
-                {sourceProfiles.length > 0 && (
-                  <div className="ev-sources-section">
-                    <div className="ev-section-head">
-                      <Database size={14} />
-                      <strong>Source Profiles ({sourceProfiles.length})</strong>
-                    </div>
-                    <div className="ev-sources-list">
-                      {sourceProfiles.map((src) => (
-                        <div className="ev-source-row" key={src.source_id}>
-                          <div className="ev-source-info">
-                            <strong>{src.name}</strong>
-                            <Tag text={formatLabel(src.source_type)} tone="slate" />
-                            <Tag text={src.reliability_tier} tone="slate" />
-                          </div>
-                          <div className="ev-source-meta">
-                            {src.domain && <span>{src.domain}</span>}
-                            {src.official && <Tag text="Official" tone="green" />}
-                            {src.requires_confirmation && <Tag text="Needs confirmation" tone="red" />}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Notes */}
-                {notes.length > 0 && (
-                  <div className="ev-notes">
-                    <Shield size={13} />
-                    <div>
-                      {notes.map((n, i) => (
-                        <span key={i}>{n}</span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Provenance note */}
-                <div className="ev-provenance-note">
-                  <Shield size={13} />
-                  <span>
-                    Every evidence item carries source IDs and provenance IDs for
-                    full traceability. Point-in-time validation ensures evidence is
-                    only from sources available before the requested date.
+        {!lineageLoading && filteredEvidence.length > 0 && (
+          <div className="evx-list">
+            {filteredEvidence.map((item) => {
+              const dir = directionMark(item.direction)
+              return (
+                <button
+                  key={item.evidence_id}
+                  type="button"
+                  className="evx-row"
+                  onClick={() => setDrawerItem(item)}
+                  aria-haspopup="dialog"
+                >
+                  <span className="evx-date">
+                    {item.observation_at ? formatEvidenceObservation(item.observation_at) : "—"}
                   </span>
-                </div>
-              </>
-            )}
+                  <span className="evx-main">
+                    <strong className="evx-title">{item.title}</strong>
+                    <span className="evx-explanation">{item.explanation}</span>
+                    <span className="evx-meta">
+                      <span className={`epi-badge ${epistemicClass(item.epistemic_type)}`}>
+                        {formatLabel(item.epistemic_type || "UNKNOWN")}
+                      </span>
+                      <span className="evx-meta-type">{formatLabel(item.evidence_type)}</span>
+                      {dir && (
+                        <span className={`evx-direction ${dir.cls}`}>
+                          <span className="evx-direction-dot" />
+                          {dir.label}
+                        </span>
+                      )}
+                      {item.source && (
+                        <span className="evx-source">{item.source.name}</span>
+                      )}
+                    </span>
+                  </span>
+                  <ChevronRight size={15} className="evx-chevron" />
+                </button>
+              )
+            })}
           </div>
-        </div>
+        )}
+      </section>
+
+      {/* ── Claims ─────────────────────────────────────────────────── */}
+      {claims.length > 0 && !lineageLoading && lineage && (
+        <details className="evx-section-collapse">
+          <summary>
+            Claims <span className="evx-count-chip">{claims.length}</span>
+          </summary>
+          <div className="evx-claims">
+            {claims.map((claim) => (
+              <div className="evx-claim" key={claim.claim_id}>
+                <div className="evx-claim-head">
+                  <span className={`epi-badge ${epistemicClass(claim.epistemic_type)}`}>
+                    {formatLabel(claim.epistemic_type)}
+                  </span>
+                  <span className="evx-meta-type">{formatLabel(claim.category)}</span>
+                </div>
+                <p>{claim.text}</p>
+                <div className="evx-claim-meta">
+                  <span>Confidence {formatConfidence(claim.confidence)}</span>
+                  <span>{formatLabel(claim.verification_status)}</span>
+                  <span>{claim.evidence_ids.length} evidence item{claim.evidence_ids.length === 1 ? "" : "s"}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </details>
       )}
+
+      {/* ── Source profiles ────────────────────────────────────────── */}
+      {sourceProfiles.length > 0 && !lineageLoading && lineage && (
+        <details className="evx-section-collapse">
+          <summary>
+            Sources <span className="evx-count-chip">{sourceProfiles.length}</span>
+          </summary>
+          <div className="evx-sources">
+            {sourceProfiles.map((src) => (
+              <div className="evx-source-row" key={src.source_id}>
+                <strong>{src.name}</strong>
+                <span className="evx-meta-type">{formatLabel(src.source_type)}</span>
+                <span className="evx-reliability">{src.reliability_tier}</span>
+                {src.domain && <span className="evx-domain">{src.domain}</span>}
+              </div>
+            ))}
+          </div>
+        </details>
+      )}
+
+      {/* ── Notes footer ───────────────────────────────────────────── */}
+      {(notes.length > 0 || lineage) && !lineageLoading && lineage && (
+        <footer className="evx-footnote">
+          <Shield size={12} />
+          <span>
+            {notes.length > 0 ? notes.join(" ") : ""} Point-in-time validation keeps every
+            item sourced from records available before the requested date.
+          </span>
+        </footer>
+      )}
+
+      {/* ── Detail drawer ──────────────────────────────────────────── */}
+      <EvidenceDrawer
+        item={drawerItem}
+        claims={drawerItem ? relatedClaims.get(drawerItem.evidence_id) ?? [] : []}
+        onClose={() => setDrawerItem(null)}
+      />
     </div>
   )
+}
+
+/* ── Segmented filter group ─────────────────────────────────────── */
+
+function SegmentedGroup({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string
+  value: string
+  onChange: (next: string) => void
+  options: Array<{ key: string; label: string; count?: number }>
+}) {
+  return (
+    <div className="evx-seg-group" role="group" aria-label={`Filter by ${label.toLowerCase()}`}>
+      <span className="evx-control-label">{label}</span>
+      <div className="seg-control seg-control--sm">
+        {options.map((opt) => (
+          <button
+            key={opt.key}
+            type="button"
+            role="tab"
+            aria-selected={value === opt.key}
+            className={`seg-control-item${value === opt.key ? " active" : ""}`}
+            onClick={() => onChange(opt.key)}
+          >
+            {opt.label}
+            {opt.count !== undefined && (
+              <span className="evx-seg-count">{opt.count}</span>
+            )}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/* ── Detail drawer ──────────────────────────────────────────────── */
+
+function EvidenceDrawer({
+  item,
+  claims,
+  onClose,
+}: {
+  item: F7EvidenceItem | null
+  claims: F7Claim[]
+  onClose: () => void
+}) {
+  const dir = item ? directionMark(item.direction) : null
+  return (
+    <DetailDrawer
+      open={Boolean(item)}
+      onClose={onClose}
+      kicker={item ? `${formatLabel(item.epistemic_type || "UNKNOWN")} · ${formatLabel(item.evidence_type)}` : undefined}
+      title={item?.title}
+    >
+      {item && (
+        <div className="evx-drawer">
+          <div className="evx-drawer-badges">
+            <span className={`epi-badge ${epistemicClass(item.epistemic_type)}`}>
+              {formatLabel(item.epistemic_type || "UNKNOWN")}
+            </span>
+            {dir && (
+              <span className={`evx-direction ${dir.cls}`}>
+                <span className="evx-direction-dot" />
+                {dir.label}
+              </span>
+            )}
+            <span className={`status-badge ${item.verification_status === "CONFLICT" ? "amber" : "slate"}`}>
+              <span className="status-badge-dot" />
+              {formatLabel(item.verification_status)}
+            </span>
+          </div>
+
+          <section className="evx-drawer-block">
+            <span className="evx-drawer-label">Explanation</span>
+            <p>{item.explanation}</p>
+          </section>
+
+          <section className="evx-drawer-block">
+            <span className="evx-drawer-label">Classification</span>
+            <dl className="evx-kv">
+              <div><dt>Type</dt><dd>{formatLabel(item.evidence_type)}</dd></div>
+              {item.category && <div><dt>Category</dt><dd>{formatLabel(item.category)}</dd></div>}
+              {item.topic && <div><dt>Topic</dt><dd>{formatLabel(item.topic)}</dd></div>}
+              <div><dt>Confidence</dt><dd>{formatConfidence(item.confidence)}</dd></div>
+              <div><dt>Reliability</dt><dd>{formatLabel(item.reliability)}</dd></div>
+              {item.derivation && <div><dt>Derivation</dt><dd>{item.derivation}</dd></div>}
+            </dl>
+          </section>
+
+          <section className="evx-drawer-block">
+            <span className="evx-drawer-label">Time &amp; PIT</span>
+            <dl className="evx-kv">
+              <div><dt>Observed</dt><dd>{item.observation_at ? formatEvidenceObservation(item.observation_at) : "—"}</dd></div>
+              <div><dt>Published</dt><dd>{item.published_at ? formatIso(item.published_at) : "—"}</dd></div>
+              <div><dt>Available</dt><dd>{item.available_at ? formatIso(item.available_at) : "—"}</dd></div>
+              <div><dt>PIT eligibility</dt><dd>
+                <span className={`status-badge ${pitTone(item)}`}>
+                  <span className="status-badge-dot" />
+                  {pitLabel(item)}
+                </span>
+              </dd></div>
+            </dl>
+          </section>
+
+          <section className="evx-drawer-block">
+            <span className="evx-drawer-label">Source</span>
+            {item.source ? (
+              <dl className="evx-kv">
+                <div><dt>Name</dt><dd>{item.source.name}</dd></div>
+                <div><dt>Type</dt><dd>{formatLabel(item.source.source_type)}</dd></div>
+                <div><dt>Reliability tier</dt><dd>{item.source.reliability_tier}</dd></div>
+              </dl>
+            ) : (
+              <p className="evx-drawer-empty">No source profile recorded.</p>
+            )}
+          </section>
+
+          <section className="evx-drawer-block">
+            <span className="evx-drawer-label">Provenance</span>
+            {item.provenance_ids.length === 0 && item.source_records.length === 0 ? (
+              <p className="evx-drawer-empty">No provenance chain recorded.</p>
+            ) : (
+              <>
+                {item.source_records.map((rec, i) => (
+                  <div className="evx-record" key={i}>
+                    <span className="evx-record-source">{rec.source}</span>
+                    {rec.dataset_id && <span className="mono">dataset {rec.dataset_id}</span>}
+                    {rec.checksum && <span className="mono">checksum {rec.checksum.slice(0, 16)}…</span>}
+                    {rec.available_at && <span>available {formatIso(rec.available_at)}</span>}
+                  </div>
+                ))}
+                {item.source_ids.length > 0 && (
+                  <p className="evx-ids mono">{item.source_ids.join(" · ")}</p>
+                )}
+                {item.provenance_ids.length > 0 && (
+                  <p className="evx-ids mono">{item.provenance_ids.join(" · ")}</p>
+                )}
+              </>
+            )}
+          </section>
+
+          {claims.length > 0 && (
+            <section className="evx-drawer-block">
+              <span className="evx-drawer-label">Related evidence</span>
+              {claims.map((c) => (
+                <p className="evx-related" key={c.claim_id}>{c.text}</p>
+              ))}
+            </section>
+          )}
+
+          {item.verification_status.toUpperCase() === "CONFLICT" && (
+            <div className="evx-conflict-note">
+              <AlertTriangle size={13} />
+              <span>Conflicting verification status — treat interpretation with care.</span>
+            </div>
+          )}
+        </div>
+      )}
+    </DetailDrawer>
+  )
+
+  function pitTone(i: F7EvidenceItem): string {
+    const hasAvailability = Boolean(i.available_at)
+    return hasAvailability ? "green" : "slate"
+  }
+
+  function pitLabel(i: F7EvidenceItem): string {
+    return i.available_at ? "Eligible — availability recorded" : "Unknown availability"
+  }
 }

@@ -1,34 +1,33 @@
 /**
- * Research Screener page: filter companies by observable conditions.
+ * RESEARCH SCREENER — vertical research workspace.
  *
- * Active filters (client-side, backed by discovery data):
- * - Sector: filter by industry sector
- * - Research Available: show only companies with research data
+ *   header → universe context → filter builder → results
  *
- * Planned filters (require backend screener API):
- * Fundamentals, Growth, Financial Quality, Valuation, Technology,
- * R&D/Innovation, Competitive, Technical/Market — listed for
- * transparency but not interactive until the backend API exists.
- *
- * No scores, no rankings, no recommendations.
+ * Filters are composed FIELD · operator · VALUE and applied as tinted chips.
+ * Results render as research objects (symbol, company, sector, coverage,
+ * matched-filter context) rather than database rows. Planned-but-unwired
+ * filter areas live behind one collapsed disclosure — unsupported filters
+ * never present interactive controls. All filtering is client-side over
+ * discovery data via lib/screener.ts. No scores, no rankings.
  */
 
 import { useEffect, useMemo, useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { Link } from "react-router-dom"
 import {
   Activity,
-  Filter,
-  Search,
-  ChevronDown,
-  ChevronRight,
   AlertTriangle,
-  Beaker,
+  ArrowRight,
+  ArrowUpDown,
+  ChevronRight,
+  Plus,
+  Search,
+  X,
 } from "lucide-react"
 import { fetchDiscovery } from "../api/client"
 import type { DiscoveryItem } from "../api/types"
 import { formatLabel } from "../lib/format"
-import { Tag } from "../components/ui"
 import { FilterChip } from "../components/ResearchPrimitives"
+import { SegmentedControl } from "../components/ui"
 import {
   ACTIVE_FILTER_DEFINITIONS,
   PLANNED_FILTER_CATEGORIES,
@@ -36,14 +35,28 @@ import {
   type ActiveFilter,
 } from "../lib/screener"
 
+type SortKey = "symbol" | "company" | "sector" | "research"
+type SortDir = "asc" | "desc"
+
+const SORT_LABELS: Record<SortKey, string> = {
+  symbol: "Symbol",
+  company: "Company",
+  sector: "Sector",
+  research: "Coverage",
+}
+
 export default function ScreenerPage() {
-  const navigate = useNavigate()
   const [items, setItems] = useState<DiscoveryItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [showPlanned, setShowPlanned] = useState(false)
+  const [sortKey, setSortKey] = useState<SortKey>("symbol")
+  const [sortDir, setSortDir] = useState<SortDir>("asc")
+  const [builderField, setBuilderField] = useState("sector")
+  const [builderSector, setBuilderSector] = useState("")
+  const [builderAvailable, setBuilderAvailable] = useState<"true" | "false">("true")
 
   useEffect(() => {
     let cancelled = false
@@ -65,37 +78,57 @@ export default function ScreenerPage() {
 
   const sectors = useMemo(() => {
     const set = new Set<string>()
-    for (const item of items) {
-      set.add(item.sector)
-    }
+    for (const item of items) set.add(item.sector)
     return [...set].sort()
   }, [items])
 
-  const results = useMemo(() => {
+  /** Rows after filter evaluation + free-text search. */
+  const matched = useMemo(() => {
     let filtered = evaluateFilters(items, activeFilters)
-
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase()
+    const q = searchQuery.trim().toLowerCase()
+    if (q) {
       filtered = filtered.filter(
-        (r) =>
-          r.symbol.toLowerCase().includes(q) ||
-          (r.companyName ?? "").toLowerCase().includes(q) ||
-          r.sector.toLowerCase().includes(q),
+        (item) =>
+          item.symbol.toLowerCase().includes(q) ||
+          (item.companyName ?? "").toLowerCase().includes(q) ||
+          item.sector.toLowerCase().includes(q),
       )
     }
-
     return filtered
   }, [items, activeFilters, searchQuery])
 
-  function addFilter(filterId: string, value: string | string[]) {
+  const results = useMemo(() => {
+    const dir = sortDir === "asc" ? 1 : -1
+    return [...matched].sort((a, b) => {
+      switch (sortKey) {
+        case "company":
+          return dir * (a.companyName ?? a.symbol).localeCompare(b.companyName ?? b.symbol)
+        case "sector":
+          return dir * a.sector.localeCompare(b.sector)
+        case "research":
+          return dir * (Number(b.researchAvailable) - Number(a.researchAvailable))
+        default:
+          return dir * a.symbol.localeCompare(b.symbol)
+      }
+    })
+  }, [matched, sortKey, sortDir])
+
+  function applyBuilder() {
+    if (builderField === "sector") {
+      if (!builderSector) return
+      upsertFilter("sector", builderSector)
+    } else {
+      upsertFilter("industry_research_available", builderAvailable)
+    }
+  }
+
+  function upsertFilter(filterId: string, value: string) {
     setActiveFilters((prev) => {
       const existing = prev.find((f) => f.filterId === filterId)
       if (existing) {
         return prev.map((f) => (f.filterId === filterId ? { ...f, value } : f))
       }
-      const def = ACTIVE_FILTER_DEFINITIONS.find((f) => f.id === filterId)
-      if (!def) return prev
-      return [...prev, { filterId, operator: def.operator, value }]
+      return [...prev, { filterId, operator: "equals", value }]
     })
   }
 
@@ -108,21 +141,24 @@ export default function ScreenerPage() {
     setSearchQuery("")
   }
 
+  const hasConstraints = activeFilters.length > 0 || searchQuery.trim() !== ""
+
   return (
     <div className="page-screener">
-      <section className="page-hero">
+      {/* ── Page header ─────────────────────────────────────────── */}
+      <header className="scr-header">
+        <span className="eyebrow">Universe screen</span>
         <h1>Research Screener</h1>
-        <p className="page-subtitle">
-          Filter companies by observable conditions. Every match explains what
-          data was used. No scores, no rankings, no recommendations.
+        <p className="scr-subtitle">
+          Search the tracked universe, compose evidence-backed filters, and inspect what
+          matches. Every result states which conditions it satisfied. No scores, no rankings.
         </p>
-      </section>
+      </header>
 
       {loading && (
         <div className="loading-state" role="status">
           <Activity className="spin" size={26} />
           <strong>Loading screener data</strong>
-          <span>Fetching supported companies...</span>
         </div>
       )}
 
@@ -135,212 +171,267 @@ export default function ScreenerPage() {
       )}
 
       {!loading && !error && (
-        <div className="screener-layout">
-          <div className="screener-filters">
-            <div className="screener-filters-head">
-              <Filter size={14} />
-              <strong>Filters</strong>
-              {activeFilters.length > 0 && (
-                <button className="screener-clear" onClick={clearAllFilters}>
-                  Clear all ({activeFilters.length})
+        <>
+          {/* ── Universe context ──────────────────────────────────── */}
+          <div className="scr-context scr-section" style={{ marginTop: "var(--space-5)" }}>
+            <span className="scr-context-item">
+              <strong>{items.length}</strong> tracked companies
+            </span>
+            <span className="scr-context-sep" />
+            <span className="scr-context-item">
+              <strong>{activeFilters.length}</strong>{" "}
+              filter{activeFilters.length === 1 ? "" : "s"} active
+            </span>
+            <span className="scr-context-sep" />
+            <span className="scr-context-item">
+              evaluation on recorded universe data · client-side
+            </span>
+          </div>
+
+          {/* ── Filter builder ────────────────────────────────────── */}
+          <section className="scr-builder scr-section" aria-label="Filter builder">
+            <div className="scr-builder-head">
+              <strong className="scr-builder-title">Filters</strong>
+              <span className={`scr-filter-count${activeFilters.length === 0 ? " zero" : ""}`}>
+                {activeFilters.length}
+              </span>
+            </div>
+
+            <div className="scr-search">
+              <Search size={15} />
+              <input
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder="Search by name, symbol, sector…"
+                aria-label="Search companies"
+              />
+              {searchQuery && (
+                <button
+                  className="filter-chip-remove"
+                  onClick={() => setSearchQuery("")}
+                  aria-label="Clear search"
+                >
+                  <X size={13} />
                 </button>
               )}
             </div>
 
-            <div className="screener-search">
-              <Search size={14} />
-              <input
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search by name or symbol..."
-                aria-label="Search companies"
-              />
+            <div className="scr-builder-grid">
+              <div>
+                <label className="scr-field-label" htmlFor="scr-field">
+                  Field
+                </label>
+                <select
+                  id="scr-field"
+                  className="scr-select"
+                  value={builderField}
+                  onChange={(event) => setBuilderField(event.target.value)}
+                >
+                  {ACTIVE_FILTER_DEFINITIONS.map((def) => (
+                    <option key={def.id} value={def.id}>
+                      {def.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <span className="scr-field-label">Operator</span>
+                <span className="scr-operator">is</span>
+              </div>
+
+              <div>
+                <label className="scr-field-label" htmlFor="scr-value">
+                  Value
+                </label>
+                {builderField === "sector" ? (
+                  <select
+                    id="scr-value"
+                    className="scr-select"
+                    value={builderSector}
+                    onChange={(event) => setBuilderSector(event.target.value)}
+                  >
+                    <option value="">Select sector…</option>
+                    {sectors.map((sector) => (
+                      <option key={sector} value={sector}>
+                        {formatLabel(sector)}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <SegmentedControl
+                    size="md"
+                    ariaLabel="Research availability value"
+                    options={[
+                      { value: "true" as const, label: "Yes" },
+                      { value: "false" as const, label: "No" },
+                    ]}
+                    value={builderAvailable}
+                    onChange={(next) => setBuilderAvailable(next)}
+                  />
+                )}
+              </div>
+
+              <button
+                className="scr-add-btn"
+                onClick={applyBuilder}
+                disabled={builderField === "sector" && !builderSector}
+              >
+                <Plus size={14} />
+                Add filter
+              </button>
             </div>
 
-            {activeFilters.length > 0 && (
-              <div className="screener-active-filters">
-                {activeFilters.map((f) => {
-                  const def = ACTIVE_FILTER_DEFINITIONS.find((d) => d.id === f.filterId)
-                  if (!def) return null
-                  return (
-                    <FilterChip
-                      key={f.filterId}
-                      label={def.label}
-                      value={f.value === "true" ? "Yes" : f.value === "false" ? "No" : String(f.value)}
-                      onRemove={() => removeFilter(f.filterId)}
-                    />
-                  )
-                })}
-              </div>
-            )}
+            {/* Active filters as chips */}
+            <div className="scr-chips" role="list" aria-label="Active filters">
+              {searchQuery.trim() !== "" && (
+                <FilterChip
+                  label="Search"
+                  value={`“${searchQuery.trim()}”`}
+                  onRemove={() => setSearchQuery("")}
+                />
+              )}
+              {activeFilters.map((filter) => {
+                const def = ACTIVE_FILTER_DEFINITIONS.find((d) => d.id === filter.filterId)
+                if (!def) return null
+                return (
+                  <FilterChip
+                    key={filter.filterId}
+                    label={def.label}
+                    value={
+                      filter.value === "true"
+                        ? "Yes"
+                        : filter.value === "false"
+                          ? "No"
+                          : formatLabel(String(filter.value))
+                    }
+                    onRemove={() => removeFilter(filter.filterId)}
+                  />
+                )
+              })}
+            </div>
 
-            <ScreenerFilterSection
-              label="Sector"
-              activeFilters={activeFilters}
-              onAddFilter={addFilter}
-              onRemoveFilter={removeFilter}
-              sectors={sectors}
-            />
+            {/* Compact placeholder disclosure */}
+            <div className="scr-more">
+              <button
+                className="scr-more-toggle"
+                onClick={() => setShowPlanned(!showPlanned)}
+                aria-expanded={showPlanned}
+              >
+                <ChevronRight size={14} />
+                View planned filter areas
+              </button>
+              {showPlanned && (
+                <div className="scr-more-body">
+                  <p className="scr-more-note">
+                    More filters coming — additional evidence-backed filters will appear here as
+                    their recorded data coverage is validated. Planned areas:{" "}
+                    {PLANNED_FILTER_CATEGORIES.map((cat) => cat.category).join(" · ")}. Each will
+                    be evaluated against recorded data with full provenance before it ships.
+                  </p>
+                </div>
+              )}
+            </div>
+          </section>
 
-            <ScreenerFilterSection
-              label="Research Available"
-              activeFilters={activeFilters}
-              onAddFilter={addFilter}
-              onRemoveFilter={removeFilter}
-            />
-
-            <button
-              className="screener-planned-toggle"
-              onClick={() => setShowPlanned(!showPlanned)}
-              aria-expanded={showPlanned}
-            >
-              {showPlanned ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-              <Beaker size={14} />
-              <span>More filters</span>
-              <span className="screener-planned-count">
-                {PLANNED_FILTER_CATEGORIES.reduce((n, c) => n + c.filters.length, 0)} planned across {PLANNED_FILTER_CATEGORIES.length} categories
+          {/* ── Results ────────────────────────────────────────────── */}
+          <section className="scr-section" aria-label="Screener results">
+            <div className="scr-results-head">
+              <span className="scr-results-label">Matching companies</span>
+              <span className="scr-results-count">
+                {results.length} <small>of {items.length}</small>
               </span>
-            </button>
-
-            {showPlanned && (
-              <div className="screener-planned-list">
-                {PLANNED_FILTER_CATEGORIES.map((cat) => (
-                  <div key={cat.category} className="screener-planned-category">
-                    <strong>{cat.category}</strong>
-                    <span>{cat.description}</span>
-                    <div className="screener-planned-filters">
-                      {cat.filters.map((f) => (
-                        <Tag key={f} text={formatLabel(f)} tone="slate" />
-                      ))}
-                    </div>
-                  </div>
-                ))}
-                <p className="screener-planned-note">
-                  These filters are not wired up yet — the screener currently runs on
-                  sector and research availability. Each additional filter will be
-                  evaluated against recorded financial, technology, and competitive
-                  data with full provenance before it ships.
-                </p>
+              <div className="scr-results-tools">
+                <ArrowUpDown size={13} style={{ color: "var(--color-text-faint)" }} />
+                <select
+                  className="scr-sort"
+                  value={sortKey}
+                  onChange={(event) => setSortKey(event.target.value as SortKey)}
+                  aria-label="Sort results by"
+                >
+                  {(Object.keys(SORT_LABELS) as SortKey[]).map((key) => (
+                    <option key={key} value={key}>
+                      Sort: {SORT_LABELS[key]}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  className="scr-sort"
+                  onClick={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}
+                  aria-label={`Sort direction ${sortDir === "asc" ? "ascending" : "descending"}`}
+                >
+                  {sortDir === "asc" ? "↑ Asc" : "↓ Desc"}
+                </button>
+                {hasConstraints && (
+                  <button className="scr-clear" onClick={clearAllFilters}>
+                    Clear all
+                  </button>
+                )}
               </div>
-            )}
-          </div>
-
-          <div className="screener-results">
-            <div className="screener-results-head">
-              <strong>{results.length} companies</strong>
-              <span>
-                {activeFilters.length > 0
-                  ? `matching ${activeFilters.length} filter${activeFilters.length !== 1 ? "s" : ""}`
-                  : "— showing the full tracked universe; apply a filter to narrow it"}
-              </span>
             </div>
 
             {results.length === 0 ? (
               <div className="empty-state">
                 <Search size={24} />
                 <strong>No matching companies</strong>
-                <p>Try adjusting your filters.</p>
+                <p>
+                  {hasConstraints
+                    ? "Loosen or clear the current filters to widen the match."
+                    : "The tracked universe is empty right now."}
+                </p>
+                {hasConstraints && (
+                  <button className="refresh-button retry-button" onClick={clearAllFilters}>
+                    Clear all filters
+                  </button>
+                )}
               </div>
             ) : (
-              <div className="screener-results-table">
-                <div className="screener-results-head-row">
-                  <span className="col-symbol">Symbol</span>
-                  <span className="col-name">Company</span>
-                  <span className="col-sector">Sector</span>
-                </div>
+              <div className="scr-results-list">
                 {results.map((result) => (
-                  <button
-                    key={result.symbol}
-                    className="screener-result-row"
-                    onClick={() => navigate(`/companies/${result.symbol}`)}
-                  >
-                    <span className="col-symbol mono">{result.symbol}</span>
-                    <span className="col-name">{result.companyName ?? result.symbol}</span>
-                    <span className="col-sector">
-                      <Tag text={formatLabel(result.sector)} tone="slate" />
-                    </span>
-                  </button>
+                  <article key={result.symbol} className="result-card">
+                    <div className="result-card-id">
+                      <Link
+                        to={`/companies/${encodeURIComponent(result.symbol)}`}
+                        className="result-symbol"
+                      >
+                        {result.symbol}
+                      </Link>
+                      <span className="result-company">{result.companyName ?? "\u2014"}</span>
+                      <span className="result-sector">{formatLabel(result.sector)}</span>
+                    </div>
+
+                    <div className="result-card-main">
+                      <span
+                        className={`status-badge ${result.researchAvailable ? "green" : "slate"}`}
+                      >
+                        <span className="status-badge-dot" />
+                        {result.researchAvailable ? "Research available" : "Directory only"}
+                      </span>
+                      <span className="result-context">
+                        {result.matchedFilters.length > 0
+                          ? `Matches: ${result.matchedFilters.join(" · ")}`
+                          : hasConstraints
+                            ? "Passes search only"
+                            : "Full tracked universe"}
+                      </span>
+                    </div>
+
+                    <div className="result-actions">
+                      <Link
+                        to={`/companies/${encodeURIComponent(result.symbol)}`}
+                        className="result-open"
+                      >
+                        Open Research
+                        <ArrowRight size={14} />
+                      </Link>
+                    </div>
+                  </article>
                 ))}
               </div>
             )}
-          </div>
-        </div>
+          </section>
+        </>
       )}
     </div>
   )
-}
-
-/* ── Filter sections ──────────────────────────────────────────────── */
-
-function ScreenerFilterSection({
-  label,
-  activeFilters,
-  onAddFilter,
-  onRemoveFilter,
-  sectors,
-}: {
-  label: string
-  activeFilters: ActiveFilter[]
-  onAddFilter: (id: string, value: string | string[]) => void
-  onRemoveFilter: (id: string) => void
-  sectors?: string[]
-}) {
-  const filterDef = ACTIVE_FILTER_DEFINITIONS.find((f) => f.label === label)
-  if (!filterDef) return null
-  const active = activeFilters.find((f) => f.filterId === filterDef.id)
-
-  if (filterDef.id === "sector" && sectors) {
-    return (
-      <div className="filter-row">
-        <span className="filter-row-label">{label}</span>
-        <select
-          className="filter-select"
-          value={active ? String(active.value) : ""}
-          onChange={(e) => {
-            if (e.target.value) {
-              onAddFilter(filterDef.id, e.target.value)
-            } else {
-              onRemoveFilter(filterDef.id)
-            }
-          }}
-        >
-          <option value="">All sectors</option>
-          {sectors.map((s) => (
-            <option key={s} value={s}>{formatLabel(s)}</option>
-          ))}
-        </select>
-      </div>
-    )
-  }
-
-  if (filterDef.id === "industry_research_available") {
-    return (
-      <div className="filter-row">
-        <span className="filter-row-label">{label}</span>
-        <div className="filter-toggle-group">
-          <button
-            className={`filter-toggle ${active?.value === "true" ? "active" : ""}`}
-            onClick={() => onAddFilter(filterDef.id, "true")}
-            aria-pressed={active?.value === "true"}
-          >
-            Yes
-          </button>
-          <button
-            className={`filter-toggle ${active?.value === "false" ? "active" : ""}`}
-            onClick={() => onAddFilter(filterDef.id, "false")}
-            aria-pressed={active?.value === "false"}
-          >
-            No
-          </button>
-          {active && (
-            <button className="filter-toggle-clear" onClick={() => onRemoveFilter(filterDef.id)}>
-              Clear
-            </button>
-          )}
-        </div>
-      </div>
-    )
-  }
-
-  return null
 }

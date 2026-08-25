@@ -35,91 +35,62 @@ function renderPage(data: CompanyResearchGapsResponse = RESEARCH_GAPS) {
   )
 }
 
-async function selectTCS() {
-  await waitFor(() => {
-    expect(screen.getByText("TCS")).toBeInTheDocument()
-  })
-  fireEvent.click(screen.getByText("TCS"))
-  await waitFor(() => {
-    expect(mockFetchResearchGaps).toHaveBeenCalledWith("TCS")
-  })
-}
-
 beforeEach(() => {
   vi.clearAllMocks()
 })
 
 describe("ResearchGapsPage", () => {
-  it("renders the page hero", async () => {
+  it("renders the page header", async () => {
     renderPage()
     await waitFor(() => {
-      expect(screen.getByText("Research Gaps & Coverage")).toBeInTheDocument()
+      expect(screen.getByText("Research Coverage")).toBeInTheDocument()
     })
   })
 
   it("shows loading state initially", () => {
     renderPage()
-    expect(screen.getByText("Loading research gap data")).toBeInTheDocument()
+    expect(screen.getByText("Loading coverage data")).toBeInTheDocument()
   })
 
-  it("loads company list after discovery", async () => {
+  it("loads company picker after discovery and auto-selects the first company", async () => {
     renderPage()
     await waitFor(() => {
-      expect(screen.getByText("TCS")).toBeInTheDocument()
+      expect(mockFetchResearchGaps).toHaveBeenCalledWith("TCS")
     })
-    expect(screen.getByText("Tata Consultancy Services")).toBeInTheDocument()
+    expect(screen.getByText("TCS")).toBeInTheDocument()
   })
 
-  it("shows coverage summary with gap count after selecting company", async () => {
+  it("shows the coverage status strip with counts", async () => {
     renderPage()
-    await selectTCS()
     await waitFor(() => {
-      expect(screen.getByText("gaps")).toBeInTheDocument()
+      expect(screen.getByText("Missing")).toBeInTheDocument()
     })
+    expect(screen.getAllByText("Stale").length).toBeGreaterThan(0)
+    expect(screen.getByText("Available")).toBeInTheDocument()
   })
 
-  it("shows missing evidence count in summary", async () => {
+  it("groups gaps into a status stream", async () => {
     renderPage()
-    await selectTCS()
     await waitFor(() => {
-      expect(screen.getByText("missing")).toBeInTheDocument()
+      expect(screen.getByText("Forward guidance from management not available for latest period.")).toBeInTheDocument()
     })
-    expect(screen.getByText("stale")).toBeInTheDocument()
+    // Distinct gap rows render once even with one company selected.
+    expect(mockFetchResearchGaps).toHaveBeenCalledTimes(1)
   })
 
-  it("shows domain coverage section after selecting company", async () => {
+  it("expands a gap row to reveal reason and resolution", async () => {
     renderPage()
-    await selectTCS()
     await waitFor(() => {
-      expect(screen.getByText("Domain Coverage")).toBeInTheDocument()
+      expect(screen.getByText(/Forward guidance from management/i)).toBeInTheDocument()
     })
+    fireEvent.click(screen.getByRole("button", { name: /forward guidance from management not available/i }))
+    await waitFor(() => {
+      expect(screen.getByText("Why this gap exists")).toBeInTheDocument()
+    })
+    expect(screen.getByText(/No earnings call transcript or investor presentation found/i)).toBeInTheDocument()
   })
 
-  it("renders missing evidence section", async () => {
-    renderPage()
-    await selectTCS()
-    await waitFor(() => {
-      expect(screen.getByText("Missing Evidence")).toBeInTheDocument()
-    })
-  })
-
-  it("renders stale evidence section", async () => {
-    renderPage()
-    await selectTCS()
-    await waitFor(() => {
-      expect(screen.getByText("Stale Evidence")).toBeInTheDocument()
-    })
-  })
-
-  it("renders gap details section", async () => {
-    renderPage()
-    await selectTCS()
-    await waitFor(() => {
-      expect(screen.getByText("Gap Details")).toBeInTheDocument()
-    })
-  })
-
-  it("displays empty state when no company selected", async () => {
+  it("displays empty state when no companies are researchable", async () => {
     mockFetchDiscovery.mockResolvedValue({ count: 0, results: [] })
     render(
       <MemoryRouter initialEntries={["/research-gaps"]}>
@@ -127,7 +98,7 @@ describe("ResearchGapsPage", () => {
       </MemoryRouter>,
     )
     await waitFor(() => {
-      expect(screen.getByText("Select companies to view research gaps")).toBeInTheDocument()
+      expect(screen.getByText("Select companies to view coverage")).toBeInTheDocument()
     })
   })
 
@@ -158,7 +129,9 @@ describe("ResearchGapsPage", () => {
         <ResearchGapsPage />
       </MemoryRouter>,
     )
-    await selectTCS()
+    await waitFor(() => {
+      expect(mockFetchResearchGaps).toHaveBeenCalledWith("TCS")
+    })
     await waitFor(() => {
       expect(screen.getByText("No matching gaps")).toBeInTheDocument()
     })
