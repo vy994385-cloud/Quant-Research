@@ -1,0 +1,165 @@
+{
+  "version": "1.0.0",
+  "generated": "2026-08-24",
+  "sprint": "T1 CAPABILITY EXPANSION (Terminal 1)",
+  "legend": {
+    "SUPPORTED": "Shipped, deterministic, PIT-safe, tested",
+    "PARTIAL": "Real capability shipped with explicit boundaries",
+    "MISSING": "Not built; requires data or infrastructure that does not exist yet",
+    "INTENTIONALLY_UNSUPPORTED": "Deliberately excluded by product rules"
+  },
+  "capabilities": [
+    {
+      "capability": "Company research workspace (recorded evidence, financials, intel)",
+      "current_state": "SUPPORTED",
+      "competitor_gap_closed": "Generic news feeds do not bind every statement to provenance and availability timestamps.",
+      "data_dependency": "Recorded fixture archive per company (market CSV, financials JSON, intel JSON, sources JSON).",
+      "pit_requirement": "Every item filtered to available_at <= as_of.",
+      "provenance_requirement": "Every evidence record carries source_ids + provenance_ids."
+    },
+    {
+      "capability": "Discovery feed + trending",
+      "current_state": "SUPPORTED",
+      "competitor_gap_closed": "Feeds ordered by timestamp/id determinism instead of engagement heuristics.",
+      "data_dependency": "Recorded intel across the 6-company universe.",
+      "pit_requirement": "as_of cutoff honored.",
+      "provenance_requirement": "Items reference source ids."
+    },
+    {
+      "capability": "Advanced screener (numeric/string/boolean filters + has/missing presence checks)",
+      "current_state": "SUPPORTED",
+      "competitor_gap_closed": "Most retail screeners hide missing data as zeros; here 'missing' is an explicit first-class query.",
+      "data_dependency": "FIELD_REGISTRY over recorded financial periods.",
+      "pit_requirement": "Field extraction at explicit as_of.",
+      "provenance_requirement": "Fields trace to financial records in the archive."
+    },
+    {
+      "capability": "Evidence search 2.0 (AND terms, exact phrase, match tier labels, snippets, published/observation windows, historical mode)",
+      "current_state": "SUPPORTED",
+      "competitor_gap_closed": "Search results expose WHERE terms matched (title/text/metadata) as categorical labels, never opaque relevance scores.",
+      "data_dependency": "Canonical evidence lineage per company.",
+      "pit_requirement": "Historical search returns only provably-knowable items (available_at <= as_of).",
+      "provenance_requirement": "Hits carry source_ids + provenance_ids + claim ids."
+    },
+    {
+      "capability": "Research Change Radar (what changed between two as_of moments for a symbol or a saved screen)",
+      "current_state": "SUPPORTED",
+      "competitor_gap_closed": "Competitors show a static snapshot; none offer auditable diffs of the research record itself.",
+      "data_dependency": "Two recorded runs at distinct as_of timestamps.",
+      "pit_requirement": "baseline_as_of < current_as_of enforced; effective_at never exceeds current as_of.",
+      "provenance_requirement": "Each change references source + provenance ids where applicable."
+    },
+    {
+      "capability": "Evidence Delta (new/removed/changed evidence, conflict transitions, gap transitions, freshness changes)",
+      "current_state": "SUPPORTED",
+      "competitor_gap_closed": "No competitor surfaces how the evidence base itself moved between dates.",
+      "data_dependency": "Same as Change Radar.",
+      "pit_requirement": "Both sides computed at their own as_of.",
+      "provenance_requirement": "Delta entries carry full lineage ids."
+    },
+    {
+      "capability": "Research Context Snapshot (shareable rc-* context id replaying one exact recorded state)",
+      "current_state": "SUPPORTED",
+      "competitor_gap_closed": "Analysts cannot today share a link that deterministically reproduces one research state.",
+      "data_dependency": "Deterministic id derivation from symbol + as_of.",
+      "pit_requirement": "Replay re-runs the recorded service at the embedded as_of; tampered ids rejected via digest check.",
+      "provenance_requirement": "Snapshot embeds PIT accounting identical to /research contract."
+    },
+    {
+      "capability": "Conflict Explorer (both sides of conflicting evidence, no winner)",
+      "current_state": "SUPPORTED",
+      "competitor_gap_closed": "Competitors silently pick a narrative; this system names both sides and refuses to arbitrate.",
+      "data_dependency": "Conflict detection over intel items sharing a topic with opposing directions.",
+      "pit_requirement": "Conflicts evaluated at as_of only from known items.",
+      "provenance_requirement": "Each side cites its own source and excerpt."
+    },
+    {
+      "capability": "Coverage Delta (categories gained/lost, gaps opened/resolved between two contexts)",
+      "current_state": "SUPPORTED",
+      "competitor_gap_closed": "Coverage changes are invisible elsewhere; here they are first-class transitions.",
+      "data_dependency": "Coverage status per run.",
+      "pit_requirement": "Both sides at their own as_of.",
+      "provenance_requirement": "Gap transitions reference gap ids."
+    },
+    {
+      "capability": "Compare 2.0 (side-by-side facts incl. coverage, conflicts, freshness, gaps-by-status, PIT consistency note)",
+      "current_state": "SUPPORTED",
+      "competitor_gap_closed": "Comparisons state facts without ratings and disclose when columns were captured at different times.",
+      "data_dependency": ">=2 recorded runs.",
+      "pit_requirement": "Notes flag any column whose captured as_of differs.",
+      "provenance_requirement": "Rows derive from recorded artifacts only."
+    },
+    {
+      "capability": "Recorded-event calendar (RECORDED vs ANNOUNCED states, explicit non-guarantee)",
+      "current_state": "SUPPORTED",
+      "competitor_gap_closed": "Event calendars elsewhere imply certainty; announced items are labeled as non-guaranteed statements of intent.",
+      "data_dependency": "Timeline entries in the recorded intel archive (live calendar APIs intentionally NOT used).",
+      "pit_requirement": "Range filtering on event_date; ANNOUNCED = future-dated relative to as_of.",
+      "provenance_requirement": "Events carry source + provenance ids."
+    },
+    {
+      "capability": "Export package v2 (research.json + screener_fields.csv + evidence.json + pit.json + sources.csv, sha256 manifest)",
+      "current_state": "SUPPORTED",
+      "competitor_gap_closed": "Exports are verifiable byte-for-byte and carry the PIT accounting block.",
+      "data_dependency": "All payloads already produced by engines.",
+      "pit_requirement": "Package stamped with result.as_of.",
+      "provenance_requirement": "Manifest checksums make tampering detectable."
+    },
+    {
+      "capability": "Change timeline UI (visual timeline of research changes)",
+      "current_state": "PARTIAL",
+      "competitor_gap_closed": "API contract exists (/research-changes); frontend rendering is Terminal 2 scope.",
+      "data_dependency": "Same as Change Radar.",
+      "pit_requirement": "Inherited.",
+      "provenance_requirement": "Inherited."
+    },
+    {
+      "capability": "Point-in-time replay sessions (browse any historical date interactively)",
+      "current_state": "PARTIAL",
+      "competitor_gap_closed": "Context-id replay proves single-state reproducibility; multi-date session browsing is future work.",
+      "data_dependency": "Requires dense archives per date; current fixtures cover two reference dates.",
+      "pit_requirement": "Inherited from replay.",
+      "provenance_requirement": "Inherited."
+    },
+    {
+      "capability": "Provenance chain drill-down (source -> acquisition -> transformation -> artifact)",
+      "current_state": "PARTIAL",
+      "competitor_gap_closed": "Source/provenance ids exposed everywhere; deep chain visualization pending frontend work.",
+      "data_dependency": "Raw archive records already tracked in git.",
+      "pit_requirement": "Inherited.",
+      "provenance_requirement": "This IS the provenance capability."
+    },
+    {
+      "capability": "Research memory (persisted analyst notes bound to context ids)",
+      "current_state": "MISSING",
+      "competitor_gap_closed": null,
+      "data_dependency": "Requires user-scoped storage; no auth/user model exists yet.",
+      "pit_requirement": "Must store context_id, never mutable snapshots.",
+      "provenance_requirement": "Notes must link back to replayable contexts."
+    },
+    {
+      "capability": "Live market/news ingestion for change detection in production",
+      "current_state": "MISSING",
+      "competitor_gap_closed": null,
+      "data_dependency": "Requires production archiving pipeline; beta runs on committed fixtures.",
+      "pit_requirement": "Availability timestamps must be assigned at ingestion time.",
+      "provenance_requirement": "Raw records must land before derived artifacts."
+    },
+    {
+      "capability": "Multi-asset coverage (ETF/MF/IPO/F&O/crypto)",
+      "current_state": "INTENTIONALLY_UNSUPPORTED",
+      "competitor_gap_closed": null,
+      "data_dependency": "No real recorded datasets exist for these classes yet; faking them violates product rules.",
+      "pit_requirement": "Same standards apply when real data arrives.",
+      "provenance_requirement": "Same."
+    },
+    {
+      "capability": "Scores, rankings, buy/sell recommendations, price predictions",
+      "current_state": "INTENTIONALLY_UNSUPPORTED",
+      "competitor_gap_closed": null,
+      "data_dependency": "None — excluded by design.",
+      "pit_requirement": "N/A",
+      "provenance_requirement": "N/A"
+    }
+  ]
+}
