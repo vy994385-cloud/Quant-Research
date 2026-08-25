@@ -28,28 +28,33 @@ function renderAtRoute(route: string) {
     </MemoryRouter>,
   )
 }
+
 describe("App", () => {
-  it("renders the sidebar navigation", async () => {
+  it("renders the primary side navigation", async () => {
     mockedFetchDiscovery.mockResolvedValue(DISCOVERY)
+    mockedFetchResearch.mockResolvedValue(RESEARCH)
+    // "/" redirects into the Discover page.
     const { container } = renderAtRoute("/")
     expect(screen.getByText("Quant Research")).toBeInTheDocument()
     // The lazy-loaded page resolves async, so await the page heading first.
-    await screen.findByRole("heading", { name: "Research Home" })
-    // Nav links are scoped to the sidebar navigation: once the home data
-    // resolves, the page body legitimately contains the same words.
-    const sidebarNav = container.querySelector<HTMLElement>(".sidebar-nav")!
-    expect(within(sidebarNav).getByText("Research Home")).toBeInTheDocument()
-    expect(within(sidebarNav).getByText("Companies")).toBeInTheDocument()
-    expect(within(sidebarNav).getByText("Industries")).toBeInTheDocument()
-    expect(within(sidebarNav).getByText("Themes")).toBeInTheDocument()
-    expect(within(sidebarNav).getByText("Signals")).toBeInTheDocument()
-    expect(within(sidebarNav).getByText("Compare")).toBeInTheDocument()
-    expect(within(sidebarNav).getByText("Evidence")).toBeInTheDocument()
+    await screen.findByRole("heading", { name: /What.*new in the research universe/ })
+    // Nav links are scoped to the side navigation: once page data resolves,
+    // the page body legitimately contains the same words.
+    const sideNav = container.querySelector<HTMLElement>(".side-nav")!
+    // "Discover" and "Evidence" name both a nav group and a page link.
+    expect(within(sideNav).getAllByText("Discover").length).toBeGreaterThanOrEqual(1)
+    expect(within(sideNav).getByText("Companies")).toBeInTheDocument()
+    expect(within(sideNav).getByText("Industries")).toBeInTheDocument()
+    expect(within(sideNav).getByText("Themes")).toBeInTheDocument()
+    expect(within(sideNav).getByText("Signals")).toBeInTheDocument()
+    expect(within(sideNav).getByText("Compare")).toBeInTheDocument()
+    expect(within(sideNav).getAllByText("Evidence").length).toBeGreaterThanOrEqual(1)
   })
 
-  it("renders the Research Home page with discovery data", async () => {
+  it("renders the Discover page with discovery data", async () => {
     mockedFetchDiscovery.mockResolvedValue(DISCOVERY)
-    renderAtRoute("/")
+    mockedFetchResearch.mockResolvedValue(RESEARCH)
+    renderAtRoute("/discover")
 
     expect(
       await screen.findByText("Tata Consultancy Services"),
@@ -57,7 +62,8 @@ describe("App", () => {
     expect(screen.getByText("Infosys")).toBeInTheDocument()
   })
 
-  it("renders the full company research dashboard via route", async () => {
+  it("renders the company workspace with tabbed sections", async () => {
+    mockedFetchDiscovery.mockResolvedValue(DISCOVERY)
     mockedFetchResearch.mockResolvedValue(RESEARCH)
     renderAtRoute("/companies/TCS")
 
@@ -65,30 +71,41 @@ describe("App", () => {
       await screen.findByRole("heading", { name: "Tata Consultancy Services" }),
     ).toBeInTheDocument()
 
-    // Research overview
-    expect(screen.getByText("Research Overview")).toBeInTheDocument()
+    // Overview is the default tab: composed dashboard blocks only —
+    // no full evidence tables or coverage matrices on first paint.
+    expect(screen.getByText("Research snapshot")).toBeInTheDocument()
+    expect(screen.queryByText("Evidence Record")).not.toBeInTheDocument()
+    expect(screen.queryByText("Data Coverage")).not.toBeInTheDocument()
 
-    // Evidence record with dated timeline entries. The newest entry also
-    // appears in the overview "What changed" summary, hence getAllByText.
-    // Titles render sentence-cased with the symbol prefix stripped.
-    expect(screen.getByText("Evidence Record")).toBeInTheDocument()
+    // Financials tab
+    fireEvent.click(screen.getByRole("tab", { name: "Financials" }))
+    expect(await screen.findByText("Financial Performance")).toBeInTheDocument()
+
+    // Evidence tab: dated evidence record. Titles render sentence-cased
+    // with the symbol prefix stripped.
+    fireEvent.click(screen.getByRole("tab", { name: "Evidence" }))
+    expect(await screen.findByText("Evidence Record")).toBeInTheDocument()
     expect(
       screen.getAllByText("Board meeting scheduled for June").length,
     ).toBeGreaterThanOrEqual(1)
 
-    // Derived observations register — titles render as recorded (sentence case).
-    expect(screen.getAllByText("Increasing revenue").length).toBeGreaterThan(0)
-
-    // Source coverage table renders humanised source labels; raw identifiers
-    // survive only in the technical provenance lineage records below.
+    // Business tab carries the derived observations register — titles render
+    // as recorded (sentence case).
+    fireEvent.click(screen.getByRole("tab", { name: "Business" }))
     expect(
-      screen.getAllByText("Recorded Intel Sources").length,
-    ).toBeGreaterThanOrEqual(1)
+      await screen.findAllByText("Increasing revenue").then((matches) => matches.length),
+    ).toBeGreaterThan(0)
+
+    // Provenance tab renders humanised source labels; raw identifiers
+    // survive only in the technical provenance lineage records below.
+    fireEvent.click(screen.getByRole("tab", { name: "Provenance" }))
+    expect(await screen.findByText("Recorded Intel Sources")).toBeInTheDocument()
     expect(screen.getByText("Market source record")).toBeInTheDocument()
     expect(screen.getAllByText("yahoo_finance_market").length).toBeGreaterThanOrEqual(1)
 
-    // Structured data coverage section
-    expect(screen.getByText("Data Coverage")).toBeInTheDocument()
+    // Coverage tab: structured data coverage matrix
+    fireEvent.click(screen.getByRole("tab", { name: "Coverage" }))
+    expect(await screen.findByText("Data Coverage")).toBeInTheDocument()
 
     expect(mockedFetchResearch).toHaveBeenCalledWith("TCS")
   })
@@ -96,6 +113,7 @@ describe("App", () => {
   it("shows the loading state while research is pending", async () => {
     let resolveResearch!: (value: CompanyResearch) => void
 
+    mockedFetchDiscovery.mockResolvedValue(DISCOVERY)
     mockedFetchResearch.mockImplementation(
       () =>
         new Promise<CompanyResearch>((resolve) => {
@@ -117,6 +135,7 @@ describe("App", () => {
   })
 
   it("renders the structured error contract on failure", async () => {
+    mockedFetchDiscovery.mockResolvedValue(DISCOVERY)
     mockedFetchResearch.mockRejectedValue(
       new ApiError("Unsupported company", "unknown_company", 404, {
         symbol: "TCS",
@@ -132,10 +151,20 @@ describe("App", () => {
   })
 
   it("surfaces degraded research context", async () => {
+    mockedFetchDiscovery.mockResolvedValue(DISCOVERY)
     mockedFetchResearch.mockResolvedValue(DEGRADED_RESEARCH)
     renderAtRoute("/companies/TCS")
 
-    // Structured data coverage replaces warning banners
+    // Overview surfaces the PIT warning without digging through tabs
+    await screen.findByRole("heading", { name: "Tata Consultancy Services" })
+    expect(
+      await screen.findByText(
+        "Point-in-time checks did not all pass for this snapshot; review evidence timestamps with extra caution.",
+      ),
+    ).toBeInTheDocument()
+
+    // Structured data coverage lives in the Coverage tab
+    fireEvent.click(screen.getByRole("tab", { name: "Coverage" }))
     expect(await screen.findByText("Data Coverage")).toBeInTheDocument()
 
     // Provider failures are listed inside the expandable Missing group
@@ -143,12 +172,6 @@ describe("App", () => {
     expect(
       screen.getByText(
         "2 research providers failed and were isolated from this snapshot (missing-sources-provider, missing-intel-provider)",
-      ),
-    ).toBeInTheDocument()
-
-    expect(
-      screen.getByText(
-        "Point-in-time checks did not all pass for this snapshot; review evidence timestamps with extra caution.",
       ),
     ).toBeInTheDocument()
   })

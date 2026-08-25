@@ -1,19 +1,21 @@
 /**
- * DISCOVER — full-page research discovery interface.
+ * RESEARCH HOME — the daily entry point of the evidence-first research terminal.
  *
- * Opens with one unified research-activity feed: the most recent recorded
- * items across the tracked universe (developments, news, corporate actions,
- * derived observations) in a single recency-sorted table. Supporting panels
- * follow: disclosures, technology activity, coverage gaps, industry spread.
+ * Layout order:
+ *   1. Global research search — one search across the tracked universe
+ *   2. Research activity — everything recorded, recency-ordered
+ *      Financial disclosures · Company developments · Technology · Corporate actions
+ *   3. Recently researched — your latest company visits
+ *   4. Themes & Industries — quick navigation to research domains
+ *   5. Research gaps — what's missing across the universe
+ *   6. Company index — the full tracked universe
  *
- * Every row carries date, company, event, kind, source/reliability and
- * verification where the record provides them. "Recent" means newest recorded
- * activity — never popularity. No scores, no rankings, no recommendations.
+ * Recency only — nothing here is ranked or scored.
  */
 
 import { useEffect, useMemo, useState } from "react"
 import { Link } from "react-router-dom"
-import { Activity, FileSearch, Search, XCircle } from "lucide-react"
+import { Activity, BarChart3, FileSearch, Filter, GitCompareArrows, Lightbulb, Search, XCircle } from "lucide-react"
 import {
   fetchCompanyNews,
   fetchCorporateActions,
@@ -22,8 +24,6 @@ import {
   fetchTimeline,
 } from "../api/client"
 import type {
-  CompanyNewsItem,
-  CorporateActionItem,
   DiscoveryItem,
   ResearchGap,
   TimelineEntry,
@@ -36,10 +36,10 @@ import {
   formatSourceName,
   formatTitle,
 } from "../lib/format"
-import { EmptyCopy, FeedTable, SectionDivider, Tag } from "../components/ui"
+import { getRecentSymbols } from "../lib/localResearch"
+import { EmptyCopy, SectionDivider, SegmentedControl, Tag } from "../components/ui"
 import type { Tone } from "../lib/signal"
 
-const ACTIVITY_CAP = 20
 /** Per-kind cap inside the unified window so one ingestion batch cannot
  * crowd out the rest of the universe's activity. */
 const KIND_CAP = 8
@@ -47,18 +47,7 @@ const KIND_CAP = 8
  * cannot dominate the window even within its kind budget. */
 const COMPANY_CAP = 6
 const COMPANY_KIND_CAP = 4
-const FEED_CAP = 14
-
-interface FeedRow {
-  key: string
-  symbol: string
-  date: string | null
-  event: string
-  detail?: string
-  type: string
-  source: string | null
-  verification: string | null
-}
+const SECTION_CAP = 12
 
 type ActivityKind = "Development" | "Corporate action" | "News" | "Observation"
 
@@ -67,6 +56,7 @@ interface ActivityRow {
   symbol: string
   date: string | null
   title: string
+  detail?: string
   kind: ActivityKind
   /** Source name for recorded events; reliability band for observations. */
   origin: string | null
@@ -78,27 +68,9 @@ function entryDate(entry: TimelineEntry): string | null {
   return entry.timeline_at ?? entry.published_at ?? entry.effective_at
 }
 
-/** One event appears once: collapse repeated titles within a company+day. */
-function dedupeRows(rows: FeedRow[]): FeedRow[] {
-  const seen = new Set<string>()
-  return rows.filter((row) => {
-    const day = (row.date ?? "").slice(0, 10)
-    const key = `${row.symbol}|${day}|${row.event.toLowerCase().replace(/\s+/g, " ").trim()}`
-    if (seen.has(key)) return false
-    seen.add(key)
-    return true
-  })
-}
-
-function byRecency(a: FeedRow, b: FeedRow): number {
-  return (b.date ?? "").localeCompare(a.date ?? "")
-}
-
-const COMPANY_CELL_CLASS = "feed-company mono"
-
 function companyCell(symbol: string): React.ReactNode {
   return (
-    <Link className={COMPANY_CELL_CLASS} to={`/companies/${encodeURIComponent(symbol)}`}>
+    <Link className="feed-company mono" to={`/companies/${encodeURIComponent(symbol)}`}>
       {symbol}
     </Link>
   )
@@ -110,95 +82,16 @@ function verificationTag(status: string | null): React.ReactNode {
   return <Tag text={formatLabel(status)} tone={tone} />
 }
 
-function timelineRows(entries: TimelineEntry[]): FeedRow[] {
-  return dedupeRows(
-    entries.map((entry) => ({
-      key: entry.entry_id,
-      symbol: entry.symbol,
-      date: entryDate(entry),
-      event: entry.title,
-      type: formatLabel(entry.intel_category),
-      source: formatSourceName(entry.source.source_name),
-      verification: entry.verification_status || null,
-    })),
-  ).sort(byRecency)
-}
-
-function newsRows(items: CompanyNewsItem[]): FeedRow[] {
-  return items
-    .map((item) => ({
-      key: item.news_id,
-      symbol: item.symbol,
-      date: item.published_at,
-      event: item.headline,
-      type: formatLabel(item.category),
-      source: formatSourceName(item.source_name),
-      verification: null,
-    }))
-    .sort(byRecency)
-}
-
-function actionRows(items: CorporateActionItem[]): FeedRow[] {
-  return dedupeRows(
-    items.map((item) => ({
-      key: item.action_id,
-      symbol: item.symbol,
-      date: item.announcement_date,
-      event: item.title,
-      detail:
-        item.action_type === "DIVIDEND" && item.value !== null
-          ? `Per-share value as reported: ${item.value}`
-          : undefined,
-      type: formatLabel(item.action_type),
-      source: formatSourceName(item.source_name),
-      verification: null,
-    })),
-  ).sort(byRecency)
-}
-
-function feedToTableRows(rows: FeedRow[]): Array<{ key: string; cells: React.ReactNode[] }> {
-  return rows.map((row) => ({
-    key: row.key,
-    cells: [
-      row.date ? <span className="feed-date">{formatIsoShort(row.date)}</span> : "\u2014",
-      companyCell(row.symbol),
-      <span className="feed-event" title={row.event}>
-        {formatTitle(row.event, row.symbol)}
-        {row.detail ? <small className="feed-event-detail">{row.detail}</small> : null}
-      </span>,
-      <span className="feed-type">{row.type}</span>,
-      row.source ?? "\u2014",
-      verificationTag(row.verification),
-    ],
-  }))
-}
-
-const FEED_HEADERS = ["Date", "Company", "Event", "Type", "Source", "Verification"]
-
-const ACTIVITY_HEADERS = [
-  "Date",
-  "Company",
-  "Event / observation",
-  "Kind",
-  "Source · reliability",
-  "Verification · basis",
-]
-
-function kindTag(kind: ActivityKind): React.ReactNode {
-  const tone: Tone = kind === "Observation" ? "blue" : "slate"
-  return <Tag text={kind} tone={tone} />
-}
-
 export default function DiscoverPage() {
   const { items, loading: discoveryLoading, error: discoveryError } = useDiscovery()
   const [query, setQuery] = useState("")
+  const [kind, setKind] = useState<"all" | ActivityKind>("all")
+  const [days, setDays] = useState<"all" | "7" | "30">("all")
+  // Reference point for the time-window filter, captured when feed data
+  // loads (never during render) so filtering stays pure and stable.
+  const [now, setNow] = useState<number | null>(null)
 
-  const [developments, setDevelopments] = useState<FeedRow[]>([])
-  const [actions, setActions] = useState<FeedRow[]>([])
-  const [news, setNews] = useState<FeedRow[]>([])
-  const [observations, setObservations] = useState<
-    Array<{ key: string; symbol: string; date: string; title: string; category: string; confidence: string }>
-  >([])
+  const [activity, setActivity] = useState<ActivityRow[]>([])
   const [techActivity, setTechActivity] = useState<
     Array<{ key: string; symbol: string; group: string; text: string }>
   >([])
@@ -224,74 +117,146 @@ export default function DiscoverPage() {
         ])
       if (cancelled) return
 
-      const pooledEntries: TimelineEntry[] = []
+      /* Pool every recorded item into ONE activity stream. The same event can
+       * surface through several feeds; a fingerprint keeps it once. Per-kind /
+       * per-company caps keep a single ingestion batch from filling the window;
+       * counts stay honest. */
+      interface Pooled extends ActivityRow {
+        fingerprint: string
+      }
+      const pooled: Pooled[] = []
+
       for (const result of timelines) {
-        if (result.status === "fulfilled") {
-          pooledEntries.push(...result.value.timeline.entries)
+        if (result.status !== "fulfilled") continue
+        for (const entry of result.value.timeline.entries) {
+          const title = formatTitle(entry.title, entry.symbol)
+          pooled.push({
+            key: entry.entry_id,
+            fingerprint: `${entry.symbol}|${(entryDate(entry) ?? "").slice(0, 10)}|${title.toLowerCase()}`,
+            symbol: entry.symbol,
+            date: entryDate(entry),
+            title,
+            kind: "Development",
+            origin: formatSourceName(entry.source.source_name),
+            qualifier: entry.verification_status || null,
+          })
         }
       }
-      setDevelopments(timelineRows(pooledEntries))
 
-      const pooledNews: CompanyNewsItem[] = []
-      for (const result of newsResults) {
-        if (result.status === "fulfilled" && result.value.news) {
-          pooledNews.push(...result.value.news.items)
-        }
-      }
-      setNews(newsRows(pooledNews))
-
-      const pooledActions: CorporateActionItem[] = []
       for (const result of actionResults) {
-        if (result.status === "fulfilled" && result.value.corporate_actions) {
-          pooledActions.push(...result.value.corporate_actions.items)
+        if (result.status !== "fulfilled" || !result.value.corporate_actions) continue
+        for (const item of result.value.corporate_actions.items) {
+          const title = formatTitle(item.title, item.symbol)
+          pooled.push({
+            key: item.action_id,
+            fingerprint: `${item.symbol}|${(item.announcement_date ?? "").slice(0, 10)}|${title.toLowerCase()}`,
+            symbol: item.symbol,
+            date: item.announcement_date,
+            title,
+            detail:
+              item.action_type === "DIVIDEND" && item.value !== null
+                ? `Per-share value as reported: ${item.value}`
+                : undefined,
+            kind: "Corporate action",
+            origin: formatSourceName(item.source_name),
+            qualifier: null,
+          })
         }
       }
-      setActions(actionRows(pooledActions))
 
-      const pooledObservations: Array<{
-        key: string
-        symbol: string
-        date: string
-        title: string
-        category: string
-        confidence: string
-      }> = []
-      const pooledTech: Array<{ key: string; symbol: string; group: string; text: string }> = []
-      const pooledGaps: ResearchGap[] = []
+      for (const result of newsResults) {
+        if (result.status !== "fulfilled" || !result.value.news) continue
+        for (const item of result.value.news.items) {
+          pooled.push({
+            key: item.news_id,
+            fingerprint: `${item.symbol}|${(item.published_at ?? "").slice(0, 10)}|${item.headline.toLowerCase()}`,
+            symbol: item.symbol,
+            date: item.published_at,
+            title: item.headline,
+            kind: "News",
+            origin: formatSourceName(item.source_name),
+            qualifier: null,
+          })
+        }
+      }
+
+      const techPooled: Array<{ key: string; symbol: string; group: string; text: string }> = []
       for (const result of researches) {
         if (result.status !== "fulfilled") continue
         const research = result.value
+        // A malformed research payload contributes nothing to the stream
+        // rather than breaking discovery for every other company.
+        if (!research || !Array.isArray(research.signals)) continue
         for (const signal of research.signals) {
-          pooledObservations.push({
-            key: `${signal.symbol}-${signal.signal_id}`,
+          pooled.push({
+            key: signal.signal_id,
+            fingerprint: `${signal.symbol}|signal|${signal.signal_id}`,
             symbol: signal.symbol,
             date: signal.observation_at,
-            title: signal.title,
-            category: formatLabel(signal.category),
-            confidence: signal.confidence,
+            title: formatTitle(signal.title, signal.symbol),
+            kind: "Observation",
+            origin: formatConfidence(signal.confidence),
+            qualifier: formatLabel(signal.category),
           })
         }
-        const techSections: Array<[string, typeof research.intelligence.innovation]> = [
-          ["Innovation", research.intelligence.innovation],
-          ["Future technology", research.intelligence.future_technology],
-        ]
+        const techSections: Array<[string, typeof research.intelligence.innovation]> = research.intelligence
+          ? [
+              ["Innovation", research.intelligence.innovation],
+              ["Future technology", research.intelligence.future_technology],
+            ]
+          : []
         for (const [group, section] of techSections) {
-          if (!section) continue
+          if (!section || !research.company) continue
           for (const text of section.observations) {
-            pooledTech.push({ key: `${research.company.symbol}-${group}-${text}`, symbol: research.company.symbol, group, text })
+            techPooled.push({
+              key: `${research.company.symbol}-${group}-${text}`,
+              symbol: research.company.symbol,
+              group,
+              text,
+            })
           }
         }
       }
-      pooledObservations.sort((a, b) => b.date.localeCompare(a.date))
-      setObservations(pooledObservations)
-      setTechActivity(pooledTech)
+      setTechActivity(techPooled)
 
+      // Dedupe + budget, then newest first.
+      const seen = new Set<string>()
+      const perKind = new Map<ActivityKind, number>()
+      const perCompany = new Map<string, number>()
+      const perCompanyKind = new Map<string, number>()
+      const picked: ActivityRow[] = []
+      pooled.sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""))
+      for (const row of pooled) {
+        if (seen.has(row.fingerprint)) continue
+        if ((perKind.get(row.kind) ?? 0) >= KIND_CAP) continue
+        if ((perCompany.get(row.symbol) ?? 0) >= COMPANY_CAP) continue
+        const companyKindKey = `${row.symbol}|${row.kind}`
+        if ((perCompanyKind.get(companyKindKey) ?? 0) >= COMPANY_KIND_CAP) continue
+        seen.add(row.fingerprint)
+        perKind.set(row.kind, (perKind.get(row.kind) ?? 0) + 1)
+        perCompany.set(row.symbol, (perCompany.get(row.symbol) ?? 0) + 1)
+        perCompanyKind.set(companyKindKey, (perCompanyKind.get(companyKindKey) ?? 0) + 1)
+        picked.push({
+          key: row.key,
+          symbol: row.symbol,
+          date: row.date,
+          title: row.title,
+          detail: row.detail,
+          kind: row.kind,
+          origin: row.origin,
+          qualifier: row.qualifier,
+        })
+      }
+      setActivity(picked)
+
+      const gapPooled: ResearchGap[] = []
       for (const result of gapResults) {
         if (result.status === "fulfilled" && result.value.research_gaps) {
-          pooledGaps.push(...result.value.research_gaps.gaps)
+          gapPooled.push(...result.value.research_gaps.gaps)
         }
       }
-      setGaps(pooledGaps)
+      setGaps(gapPooled)
+      setNow(Date.now())
       setFeedsLoading(false)
     }
 
@@ -301,108 +266,60 @@ export default function DiscoverPage() {
     }
   }, [tracked])
 
-  /* ── Derived views ──────────────────────────────────────────────── */
+  /* ── Derived views ──────────────────────────────────────────── */
 
   const q = query.trim().toLowerCase()
   const matchedCompanies = useMemo(() => {
-    if (!q) return tracked
-    return tracked.filter(
+    if (!q) return []
+    return items.filter(
       (item) =>
         item.symbol.toLowerCase().includes(q) ||
         (item.company_name ?? "").toLowerCase().includes(q) ||
         item.sector.toLowerCase().includes(q),
     )
-  }, [tracked, q])
+  }, [items, q])
 
   const sectorActivity = useMemo(() => {
     const counts = new Map<string, number>()
-    for (const item of items) {
-      counts.set(item.sector, (counts.get(item.sector) ?? 0) + 1)
-    }
+    for (const item of items) counts.set(item.sector, (counts.get(item.sector) ?? 0) + 1)
     return [...counts.entries()].sort((a, b) => b[1] - a[1])
   }, [items])
 
-  const disclosureRows = useMemo(
+  const stream = useMemo(() => {
+    let rows = activity
+    if (kind !== "all") rows = rows.filter((row) => row.kind === kind)
+    if (days !== "all" && now !== null) {
+      const cutoff = now - Number(days) * 24 * 60 * 60 * 1000
+      rows = rows.filter((row) => row.date !== null && new Date(row.date).getTime() >= cutoff)
+    }
+    return rows
+  }, [activity, kind, days, now])
+
+  const disclosures = useMemo(
     () =>
-      developments
-        .filter((row) => row.type === "Financial Disclosure")
-        .slice(0, FEED_CAP),
-    [developments],
+      activity
+        .filter((row) => row.kind === "Development" && /disclosure|filing|result/i.test(`${row.qualifier ?? ""} ${row.title}`))
+        .slice(0, SECTION_CAP),
+    [activity],
   )
 
-  /* Unified research-activity feed: everything recorded, one recency order.
-    * Per-kind, per-company and per-company-kind caps keep a single ingestion
-    * batch (e.g. one filing run across the universe) from filling the whole
-    * window; counts stay honest. */
-  const activityFeed = useMemo<ActivityRow[]>(() => {
-    const rows: ActivityRow[] = [
-      ...developments.map((row) => ({
-        key: row.key,
-        symbol: row.symbol,
-        date: row.date,
-        title: row.event,
-        kind: "Development" as const,
-        origin: row.source,
-        qualifier: row.verification,
-      })),
-      ...news.map((row) => ({
-        key: row.key,
-        symbol: row.symbol,
-        date: row.date,
-        title: row.event,
-        kind: "News" as const,
-        origin: row.source,
-        qualifier: null,
-      })),
-      ...actions.map((row) => ({
-        key: row.key,
-        symbol: row.symbol,
-        date: row.date,
-        title: row.event,
-        kind: "Corporate action" as const,
-        origin: row.source,
-        qualifier: row.detail ?? null,
-      })),
-      ...observations.map((observation) => ({
-        key: observation.key,
-        symbol: observation.symbol,
-        date: observation.date,
-        title: observation.title,
-        kind: "Observation" as const,
-        origin: formatConfidence(observation.confidence),
-        qualifier: observation.category,
-      })),
-    ]
-    rows.sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""))
-    /* The same recorded event can surface through several feeds; keep the
-     * first occurrence so the unified window never shows it twice. */
-    const seen = new Set<string>()
-    const perKind = new Map<ActivityKind, number>()
-    const perCompany = new Map<string, number>()
-    const perCompanyKind = new Map<string, number>()
-    const picked: ActivityRow[] = []
-    for (const row of rows) {
-      if (picked.length >= ACTIVITY_CAP) break
-      const fingerprint = `${row.symbol}|${row.date ?? ""}|${row.title.toLowerCase()}`
-      if (seen.has(fingerprint)) continue
-      if ((perKind.get(row.kind) ?? 0) >= KIND_CAP) continue
-      if ((perCompany.get(row.symbol) ?? 0) >= COMPANY_CAP) continue
-      const companyKindKey = `${row.symbol}|${row.kind}`
-      if ((perCompanyKind.get(companyKindKey) ?? 0) >= COMPANY_KIND_CAP) continue
-      seen.add(fingerprint)
-      perKind.set(row.kind, (perKind.get(row.kind) ?? 0) + 1)
-      perCompany.set(row.symbol, (perCompany.get(row.symbol) ?? 0) + 1)
-      perCompanyKind.set(companyKindKey, (perCompanyKind.get(companyKindKey) ?? 0) + 1)
-      picked.push(row)
-    }
-    return picked
-  }, [developments, news, actions, observations])
+  const businessDevelopments = useMemo(
+    () =>
+      activity
+        .filter((row) => row.kind === "Development" && !/disclosure|filing|result/i.test(`${row.qualifier ?? ""} ${row.title}`))
+        .slice(0, SECTION_CAP),
+    [activity],
+  )
 
-  const techRows = techActivity.slice(0, FEED_CAP)
+  const actionsFeed = useMemo(
+    () => activity.filter((row) => row.kind === "Corporate action").slice(0, SECTION_CAP),
+    [activity],
+  )
 
-  /* Identical gaps repeat once per company ("No segment/business breakdown
-   * available" × 6). Grouping by area + description collapses the repetition:
-   * one row per distinct gap, with the affected companies as chips. */
+  const techRows = techActivity.slice(0, SECTION_CAP)
+
+  /* Identical gaps repeat once per company; grouping collapses the repetition
+   * into one row per distinct gap with affected companies as chips. */
   interface GapGroupRow {
     key: string
     category: string
@@ -433,28 +350,94 @@ export default function DiscoverPage() {
     )
   }, [gaps])
 
-  const feedCount = developments.length + actions.length + news.length + observations.length
+  const KIND_OPTIONS: Array<{ value: "all" | ActivityKind; label: string }> = [
+    { value: "all", label: "All activity" },
+    { value: "Development", label: "Developments" },
+    { value: "Corporate action", label: "Corporate actions" },
+    { value: "News", label: "News" },
+    { value: "Observation", label: "Observations" },
+  ]
 
-  /* ── Render ─────────────────────────────────────────────────────── */
+  const WINDOW_OPTIONS: Array<{ value: "all" | "7" | "30"; label: string }> = [
+    { value: "all", label: "All time" },
+    { value: "7", label: "Last 7 days" },
+    { value: "30", label: "Last 30 days" },
+  ]
+
+  function renderStreamTable(rows: ActivityRow[], headers: string[]) {
+    if (rows.length === 0) {
+      return <EmptyCopy text="No recorded activity matches this view." />
+    }
+    return (
+      <div className="table-scroll">
+        <table className="feed-table discover-stream-table">
+          <thead>
+            <tr>
+              {headers.map((header) => (
+                <th scope="col" key={header}>{header}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={`${row.kind}-${row.key}`}>
+                <td className="feed-date">
+                  {row.date ? formatIsoShort(row.date) : "\u2014"}
+                </td>
+                <td>{companyCell(row.symbol)}</td>
+                <td className="feed-event" title={row.title}>
+                  {formatTitle(row.title, row.symbol)}
+                  {row.detail ? <small className="feed-event-detail">{row.detail}</small> : null}
+                </td>
+                <td>
+                  <Tag text={row.kind} tone={row.kind === "Observation" ? "blue" : "slate"} />
+                </td>
+                <td>{row.origin ?? "\u2014"}</td>
+                <td>
+                  {row.qualifier
+                    ? row.kind === "Observation"
+                      ? <span className="feed-type">{row.qualifier}</span>
+                      : verificationTag(row.qualifier)
+                    : "\u2014"}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    )
+  }
+
+  const STREAM_HEADERS = ["Date", "Company", "Event / observation", "Kind", "Source · reliability", "Verification · basis"]
+
+  /* ── Render ─────────────────────────────────────────────────── */
+
+  const recentVisits = useMemo(() => {
+    const symbols = getRecentSymbols()
+    if (symbols.length === 0) return []
+    return symbols
+      .slice(0, 8)
+      .map((symbol) => items.find((i) => i.symbol === symbol))
+      .filter((item): item is DiscoveryItem => item !== undefined)
+  }, [items])
 
   return (
     <div className="page-discover">
-      <section className="page-hero">
-        <h1>Discover</h1>
+      {/* 1. Research Home hero — global search */}
+      <section className="discover-hero" aria-label="Search the research universe">
+        <p className="page-kicker">RESEARCH HOME</p>
+        <h1>What&apos;s new in the research universe?</h1>
         <p className="page-subtitle">
           The most recent recorded activity across the tracked universe — developments,
-          disclosures, corporate actions, observations and coverage gaps. Recency only;
+          disclosures, corporate actions and derived observations. Recency only;
           nothing here is ranked or scored.
         </p>
-      </section>
-
-      <section className="discover-search-section">
-        <div className="discover-search">
+        <div className="discover-hero-search">
           <Search size={18} aria-hidden />
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search companies, symbols, or sectors…"
+            placeholder="Search companies, symbols, sectors — TCS, Infosys, Pharma…"
             aria-label="Search companies, symbols, or sectors"
           />
           {query && (
@@ -468,12 +451,31 @@ export default function DiscoverPage() {
             </button>
           )}
         </div>
+        {q && (
+          <div className="discover-hero-results">
+            {matchedCompanies.length === 0 ? (
+              <EmptyCopy text="No tracked companies match this search." />
+            ) : (
+              <ul className="discover-hero-hits">
+                {matchedCompanies.slice(0, 8).map((item: DiscoveryItem) => (
+                  <li key={item.symbol}>
+                    <Link to={`/companies/${encodeURIComponent(item.symbol)}`}>
+                      <strong>{item.company_name ?? item.symbol}</strong>
+                      <span className="mono">{item.symbol}</span>
+                      <span className="hit-sector">{formatLabel(item.sector)}</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
       </section>
 
       {discoveryLoading && (
         <div className="loading-state" role="status">
           <Activity className="spin" size={26} />
-          <strong>Loading discovery data</strong>
+          <strong>Loading research data</strong>
           <span>Fetching the tracked universe…</span>
         </div>
       )}
@@ -481,13 +483,14 @@ export default function DiscoverPage() {
       {discoveryError && (
         <div className="empty-state error" role="alert">
           <FileSearch size={28} />
-          <strong>Discovery unavailable</strong>
+          <strong>Research home unavailable</strong>
           <p>{discoveryError}</p>
         </div>
       )}
 
       {!discoveryLoading && !discoveryError && (
         <>
+          {/* Universe summary strip */}
           <section className="home-summary" aria-label="Universe summary">
             <div className="summary-stat">
               <strong>{tracked.length}</strong>
@@ -498,152 +501,107 @@ export default function DiscoverPage() {
               <span>Sectors</span>
             </div>
             <div className="summary-stat">
-              <strong>{feedsLoading ? "…" : feedCount}</strong>
-              <span>Feed items recorded</span>
+              <strong>{feedsLoading ? "…" : activity.length}</strong>
+              <span>Recent items in stream</span>
             </div>
             <div className="summary-stat summary-note">
               <span>Feeds show the latest recorded evidence, not popularity.</span>
             </div>
           </section>
 
-          <section className="discover-feeds">
-            <SectionDivider label="RESEARCH ACTIVITY ACROSS THE UNIVERSE" />
-
-            {feedsLoading && (
+          {/* 2. Research activity stream — the visual primary */}
+          <section className="discover-section discover-primary" aria-label="Research activity">
+            <SectionDivider label="RESEARCH ACTIVITY" />
+            <div className="stream-controls">
+              <SegmentedControl
+                options={KIND_OPTIONS}
+                value={kind}
+                onChange={setKind}
+                ariaLabel="Filter by activity kind"
+              />
+              <SegmentedControl
+                options={WINDOW_OPTIONS}
+                value={days}
+                onChange={setDays}
+                ariaLabel="Filter by time window"
+                size="sm"
+              />
+            </div>
+            {feedsLoading ? (
               <div className="loading-state compact" role="status">
                 <Activity className="spin" size={18} />
                 <span>Assembling feeds from per-company records…</span>
               </div>
-            )}
-
-            {!feedsLoading && (
-              <>
-                <article className="feed-block">
-                  <h3>
-                    Unified research activity
-                    <small>
-                      Latest {activityFeed.length} of {feedCount} recorded items — events and
-                      observations in one recency order
-                    </small>
-                  </h3>
-                  <FeedTable
-                    headers={ACTIVITY_HEADERS}
-                    caption="Most recent recorded activity across tracked companies"
-                    emptyText="No activity has been recorded yet."
-                    rows={activityFeed.map((row) => ({
-                      key: `${row.kind}-${row.key}`,
-      cells: [
-        row.date ? <span className="feed-date">{formatIsoShort(row.date)}</span> : "\u2014",
-        companyCell(row.symbol),
-        <span className="feed-event" title={row.title}>{formatTitle(row.title, row.symbol)}</span>,
-                        kindTag(row.kind),
-                        row.origin ?? "\u2014",
-                        row.qualifier ? (
-                          row.kind === "Observation" ? (
-                            <span className="feed-type">{row.qualifier}</span>
-                          ) : (
-                            verificationTag(row.qualifier)
-                          )
-                        ) : (
-                          "\u2014"
-                        ),
-                      ],
-                    }))}
-                  />
-                  <p className="feed-more">
-                    Full history in <Link to="/timeline">Events</Link> · derived records in{" "}
-                    <Link to="/signals">Signals</Link>.
-                  </p>
-                </article>
-
-                <SectionDivider label="SUPPORTING FEEDS" />
-
-                {disclosureRows.length > 0 && (
-                  <article className="feed-block">
-                    <h3>
-                      Financial disclosures
-                      <small>Latest {disclosureRows.length} recorded filings</small>
-                    </h3>
-                    <FeedTable
-                      headers={FEED_HEADERS}
-                      caption="Recent financial disclosures across tracked companies"
-                      emptyText="No financial disclosures have been recorded."
-                      rows={feedToTableRows(disclosureRows)}
-                    />
-                  </article>
-                )}
-
-                {techRows.length > 0 && (
-                  <article className="feed-block">
-                    <h3>
-                      Technology activity
-                      <small>{techActivity.length} evidence-backed items</small>
-                    </h3>
-                    <FeedTable
-                      headers={["Company", "Development", "Group"]}
-                      caption="Technology activity recorded from evidence"
-                      emptyText="No technology activity is supported by evidence yet."
-                      rows={techRows.map((item) => ({
-                        key: item.key,
-                        cells: [
-                          companyCell(item.symbol),
-                          <span className="feed-event">{item.text}</span>,
-                          <span className="feed-type">{item.group}</span>,
-                        ],
-                      }))}
-                    />
-                  </article>
-                )}
-
-                {gapGroups.length > 0 && (
-                  <article className="feed-block">
-                    <h3>
-                      Research gaps
-                      <small>
-                        {gaps.length} open coverage items · {gapGroups.length} distinct
-                      </small>
-                    </h3>
-                    <FeedTable
-                      headers={["Companies", "Area", "Status", "Missing / limited information"]}
-                      caption="Open research gaps across tracked companies, grouped by gap"
-                      emptyText="No research gaps are currently recorded."
-                      rows={gapGroups.slice(0, FEED_CAP).map((group) => ({
-                        key: group.key,
-                        cells: [
-                          <span className="gap-company-chips">
-                            {group.symbols.map((symbol) => (
-                              <span key={symbol} className="gap-company-cell">
-                                {companyCell(symbol)}
-                              </span>
-                            ))}
-                          </span>,
-                          <span className="feed-type">{group.category}</span>,
-                          group.statuses.map((status) => (
-                            <Tag key={status} text={formatLabel(status)} tone="amber" />
-                          )),
-                          <span className="feed-event">{group.description}</span>,
-                        ],
-                      }))}
-                    />
-                    <p className="feed-more">
-                      Full control center in <Link to="/research-gaps">Coverage &amp; Gaps</Link>.
-                    </p>
-                  </article>
-                )}
-              </>
+            ) : (
+              renderStreamTable(stream, STREAM_HEADERS)
             )}
           </section>
 
-          {matchedCompanies.length > 0 && (
-            <section className="discover-companies" aria-label="Matching companies">
-              <SectionDivider label={q ? "MATCHING COMPANIES" : "COMPANY INDEX"} />
+          {/* 3. Supporting feeds — secondary */}
+          <div className="discover-secondary stagger-children">
+            {/* Financial disclosures */}
+            {!feedsLoading && disclosures.length > 0 && (
+              <section className="discover-section discover-compact" aria-label="Financial disclosures">
+                <SectionDivider label="FINANCIAL DISCLOSURES" />
+                {renderStreamTable(disclosures, STREAM_HEADERS)}
+              </section>
+            )}
+
+            {/* Business developments */}
+            {!feedsLoading && businessDevelopments.length > 0 && (
+              <section className="discover-section discover-compact" aria-label="Company developments">
+                <SectionDivider label="COMPANY DEVELOPMENTS" />
+                {renderStreamTable(businessDevelopments, STREAM_HEADERS)}
+              </section>
+            )}
+
+            {/* Corporate actions */}
+            {!feedsLoading && actionsFeed.length > 0 && (
+              <section className="discover-section discover-compact" aria-label="Corporate actions">
+                <SectionDivider label="CORPORATE ACTIONS" />
+                {renderStreamTable(actionsFeed, STREAM_HEADERS)}
+              </section>
+            )}
+
+            {/* Technology activity */}
+            {!feedsLoading && techRows.length > 0 && (
+              <section className="discover-section discover-compact" aria-label="Technology developments">
+                <SectionDivider label="TECHNOLOGY DEVELOPMENTS" />
+                <div className="table-scroll">
+                  <table className="feed-table">
+                    <thead>
+                      <tr>
+                        <th scope="col">Company</th>
+                        <th scope="col">Development</th>
+                        <th scope="col">Group</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {techRows.map((item) => (
+                        <tr key={item.key}>
+                          <td>{companyCell(item.symbol)}</td>
+                          <td className="feed-event">{item.text}</td>
+                          <td><span className="feed-type">{item.group}</span></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            )}
+          </div>
+
+          {/* 4. Recently researched — quick return to recent work */}
+          {recentVisits.length > 0 && (
+            <section className="discover-section" aria-label="Recently researched">
+              <SectionDivider label="RECENTLY RESEARCHED" />
               <div className="company-table">
                 <div className="company-table-head">
                   <span className="col-symbol">Symbol</span>
                   <span className="col-name">Company</span>
                   <span className="col-sector">Sector</span>
                 </div>
-                {matchedCompanies.map((item: DiscoveryItem) => (
+                {recentVisits.map((item) => (
                   <Link
                     key={item.symbol}
                     className="company-table-row"
@@ -660,20 +618,103 @@ export default function DiscoverPage() {
             </section>
           )}
 
-          {matchedCompanies.length === 0 && (
-            <EmptyCopy text="No tracked companies match this search." />
+          {/* 5. Themes & Industries — quick navigation to research domains */}
+          <section className="discover-section" aria-label="Themes and industries">
+            <SectionDivider label="THEMES &amp; INDUSTRIES" />
+            <div className="discover-domains">
+              <Link to="/themes" className="discover-domain-card">
+                <Lightbulb size={16} />
+                <span>Themes</span>
+                <small>AI, Cloud, Semiconductors, and more</small>
+              </Link>
+              <Link to="/industries" className="discover-domain-card">
+                <BarChart3 size={16} />
+                <span>Industries</span>
+                <small>Sector-level intelligence</small>
+              </Link>
+              <Link to="/screener" className="discover-domain-card">
+                <Filter size={16} />
+                <span>Screener</span>
+                <small>Multi-criteria research filter</small>
+              </Link>
+              <Link to="/compare" className="discover-domain-card">
+                <GitCompareArrows size={16} />
+                <span>Compare</span>
+                <small>Side-by-side evidence comparison</small>
+              </Link>
+            </div>
+          </section>
+
+          {/* 6. Research gaps — what's missing */}
+          {!feedsLoading && gapGroups.length > 0 && (
+            <section className="discover-section discover-compact discover-wide" aria-label="Research gaps">
+              <SectionDivider label="RESEARCH GAPS" />
+              <div className="table-scroll">
+                <table className="feed-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">Companies</th>
+                      <th scope="col">Area</th>
+                      <th scope="col">Status</th>
+                      <th scope="col">Missing / limited information</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {gapGroups.slice(0, SECTION_CAP).map((group) => (
+                      <tr key={group.key}>
+                        <td>
+                          <span className="gap-company-chips">
+                            {group.symbols.map((symbol) => (
+                              <span key={symbol} className="gap-company-cell">
+                                {companyCell(symbol)}
+                              </span>
+                            ))}
+                          </span>
+                        </td>
+                        <td><span className="feed-type">{group.category}</span></td>
+                        <td>
+                          {group.statuses.map((status) => (
+                            <Tag key={status} text={formatLabel(status)} tone="amber" />
+                          ))}
+                        </td>
+                        <td className="feed-event">{group.description}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p className="feed-more">
+                Full control center in <Link to="/research-gaps">Coverage &amp; Gaps</Link>.
+              </p>
+            </section>
           )}
 
-          <section className="discover-industry" aria-label="Industry activity">
-            <SectionDivider label="INDUSTRY COVERAGE" />
-            <ul className="industry-activity-list">
-              {sectorActivity.map(([sector, count]) => (
-                <li key={sector}>
-                  <Link to="/industries">{formatLabel(sector)}</Link>
-                  <span className="chip-count">{count}</span>
-                </li>
+          {/* 7. Company index — the full tracked universe */}
+          <section className="discover-section discover-index" aria-label="Company index">
+            <SectionDivider label="COMPANY INDEX" />
+            <div className="company-table">
+              <div className="company-table-head">
+                <span className="col-symbol">Symbol</span>
+                <span className="col-name">Company</span>
+                <span className="col-sector">Sector</span>
+              </div>
+              {tracked.map((item: DiscoveryItem) => (
+                <Link
+                  key={item.symbol}
+                  className="company-table-row"
+                  to={`/companies/${encodeURIComponent(item.symbol)}`}
+                >
+                  <span className="col-symbol mono">{item.symbol}</span>
+                  <span className="col-name">{item.company_name ?? item.symbol}</span>
+                  <span className="col-sector">
+                    <Tag text={formatLabel(item.sector)} tone="slate" />
+                  </span>
+                </Link>
               ))}
-            </ul>
+            </div>
+            <p className="feed-more">
+              The full research directory lives in <Link to="/companies">Companies</Link>.
+            </p>
           </section>
         </>
       )}

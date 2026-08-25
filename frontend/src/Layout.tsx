@@ -1,16 +1,19 @@
 /**
- * Shared application shell: compact sidebar navigation + global search +
- * main content area. Routes render via <Outlet />.
+ * Application shell — one coherent evidence-first research terminal.
  *
- * Information architecture — five conceptual clusters:
- *   DISCOVER   entry points (home, discovery, company index, asset classes)
- *   RESEARCH   analytical terminals (financials, markets, screener, sectors)
- *   MONITOR    ongoing observation surfaces (signals, events, derived links)
- *   OUTPUT     document deliverables (reports, compare)
- *   EVIDENCE   evidence infrastructure (record, coverage & gaps)
+ * Structure:
+ *   TOP COMMAND BAR   global search · contextual actions
+ *   LEFT PRIMARY NAV  workflow-aligned research terminal navigation
+ *                     DISCOVER · RESEARCH · SCREEN · MONITOR · OUTPUT · ASSETS
+ *   MAIN CANVAS       the routed research workspace
  *
- * On narrow viewports the sidebar becomes an off-canvas drawer controlled
- * from the sticky top bar.
+ * Navigation expresses the user workflow:
+ *   DISCOVER  → find and enter the research universe
+ *   RESEARCH  → deep investigation of companies and domains
+ *   SCREEN    → filter, compare, screen
+ *   MONITOR   → track changes, watch, alert
+ *   OUTPUT    → reports, export, evidence packages
+ *   ASSETS    → multi-asset class entry points
  */
 
 import { useCallback, useEffect, useRef, useState } from "react"
@@ -21,168 +24,219 @@ import {
   BarChart3,
   Bookmark,
   Building2,
+  ChevronDown,
   Clock,
+  Compass,
   Eye,
+  FileOutput,
   FileSearch,
   FileText,
   Filter,
   GitBranch,
   GitCompareArrows,
+  Home,
   Layers,
+  Landmark,
   Lightbulb,
   LineChart,
   Menu,
+  Search,
+  Shield,
   Signal,
+  SlidersHorizontal,
   TrendingUp,
   UserRound,
   X,
 } from "lucide-react"
 import CompanySearch from "./components/CompanySearch"
 
-const NAV_SECTIONS = [
+interface NavItem {
+  to: string
+  label: string
+  icon: React.ComponentType<{ size?: number }>
+  end?: boolean
+}
+
+interface NavGroup {
+  id: string
+  label: string
+  icon: React.ComponentType<{ size?: number }>
+  items: NavItem[]
+}
+
+const NAV_GROUPS: NavGroup[] = [
   {
+    id: "discover",
     label: "Discover",
+    icon: Compass,
     items: [
-      { to: "/", label: "Research Home", icon: Activity, end: true },
-      { to: "/discover", label: "Discover", icon: FileSearch },
+      { to: "/discover", label: "Research Home", icon: Home },
       { to: "/companies", label: "Companies", icon: Building2 },
-    ],
-  },
-  {
-    label: "Research",
-    items: [
-      { to: "/financial-intelligence", label: "Financial Intelligence", icon: LineChart },
-      { to: "/market-intelligence", label: "Markets", icon: Eye },
-      { to: "/technical", label: "Technical", icon: TrendingUp },
-      { to: "/screener", label: "Screener", icon: Filter },
       { to: "/industries", label: "Industries", icon: BarChart3 },
       { to: "/themes", label: "Themes", icon: Lightbulb },
     ],
   },
   {
-    label: "Monitor",
+    id: "research",
+    label: "Research",
+    icon: Search,
     items: [
-      { to: "/timeline", label: "Events", icon: Clock },
-      { to: "/signals", label: "Signals", icon: Signal },
-      { to: "/cross-domain", label: "Cross-Domain", icon: GitBranch },
-      { to: "/profile", label: "My Research", icon: UserRound },
+      { to: "/financial-intelligence", label: "Financial Intelligence", icon: LineChart },
+      { to: "/market-intelligence", label: "Market Intelligence", icon: Eye },
+      { to: "/technical", label: "Technical", icon: TrendingUp },
+      { to: "/events", label: "Events", icon: Clock },
+      { to: "/evidence", label: "Evidence", icon: Shield },
+      { to: "/research-gaps", label: "Coverage & Gaps", icon: AlertTriangle },
     ],
   },
   {
-    label: "Output",
+    id: "screen",
+    label: "Screen",
+    icon: SlidersHorizontal,
     items: [
-      { to: "/reports", label: "Reports", icon: Layers },
-      { to: "/professional-report", label: "Professional Report", icon: FileText },
+      { to: "/screener", label: "Screener", icon: Filter },
       { to: "/compare", label: "Compare", icon: GitCompareArrows },
     ],
   },
   {
-    label: "Evidence Base",
+    id: "monitor",
+    label: "Monitor",
+    icon: Activity,
     items: [
-      { to: "/evidence", label: "Evidence", icon: FileSearch },
-      { to: "/research-gaps", label: "Coverage & Gaps", icon: AlertTriangle },
+      { to: "/my-research", label: "My Research", icon: UserRound },
+      { to: "/signals", label: "Signals", icon: Signal },
+      { to: "/cross-domain", label: "Cross-Domain", icon: GitBranch },
+    ],
+  },
+  {
+    id: "output",
+    label: "Output",
+    icon: FileOutput,
+    items: [
+      { to: "/reports", label: "Reports", icon: Layers },
+      { to: "/professional-report", label: "Professional Report", icon: FileText },
+      { to: "/evidence-package", label: "Evidence Package", icon: FileSearch },
+    ],
+  },
+  {
+    id: "assets",
+    label: "Asset Classes",
+    icon: Landmark,
+    items: [
       { to: "/asset-classes", label: "Asset Classes", icon: Bookmark },
     ],
   },
 ]
 
-function Sidebar({
+const COLLAPSED_KEY = "qrt.nav.collapsed.v1"
+
+function readCollapsed(): string[] {
+  try {
+    const raw = localStorage.getItem(COLLAPSED_KEY)
+    const parsed: unknown = raw ? JSON.parse(raw) : []
+    return Array.isArray(parsed)
+      ? parsed.filter((entry): entry is string => typeof entry === "string")
+      : []
+  } catch {
+    return []
+  }
+}
+
+function SideNav({
+  collapsed,
+  onToggleGroup,
   onNavigate,
   closeButtonRef,
   hidden,
 }: {
+  collapsed: string[]
+  onToggleGroup: (id: string) => void
   onNavigate?: () => void
   closeButtonRef?: React.RefObject<HTMLButtonElement | null>
   hidden?: boolean
 }) {
   return (
-    <aside className="sidebar" inert={hidden || undefined}>
+    <aside className="side-nav" inert={hidden || undefined}>
       <div className="brand">
-        <span className="brand-mark">Q</span>
-        <span>
+        <span className="brand-mark">QR</span>
+        <span className="brand-text">
           <strong>Quant Research</strong>
           <small>EVIDENCE TERMINAL</small>
         </span>
         <button
           type="button"
           ref={closeButtonRef}
-          className="sidebar-close"
+          className="side-nav-close"
           onClick={onNavigate}
           aria-label="Close navigation"
         >
           <X size={16} />
         </button>
       </div>
-      <nav className="sidebar-nav" aria-label="Primary">
-        {NAV_SECTIONS.map((section) => (
-          <div key={section.label} className="nav-section">
-            <div className="nav-section-label">{section.label}</div>
-            {section.items.map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                end={item.end}
-                className={({ isActive }) => (isActive ? "nav-active" : "")}
-                onClick={onNavigate}
+
+      <nav className="nav-workflow" aria-label="Primary">
+        {NAV_GROUPS.map((group) => {
+          const isCollapsed = collapsed.includes(group.id)
+          return (
+            <section key={group.id} className="nav-group">
+              <button
+                type="button"
+                className="nav-group-head"
+                onClick={() => onToggleGroup(group.id)}
+                aria-expanded={!isCollapsed}
+                aria-controls={`nav-group-${group.id}`}
               >
-                <item.icon size={15} />
-                <span>{item.label}</span>
-              </NavLink>
-            ))}
-          </div>
-        ))}
+                <group.icon size={14} />
+                <span>{group.label}</span>
+                <ChevronDown
+                  size={13}
+                  className={isCollapsed ? "nav-group-chevron collapsed" : "nav-group-chevron"}
+                  aria-hidden
+                />
+              </button>
+              {!isCollapsed && (
+                <ul id={`nav-group-${group.id}`} className="nav-group-items">
+                  {group.items.map((item) => (
+                    <li key={item.to}>
+                      <NavLink
+                        to={item.to}
+                        end={item.end}
+                        className={({ isActive }) => (isActive ? "nav-item nav-active" : "nav-item")}
+                        onClick={onNavigate}
+                      >
+                        <item.icon size={14} />
+                        <span>{item.label}</span>
+                      </NavLink>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          )
+        })}
       </nav>
-      <div className="sidebar-footer">
-        <span className="live-dot" />
-        Evidence-first research
-        <br />
-        <small>Facts. Evidence. Sources. No judgement.</small>
+
+      <div className="side-nav-footer">
+        <p className="side-nav-principle">
+          <span className="live-dot" /> Evidence · Sources · Provenance
+        </p>
       </div>
     </aside>
   )
 }
 
-function GlobalSearch({
-  onToggleNav,
-  navOpen,
-  navToggleRef,
-}: {
-  onToggleNav: () => void
-  navOpen: boolean
-  navToggleRef?: React.RefObject<HTMLButtonElement | null>
-}) {
-  const navigate = useNavigate()
-  const handleSelect = useCallback(
-    (symbol: string) => navigate(`/companies/${symbol}`),
-    [navigate],
-  )
-  return (
-    <>
-      <button
-        type="button"
-        ref={navToggleRef}
-        className="nav-toggle"
-        onClick={onToggleNav}
-        aria-label="Open navigation"
-        aria-expanded={navOpen}
-      >
-        <Menu size={17} />
-      </button>
-      <CompanySearch onSelect={handleSelect} />
-    </>
-  )
-}
-
 export default function Layout() {
+  const navigate = useNavigate()
   const [navOpen, setNavOpen] = useState(false)
-  const navToggleRef = useRef<HTMLButtonElement>(null)
-  const sidebarCloseRef = useRef<HTMLButtonElement>(null)
+  const [collapsed, setCollapsed] = useState<string[]>(readCollapsed)
   const [mobileNav, setMobileNav] = useState(
     typeof window.matchMedia === "function" &&
       window.matchMedia("(max-width: 900px)").matches,
   )
+  const navToggleRef = useRef<HTMLButtonElement>(null)
+  const sidebarCloseRef = useRef<HTMLButtonElement>(null)
 
-  // Track the off-canvas breakpoint and close the drawer when the viewport
+  // Track the off-canvas breakpoint; close the drawer when the viewport
   // grows past it.
   useEffect(() => {
     if (typeof window.matchMedia !== "function") return undefined
@@ -200,9 +254,7 @@ export default function Layout() {
     }
   }, [])
 
-  // Off-canvas drawer behaviour on mobile: focus moves into the drawer on
-  // open, Escape closes it, and focus returns to the toggle button. The
-  // always-visible desktop sidebar is unaffected.
+  // Off-canvas drawer behaviour on mobile.
   useEffect(() => {
     if (!mobileNav || !navOpen) return undefined
     const previous = document.activeElement as HTMLElement | null
@@ -219,6 +271,25 @@ export default function Layout() {
 
   const close = useCallback(() => setNavOpen(false), [])
 
+  const toggleGroup = useCallback((id: string) => {
+    setCollapsed((prev) => {
+      const next = prev.includes(id)
+        ? prev.filter((entry) => entry !== id)
+        : [...prev, id]
+      try {
+        localStorage.setItem(COLLAPSED_KEY, JSON.stringify(next))
+      } catch {
+        // Storage unavailable: collapse state stays in-session only.
+      }
+      return next
+    })
+  }, [])
+
+  const handleSelect = useCallback(
+    (symbol: string) => navigate(`/companies/${encodeURIComponent(symbol)}`),
+    [navigate],
+  )
+
   return (
     <div className={navOpen ? "terminal-shell nav-open" : "terminal-shell"}>
       <div
@@ -226,23 +297,33 @@ export default function Layout() {
         onClick={close}
         aria-hidden
       />
-      <Sidebar
+      <SideNav
+        collapsed={collapsed}
+        onToggleGroup={toggleGroup}
         onNavigate={close}
         closeButtonRef={sidebarCloseRef}
         hidden={mobileNav && !navOpen}
       />
-      <main className="workspace">
-        <div className="global-search-bar">
-          <GlobalSearch
-            onToggleNav={() => setNavOpen((value) => !value)}
-            navOpen={navOpen}
-            navToggleRef={navToggleRef}
-          />
-        </div>
-        <div className="research-workspace">
+      <div className="main-column">
+        <header className="cmd-bar">
+          {mobileNav && (
+            <button
+              type="button"
+              ref={navToggleRef}
+              className="cmd-menu"
+              onClick={() => setNavOpen((value) => !value)}
+              aria-label="Open navigation"
+              aria-expanded={navOpen}
+            >
+              <Menu size={17} />
+            </button>
+          )}
+          <CompanySearch onSelect={handleSelect} />
+        </header>
+        <main className="research-workspace">
           <Outlet />
-        </div>
-      </main>
+        </main>
+      </div>
     </div>
   )
 }

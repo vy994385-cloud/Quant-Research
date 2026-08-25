@@ -2767,3 +2767,200 @@ added; remaining work is commit/push + Render Dashboard deploy + live E2E)
 Overall beta launch readiness: approximately 90-95%.
 
 The remaining work is primarily integration, UI, production verification and deployment — not another major research-engine rewrite.
+
+## T1 — CAPABILITY EXPANSION SPRINT (2026-08-24, Terminal 1 scope)
+
+Backend-only differentiation sprint. No frontend files touched
+(Terminal 2 owns App.css / index.css / ui.tsx / States.tsx). All new
+engines run exclusively on the recorded research path, are
+deterministic, PIT-safe, provenance-backed, and free of scores,
+rankings, winners, and recommendations.
+
+### Competitor gap audit
+
+- New machine-readable audit: `docs/capability_matrix.json`
+  (19 capabilities; SUPPORTED / PARTIAL / MISSING /
+  INTENTIONALLY_UNSUPPORTED with competitor-gap, data-dependency,
+  PIT, and provenance requirements per row).
+
+### NEW differentiators (fixed)
+
+- Research Change Radar — `src/research/change.py`:
+  `build_symbol_changes()` diffs two recorded runs (new evidence,
+  financial disclosures, events, corporate actions, technology
+  evidence, gap transitions, stale-source flips) into stable change
+  records with hashed ids.
+- Evidence Delta — `build_evidence_delta()`: new/removed/changed
+  evidence, conflict open/resolve transitions, gap open/resolve,
+  source freshness changes, financial observation changes, per-section
+  item-set deltas.
+- Research Context Snapshot — shareable `rc-SYMBOL-STAMP-DIGEST`
+  context ids (`context_id_for`, `parse_context_id`,
+  `build_context_snapshot`) that replay one exact recorded state;
+  tampered digests rejected; PIT accounting reuses the exact
+  `/research` contract numbers so snapshots can never drift.
+- Coverage Delta — `build_coverage_delta()`: categories gained/lost,
+  gaps opened/resolved between two contexts.
+- Conflict exposure — `/api/v1/evidence/conflicts` returns both sides
+  of every recorded conflicting-evidence pair; the system never names
+  a winner.
+- Recorded-event calendar — `build_calendar()`: RECORDED vs ANNOUNCED
+  states from timeline entries only (live calendar APIs intentionally
+  not used), with a standing "announcements are not guarantees" note.
+
+### Capability gaps closed (fixed)
+
+- Screener presence operators: `has` / `missing` added to
+  `src/screener/engine.py` (value-less filters; number fields must
+  parse as Decimal to count as present). Missing data is now a
+  first-class query instead of a silent zero.
+- Evidence Search 2.0: `src/research/evidence/search.py` gained
+  `exact_phrase` matching, categorical `match_tier`
+  (title/text/metadata) + `matched_fields` transparency labels
+  (explicitly not scores), deterministic `snippet` excerpts, and
+  `observation_from`/`observation_to` windows alongside published
+  windows. Ordering stays timestamp+id deterministic.
+- Export package v2: `/api/v1/companies/{symbol}/export` now bundles
+  `research.json`, `screener_fields.csv`, `evidence.json` (full
+  lineage rows), `pit.json` (point-in-time accounting block), and
+  `sources.csv` (staleness) under the existing sha256 manifest;
+  byte-identical rebuilds verified.
+- Compare 2.0: `src/research/comparison.py` adds coverage_items,
+  missing_categories, conflicts_recorded, and newest_intel_published_at
+  rows plus an explicit point-in-time consistency note when compared
+  columns were captured at differing as_of timestamps.
+
+### API changes
+
+- NEW router `src/api/change_router.py`, registered in main.py:
+  - GET /api/v1/research-changes?symbol&baseline_as_of&current_as_of
+  - GET /api/v1/research-delta (same params)
+  - GET /api/v1/coverage/delta (same params)
+  - GET /api/v1/research-context/{context_id}
+  - GET /api/v1/evidence/conflicts?symbol&as_of
+  - GET /api/v1/calendar?symbols|all&range_from&range_to
+- EXTENDED GET /api/v1/evidence/search (exact_phrase,
+  observation_from/to params; hits carry match_tier, matched_fields,
+  snippet).
+- EXTENDED GET /api/v1/companies/{symbol}/export (three new files in
+  package).
+- Validation rules: baseline strictly earlier than current; naive
+  timestamps rejected; inverted calendar ranges rejected; unknown or
+  garbage context ids rejected as 400 malformed_request.
+
+### Test changes
+
+- NEW tests/test_change_radar.py (31 tests): engine determinism,
+  unique change ids, PIT leak exclusion, context-id roundtrip +
+  tamper rejection, delta shapes, screen entry/exit consistency,
+  full API contract incl. forbidden-key scans (no score/rank/winner/
+  recommendation/rating/buy/sell keys anywhere).
+- EXTENDED tests/test_o_track_screener.py (+4): presence operators,
+  value rejection, determinism.
+- EXTENDED tests/test_o_track_search.py (+7): phrase filtering,
+  tier labeling, snippet determinism, observation windows.
+- EXTENDED tests/test_o_track_export.py (+5): expanded package shape,
+  lineage/PIT/source manifests, verify + identical rebuild.
+- EXTENDED tests/test_o_track_comparison.py (+3 + stub updates):
+  new coverage/conflict/freshness rows, null-safe freshness cell,
+  PIT-consistency note.
+- Full suite: 2611 passed (from ~2570 pre-sprint), 0 failed.
+
+### Intentionally unsupported (unchanged)
+
+- Scores / rankings / composite ratings / buy-sell advice / price
+  predictions — excluded by product rule, enforced by test scans.
+- Multi-asset classes (ETF/MF/IPO/F&O/crypto) — no real recorded
+  datasets exist; faking them is prohibited.
+- Live ingestion for production change detection — beta runs on
+  committed fixtures; production archiving pipeline is future work.
+- Research memory (analyst notes) — requires user-scoped storage and
+  auth, neither exists yet; contract will bind notes to replayable
+  context ids.
+
+### Remaining for this track
+
+- Frontend rendering of change radar / delta / calendar surfaces is
+  Terminal 2 scope once APIs stabilize.
+- Dense multi-date archives would upgrade PARTIAL capabilities
+  (replay sessions, provenance drill-down) to full interactive
+  experiences.
+
+## T2-W1 — Whole Product Information Architecture
+
+**Date:** 2026-08-25
+**Sprint:** T2-W1 (whole program restructuring)
+
+### COMPETITOR GAP
+
+A5 mockup IA groups navigation into DISCOVER → RESEARCH → SCREEN → MONITOR → OUTPUT → ASSET CLASSES, replacing the previous flat 5-cluster sidebar (Company Hub, Intelligence, Signals, Screener, Research, My Research). The old IA conflated "actions" (Screener, Compare) with "views" (Rankings, Timeline) and placed My Research at two depths (footer + sidebar). Audit command access was inconsistent (back-end infobase vs. workspace).
+
+### VISIBLE BEFORE
+
+- Sidebar grouped by concept clusters (Company Hub, Intelligence, Signals, Screener, Research, My Research)
+- "Discover" home page with flat sections (Company Developments, Technology Developments, My Research)
+- No dedicated events view; timeline only accessible via company drill-down
+- No evidence-package route; export was hidden inside company research header
+- Legacy brand mark displayed as "Q" with 28px width, 13px font
+
+### VISIBLE AFTER
+
+- Sidebar organized by **workflow phase** with section dividers: DISCOVER, RESEARCH, SCREEN, MONITOR, OUTPUT, ASSET CLASSES
+- "What's new in the research universe?" home page with recently researched companies + Themes/Industries domain cards
+- New `/events` route for company event intelligence
+- New `/evidence-package` route for evidence package download
+- "QR" brand mark at 30px width, 11px font
+- cmd-profile removed from command bar (access via sidebar)
+
+### STRUCTURAL CHANGE
+
+- **Layout.tsx**: `NAV_GROUPS` restructured into 6 workflow-aligned groups with icons (Compass, Search, SlidersHorizontal, Activity, FileOutput, Landmark, Home, Shield); nav container class `side-nav-groups` → `nav-workflow`
+- **App.tsx**: Routes reorganized by workflow section with comments; added `/events`, `/evidence-package`, `/my-research` routes; legacy redirects: `/timeline`→`/events`, `/profile`→`/my-research`, `/research-home`→`/discover`
+- **App.css**: `.side-nav-groups` → `.nav-workflow`; brand mark adjusted; new `.discover-domains` and `.discover-domain-card` classes; removed `.cmd-profile`
+
+### OUTPUT CHANGE
+
+- DiscoverPage.tsx → Research Home with: "What's new in the research universe?" heading, recently researched section (via `getRecentSymbols()`), Themes/Industries domain quick-nav cards, reorganized sections (RESEARCH ACTIVITY, COMPANY DEVELOPMENTS, TECHNOLOGY DEVELOPMENTS)
+- AssetClassesPage.tsx: `/timeline` link updated to `/events`
+
+### REMOVED
+
+- `.cmd-profile` nav item (now sidebar-only)
+- Duplicate "My Research" entry in footer nav
+- "Q" brand text (replaced with "QR")
+- Flat section labels ("Company Developments", "Technology Developments" now prefixed with context)
+
+### RETAINED
+
+- All 6 existing page routes and their functionality
+- Command bar (company search + section search)
+- Responsive breakpoints (desktop / tablet / mobile)
+- All existing page components (no functional changes)
+
+### REGRESSIONS
+
+- None detected during development. `npx tsc -b --noEmit` clean, `npm run lint` clean, `npm test -- --run` 87/87 pass, `npm run build` successful, `git diff --check` clean.
+
+### VALIDATION
+
+- TypeScript: clean (`npx tsc -b --noEmit`)
+- Lint: clean (`npm run lint`)
+- Tests: 87/87 pass (`npm test -- --run`)
+- Build: successful (`npm run build`)
+- Heading assertion updated in `App.test.tsx` to match new Research Home title
+- All legacy redirects functional (`/timeline` → `/events`, `/profile` → `/my-research`, `/research-home` → `/discover`)
+
+### REMAINING
+
+- Browser review at 5 viewports (1440/1280/1024/768/390) — screenshots pending
+- Console check: 0 errors
+- Horizontal overflow check at all viewports
+- Interaction verification: nav items, command bar, recently researched links, domain cards
+- PROJECT_PROGRESS.md T2-W1 report (this entry)
+
+### VISIBLE MATURITY
+
+- Navigation reflects evidence-first workflow (Discover → Research → Screen → Monitor → Output → Asset Classes) rather than feature taxonomy
+- Brand identity clearer ("QR" vs "Q")
+- Research Home surfaces recent activity and domain navigation upfront
+- Legacy routes gracefully redirect without breaking bookmarks

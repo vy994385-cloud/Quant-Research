@@ -131,7 +131,7 @@ export default function AssetClassesPage() {
           </li>
           <li>
             <ScrollText size={15} aria-hidden />
-            <Link to="/timeline">Events</Link>
+            <Link to="/events">Events</Link>
             <span>Corporate actions and disclosures across the universe.</span>
           </li>
           <li>
