@@ -10,10 +10,20 @@ import { useEffect, useMemo, useState } from "react"
 import { Link } from "react-router-dom"
 import { ArrowUpRight } from "lucide-react"
 import { useDiscovery } from "../useDiscovery"
-import { fetchTimeline, fetchResearch, fetchResearchGaps } from "../api/client"
-import { formatLabel, formatIsoShort, formatTitle, formatSourceName, formatConfidence } from "../lib/format"
+import { fetchResearchChanges } from "../api/client"
+import { formatLabel, formatIsoShort, formatTitle } from "../lib/format"
 import { LoadingState, EmptyState, ErrorState } from "../components/States"
 import { Tag } from "../components/ui"
+
+/**
+ * Recorded-window comparison. The archive is a single snapshot as of
+ * DEFAULT_AS_OF (2026-08-10T12:00:00Z); the baseline opens the recorded
+ * window (earlier baselines return research_data_unavailable, so 2026-
+ * 01-01 is the earliest universally-usable window start). Advance both
+ * when future data is appended.
+ */
+const CHANGES_BASELINE = "2026-01-01T00:00:00Z"
+const CHANGES_CURRENT = "2026-08-10T12:00:00Z"
 
 interface ChangeRow {
   key: string
@@ -41,56 +51,24 @@ export default function ResearchChangesPage() {
       const symbols = tracked.map((i) => i.symbol)
 
       try {
-        const [timelineResults, researchResults, gapResults] = await Promise.all([
-          Promise.allSettled(symbols.map((s) => fetchTimeline(s))),
-          Promise.allSettled(symbols.map((s) => fetchResearch(s))),
-          Promise.allSettled(symbols.map((s) => fetchResearchGaps(s))),
-        ])
+        const results = await Promise.allSettled(
+          symbols.map((s) => fetchResearchChanges(s, CHANGES_BASELINE, CHANGES_CURRENT)),
+        )
 
         if (cancelled) return
 
         const rows: ChangeRow[] = []
 
-        for (const result of timelineResults) {
+        for (const result of results) {
           if (result.status !== "fulfilled") continue
-          for (const entry of result.value.timeline.entries) {
+          for (const change of result.value.changes) {
             rows.push({
-              key: entry.entry_id,
-              symbol: entry.symbol,
-              date: entry.timeline_at ?? entry.published_at ?? entry.effective_at,
-              title: formatTitle(entry.title, entry.symbol),
-              category: entry.event_type ?? "Event",
-              source: formatSourceName(entry.source.source_name),
-            })
-          }
-        }
-
-        for (const result of researchResults) {
-          if (result.status !== "fulfilled") continue
-          const research = result.value
-          if (!research || !Array.isArray(research.signals)) continue
-          for (const signal of research.signals) {
-            rows.push({
-              key: signal.signal_id,
-              symbol: signal.symbol,
-              date: signal.observation_at,
-              title: formatTitle(signal.title, signal.symbol),
-              category: formatLabel(signal.category),
-              source: formatConfidence(signal.confidence),
-            })
-          }
-        }
-
-        for (const result of gapResults) {
-          if (result.status !== "fulfilled") continue
-          for (const gap of result.value.research_gaps?.gaps ?? []) {
-            rows.push({
-              key: gap.gap_id,
-              symbol: gap.symbol,
-              date: null,
-              title: gap.description,
-              category: `Gap: ${formatLabel(gap.category)}`,
-              source: formatLabel(gap.status),
+              key: change.change_id,
+              symbol: change.symbol,
+              date: change.effective_at ?? change.as_of,
+              title: formatTitle(change.title, change.symbol),
+              category: formatLabel(change.change_type),
+              source: change.source ?? null,
             })
           }
         }
@@ -108,6 +86,8 @@ export default function ResearchChangesPage() {
     return () => { cancelled = true }
   }, [tracked])
 
+  const visible = changes.slice(0, 100)
+
   return (
     <div className="page-research-changes">
       <section className="page-hero">
@@ -121,7 +101,7 @@ export default function ResearchChangesPage() {
       </section>
 
       {(discoveryLoading || loading) && (
-        <LoadingState label="Loading research changes" description="Scanning per-company records…" />
+        <LoadingState label="Loading research changes" description="Comparing recorded windows per company…" />
       )}
 
       {error && (
@@ -150,7 +130,7 @@ export default function ResearchChangesPage() {
                 </tr>
               </thead>
               <tbody>
-                {changes.slice(0, 50).map((row) => (
+                {visible.map((row) => (
                   <tr key={row.key}>
                     <td className="feed-date">
                       {row.date ? formatIsoShort(row.date) : "\u2014"}

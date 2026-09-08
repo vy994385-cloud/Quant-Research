@@ -1004,3 +1004,356 @@ export interface CompanyProfessionalReportResponse {
   }
   report: F8ProfessionalReport
 }
+
+// ── Capability layer: screener ─────────────────────────────────────
+
+export type ScreenLogic = "AND" | "OR"
+
+export interface ScreenFilter {
+  field: string
+  operator: string
+  value?: unknown
+  second_value?: unknown
+}
+
+export interface ScreenFilterGroup {
+  logic: ScreenLogic
+  filters: ScreenFilter[]
+}
+
+/** POST /api/v1/screener body — canonical serializable definition. */
+export interface ScreenDefinitionPayload {
+  name: string
+  description?: string
+  combine?: ScreenLogic
+  groups: ScreenFilterGroup[]
+}
+
+export interface ScreenerFieldSpec {
+  name: string
+  category: string
+  label: string
+  description: string
+  value_type: string
+  unit?: string | null
+  available: boolean
+  availability_state: string
+  availability_note?: string | null
+}
+
+export interface ScreenerFieldCatalog {
+  fields: ScreenerFieldSpec[]
+  available_count: number
+  unavailable_count: number
+}
+
+export interface ScreenRowColumn {
+  field: string
+  label: string
+  category: string
+  unit?: string | null
+  value?: string | null
+  available: boolean
+}
+
+export interface ScreenResultRow {
+  symbol: string
+  company_name?: string | null
+  sector?: string | null
+  columns: ScreenRowColumn[]
+}
+
+export interface ScreenExecutionOutput {
+  name: string
+  description: string
+  definition_hash: string
+  selected_filters: Record<string, unknown>
+  selected_columns: string[]
+  rows: ScreenResultRow[]
+  matched_count: number
+  universe_size: number
+  notes: string[]
+}
+
+// ── Capability layer: evidence search ──────────────────────────────
+
+export interface EvidenceSearchQuery {
+  text_terms: string[]
+  exact_phrase?: string | null
+  symbol?: string | null
+  category?: string | null
+  source_id?: string | null
+  published_from?: string | null
+  published_to?: string | null
+  observation_from?: string | null
+  observation_to?: string | null
+  as_of?: string | null
+}
+
+export interface EvidenceSearchHit {
+  evidence_id: string
+  symbol: string
+  title: string
+  explanation: string
+  category: string
+  evidence_type: string
+  direction: string
+  verification_status: string
+  epistemic_type: string
+  pit_eligible: boolean
+  observation_at?: string | null
+  published_at?: string | null
+  available_at?: string | null
+  source_ids: string[]
+  provenance_ids: string[]
+  matched_claim_ids?: string[]
+  match_tier?: string
+  matched_fields?: string[]
+  snippet?: string | null
+}
+
+export interface EvidenceSearchResponse {
+  query: EvidenceSearchQuery
+  items: EvidenceSearchHit[]
+  hit_count: number
+  searched_count: number
+  symbols_searched: string[]
+  notes: string[]
+}
+
+// ── Research change radar ──────────────────────────────────────────
+
+export type ChangeType = string
+
+export interface ResearchChange {
+  change_id: string
+  symbol: string
+  change_type: ChangeType
+  detected_at: string
+  effective_at?: string | null
+  as_of: string
+  title: string
+  description?: string
+  source?: string | null
+  provenance: string[]
+  related_observation?: string | null
+  before?: string | null
+  after?: string | null
+  why_changed?: string | null
+  previous_state?: string | null
+  current_state?: string | null
+  pit_eligible?: boolean
+}
+
+export interface ResearchChangesResponse {
+  symbol: string
+  baseline_as_of: string
+  current_as_of: string
+  change_count: number
+  changes: ResearchChange[]
+}
+
+export interface StatePair {
+  previous?: string | null
+  current?: string | null
+}
+
+export interface EvidenceDeltaEntry {
+  evidence_id: string
+  title: string
+  direction: string
+  verification_status: string
+  published_at?: string | null
+  available_at?: string | null
+  source_ids: string[]
+  provenance_ids: string[]
+  changed_fields: string[]
+  states?: StatePair | null
+}
+
+export interface ConflictDelta {
+  conflict_id: string
+  topic: string
+  management_involved: boolean
+  first_title: string
+  second_title: string
+}
+
+export interface GapDelta {
+  gap_key: string
+  category: string
+  gap: string
+  previous_status?: string | null
+  current_status?: string | null
+}
+
+export interface SourceFreshnessChange {
+  source_name: string
+  stale: StatePair
+  days_since_latest?: StatePair | null
+}
+
+export interface FinancialObservationChange {
+  metric: string
+  period_end?: string | null
+  previous_value?: string | null
+  current_value?: string | null
+  unit?: string | null
+  observation_type?: string | null
+}
+
+export interface ItemSetDelta {
+  section: string
+  added: string[]
+  removed: string[]
+}
+
+export interface EvidenceDeltaReport {
+  symbol: string
+  baseline_as_of: string
+  current_as_of: string
+  new_evidence: EvidenceDeltaEntry[]
+  removed_evidence: EvidenceDeltaEntry[]
+  changed_evidence: EvidenceDeltaEntry[]
+  new_conflicts: ConflictDelta[]
+  resolved_conflicts: ConflictDelta[]
+  new_gaps: GapDelta[]
+  resolved_gaps: GapDelta[]
+  source_freshness_changes: SourceFreshnessChange[]
+  financial_observation_changes: FinancialObservationChange[]
+  removed_observations: FinancialObservationChange[]
+  item_set_deltas: ItemSetDelta[]
+  notes: string[]
+}
+
+// ── Research calendar ──────────────────────────────────────────────
+
+export interface CalendarEvent {
+  event_id: string
+  symbol: string
+  title: string
+  event_date: string
+  effective_date?: string | null
+  announcement_date?: string | null
+  available_at?: string | null
+  state: string
+  category?: string | null
+  verification_status?: string | null
+  source?: string | null
+  provenance: string[]
+  pit_available: boolean
+  note?: string
+}
+
+export interface CalendarResponse {
+  as_of: string
+  range_from: string
+  range_to: string
+  symbols: string[]
+  events: CalendarEvent[]
+  announced_count: number
+  recorded_count: number
+  notes: string[]
+}
+
+// ── Capability layer: discovery feed ───────────────────────────────
+
+export type FeedItemType = string
+
+export interface DiscoveryFeedItem {
+  item_id: string
+  symbol: string
+  item_type: FeedItemType
+  title: string
+  description?: string
+  published_at?: string | null
+  available_at?: string | null
+  effective_at?: string | null
+  source_name?: string | null
+  source_type?: string | null
+  provenance_id?: string | null
+  pit_eligible?: boolean
+  event_id?: string | null
+  direction?: string | null
+  sources?: string[]
+  provenance_ids?: string[]
+  member_ids?: string[]
+}
+
+export interface DiscoveryFeed {
+  as_of: string
+  items: DiscoveryFeedItem[]
+  item_count: number
+  type_counts: Record<string, number>
+  symbols_included: string[]
+  notes: string[]
+  duplicates_merged: number
+}
+
+export interface TrendingCompany {
+  symbol: string
+  recent_item_count: number
+  total_item_count: number
+}
+
+export interface TrendingResult {
+  as_of: string
+  window_days: number
+  definition: string
+  ranked: TrendingCompany[]
+}
+
+// ── Capability layer: comparison ───────────────────────────────────
+
+export interface ComparisonCell {
+  symbol: string
+  value?: string | null
+  available: boolean
+  unit?: string | null
+  source?: string | null
+  provenance: string[]
+}
+
+export interface ComparisonRow {
+  metric: string
+  label: string
+  category: string
+  period_end?: string | null
+  cells: ComparisonCell[]
+}
+
+export interface ComparisonCompany {
+  symbol: string
+  company_name?: string | null
+  sector?: string | null
+}
+
+export interface CompanyComparison {
+  comparison_context: string
+  shared_as_of?: string | null
+  mixed_as_of_warning?: string | null
+  as_of: string
+  companies: ComparisonCompany[]
+  rows: ComparisonRow[]
+  row_count: number
+  coverage_summary: Record<string, Record<string, number>>
+  conflict_summary: Record<string, number>
+  notes: string[]
+}
+
+// ── Capability layer: export package ───────────────────────────────
+
+export interface ExportEntry {
+  filename: string
+  media_type: string
+  bytes: number
+  sha256: string
+}
+
+export interface ExportPackage {
+  schema_version: string
+  as_of: string
+  files: Record<string, string>
+  manifest: ExportEntry[]
+  package_sha256: string
+}

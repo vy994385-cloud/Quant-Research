@@ -20,7 +20,6 @@ from src.api.contracts import (
     ContractEarningsSurprise,
     ContractMarketValuation,
 )
-from src.api.errors import UnknownCompanyError
 from src.data.providers.yahoo_analyst import YahooAnalystProvider
 from src.data.providers.yahoo_profile import YahooProfileProvider
 
@@ -45,6 +44,8 @@ async def get_analyst_intelligence(
     Finance quote summary modules.
     """
 
+    from src.api.recorded_research import RecordedCompanyResearchService
+
     normalized = symbol.strip().upper()
 
     profile_provider = YahooProfileProvider()
@@ -54,9 +55,18 @@ async def get_analyst_intelligence(
         profile = None
 
     if profile is None:
-        raise UnknownCompanyError(
-            f"Company {normalized} not found",
-            details={"symbol": normalized},
+        # Live Yahoo data unavailable — return honest empty state
+        _svc = RecordedCompanyResearchService()
+        _cname = _svc.company_name(normalized)
+        return CompanyAnalystIntelligenceContract(
+            company={
+                "symbol": normalized,
+                "company_name": _cname or normalized,
+                "sector": _svc.company_sector(normalized),
+            },
+            analyst_intelligence=ContractAnalystIntelligence(
+                symbol=normalized,
+            ),
         )
 
     provider = YahooAnalystProvider()

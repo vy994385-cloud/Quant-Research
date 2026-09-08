@@ -1,0 +1,24 @@
+{
+  "available_at": "2026-08-14T09:00:00+05:30",
+  "checksum": "eba5ed5120c085a05ef7a3b1ac4814c72d13377612ce93f96aeaeb47d4757165",
+  "dataset_id": "tcs_recorded_sources",
+  "dataset_version": null,
+  "payload": {
+    "available_at": "2026-08-14T09:00:00+05:30",
+    "published_at": "2026-08-14T09:00:00+05:30",
+    "reliability_tier": 2,
+    "source_id": "tcs-future-event-fixture",
+    "source_name": "PIT Verification Fixture",
+    "source_type": "NEWS",
+    "title": "TCS future-dated disclosure fixture used to verify point-in-time rejection (available after the research as-of timestamp)",
+    "url": "https://example.invalid/tcs-future-event-fixture"
+  },
+  "published_at": "2026-08-14T09:00:00+05:30",
+  "record_id": "tcs-future-event-fixture",
+  "request_metadata": {
+    "as_of": "2026-12-31T23:59:59+00:00",
+    "company": "TCS"
+  },
+  "retrieved_at": "2026-12-31T23:59:59+00:00",
+  "source_id": "tcs_recorded_sources"
+}

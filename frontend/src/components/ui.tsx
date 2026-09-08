@@ -1,13 +1,12 @@
 /**
- * VISUAL SYSTEM 3.0 — consolidated UI primitives.
+ * VISUAL SYSTEM 5.0 — consolidated UI primitives.
  *
- * Premium dark research terminal language:
- *   flat layered panels · hairline separators · one cool cyan accent
- *   semantic badges · tabular numerals · restrained motion.
+ * Editorial research product language:
+ *   typography-driven hierarchy · warm graphite · subtle dividers
+ *   restrained teal · compact metadata · research streams.
  *
  * Every export is backward compatible with prior pages. New primitives
- * (PageShell, Section, MetricStrip, ChartShell, SegmentedControl,
- * ResearchTable, SourceBadge, PITBadge, …) are additive.
+ * (PageHeader, SourceAttribution, TimelineStream) are additive.
  */
 
 import type { ReactNode } from "react"
@@ -58,9 +57,9 @@ export function SourceBadge({
   )
 }
 
-/** Point-in-time verified marker — cyan/teal credibility accent. */
+/** Point-in-time verified marker — teal credibility accent. */
 export function PITBadge({
-  label = "PIT VERIFIED",
+  label = "PIT verified",
 }: {
   label?: string
 }) {
@@ -627,6 +626,142 @@ export function ChartShell({
       )}
       <div className="chart-shell-body">{children}</div>
     </figure>
+  )
+}
+
+/* ── PageHeader — editorial page header ───────────────────────── */
+
+export function PageHeader({
+  kicker,
+  title,
+  subtitle,
+  meta,
+  children,
+}: {
+  kicker?: string
+  title: string
+  subtitle?: string
+  meta?: ReactNode
+  children?: ReactNode
+}) {
+  return (
+    <header className="page-hero">
+      {kicker && <p className="page-kicker">{kicker}</p>}
+      <h1>{title}</h1>
+      {subtitle && <p className="page-subtitle">{subtitle}</p>}
+      {(meta || children) && (
+        <div className="page-hero-meta">
+          {meta}
+          {children}
+        </div>
+      )}
+    </header>
+  )
+}
+
+/* ── SourceAttribution — compact source/PIT/provenance line ─────── */
+
+export function SourceAttribution({
+  source,
+  asOf,
+  pitVerified = false,
+  provenance,
+}: {
+  source?: string
+  asOf?: string
+  pitVerified?: boolean
+  provenance?: string
+}) {
+  if (!source && !asOf && !pitVerified && !provenance) return null
+  return (
+    <div className="source-attribution">
+      {source && <span className="source-attribution-source">{source}</span>}
+      {asOf && <span className="source-attribution-date">as of {asOf}</span>}
+      {pitVerified && <PITBadge />}
+      {provenance && <span className="source-attribution-provenance">{provenance}</span>}
+    </div>
+  )
+}
+
+/* ── TimelineStream — vertical chronological stream ────────────── */
+
+export function TimelineStream({
+  items,
+  emptyText = "No recorded events.",
+}: {
+  items: Array<{
+    key: string
+    date?: string | null
+    title: string
+    detail?: string
+    tag?: ReactNode
+    source?: string
+  }>
+  emptyText?: string
+}) {
+  if (items.length === 0) {
+    return <EmptyCopy text={emptyText} />
+  }
+  return (
+    <div className="timeline-stream" role="list">
+      {items.map((item) => (
+        <article key={item.key} className="timeline-entry" role="listitem">
+          <div className="timeline-entry-rail">
+            <span className="timeline-entry-dot" />
+            <span className="timeline-entry-line" />
+          </div>
+          <div className="timeline-entry-content">
+            <header className="timeline-entry-head">
+              {item.date && (
+                <time className="timeline-entry-date">{item.date}</time>
+              )}
+              {item.tag}
+            </header>
+            <h4 className="timeline-entry-title">{item.title}</h4>
+            {item.detail && (
+              <p className="timeline-entry-detail">{item.detail}</p>
+            )}
+            {item.source && (
+              <span className="timeline-entry-source">{item.source}</span>
+            )}
+          </div>
+        </article>
+      ))}
+    </div>
+  )
+}
+
+/* ── EvidenceRow — compact evidence item for streams ───────────── */
+
+export function EvidenceRow({
+  claim,
+  type,
+  date,
+  source,
+  onClick,
+}: {
+  claim: string
+  type?: ReactNode
+  date?: string
+  source?: string
+  onClick?: () => void
+}) {
+  return (
+    <article
+      className={`evidence-row${onClick ? " evidence-row--clickable" : ""}`}
+      onClick={onClick}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+    >
+      <div className="evidence-row-main">
+        <p className="evidence-row-claim">{claim}</p>
+        <div className="evidence-row-meta">
+          {type}
+          {date && <span className="evidence-row-date">{date}</span>}
+          {source && <span className="evidence-row-source">{source}</span>}
+        </div>
+      </div>
+    </article>
   )
 }
 

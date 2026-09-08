@@ -13,7 +13,7 @@ services:
       # may append a random suffix (e.g. quant-research-frontend-a1b2). The
       # exact origin served must appear here, then redeploy the backend.
       - key: FRONTEND_ORIGINS
-        value: "https://quant-research-frontend.onrender.com,http://127.0.0.1:5173,http://localhost:5173"
+        value: "https://quant-research-alpha.vercel.app,https://quant-research-frontend.onrender.com,http://127.0.0.1:5173,http://localhost:5173"
     healthCheckPath: /health
 
   - type: web

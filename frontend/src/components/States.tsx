@@ -1,5 +1,5 @@
 /**
- * Standardized output states — VISUAL SYSTEM 3.0.
+ * Standardized output states — VISUAL SYSTEM 5.0.
  *
  * Each state has a distinct visual treatment:
  *   Loading      quiet pulsing marker, never blocking
@@ -186,7 +186,7 @@ export function ErrorState({
       ) : null}
       {isApiError ? <ErrorDetails details={error.details} /> : null}
       {onRetry ? (
-        <button className="btn-primary refresh-button retry-button" onClick={onRetry}>
+        <button className="btn-primary retry-button" onClick={onRetry}>
           {retryLabel ?? "Try again"}
         </button>
       ) : null}

@@ -1,272 +1,370 @@
 /**
- * GLOBAL SEARCH — cross-domain research search.
+ * GLOBAL SEARCH — research discovery workspace.
  *
- * Searches across companies, evidence, events, themes, and industries.
- * Each result clearly identifies its type. No ranking, no scoring —
- * just matching results from recorded research data.
+ * Second entrance into the same research platform as Research Home.
+ * Searches companies by symbol, name, and sector; derives industry
+ * groupings from the tracked universe. Results open directly into
+ * the appropriate research workspace.
  */
 
-import { useMemo, useState } from "react"
-import { Link } from "react-router-dom"
-import { Building2, Clock, Globe, Lightbulb, Search, Shield, XCircle } from "lucide-react"
+import { useMemo, useState, useCallback, useRef, useEffect } from "react"
+import { useNavigate } from "react-router-dom"
+import { Building2, ChevronRight, Globe, Search, X } from "lucide-react"
 import { useDiscovery } from "../useDiscovery"
 import { formatLabel } from "../lib/format"
-import { Tag } from "../components/ui"
-import { LoadingState, EmptyState, ErrorState } from "../components/States"
+import { trackRecentVisit } from "../lib/localResearch"
+import { LoadingState, ErrorState } from "../components/States"
 
-type ResultType = "company" | "evidence" | "event" | "theme" | "industry"
+type ResultType = "company" | "sector"
 
 interface SearchResult {
   type: ResultType
   title: string
-  subtitle: string
+  symbol: string
+  context: string
   to: string
-  icon: React.ComponentType<{ size?: number }>
-  tone: "slate" | "blue" | "amber"
+  sector: string
+  researchAvailable: boolean
 }
 
-const TYPE_LABELS: Record<ResultType, string> = {
-  company: "Company",
-  evidence: "Evidence",
-  event: "Event",
-  theme: "Theme",
-  industry: "Industry",
+const EXAMPLES = [
+  { label: "TCS", query: "TCS" },
+  { label: "Infosys", query: "Infosys" },
+  { label: "Banking", query: "Banking" },
+  { label: "Pharma", query: "Pharma" },
+  { label: "Reliance", query: "Reliance" },
+]
+
+function buildResults(
+  items: Array<{
+    symbol: string
+    company_name: string | null
+    sector: string
+    research_available: boolean
+  }>,
+  query: string,
+): { companies: SearchResult[]; sectors: SearchResult[] } {
+  if (!query) return { companies: [], sectors: [] }
+  const q = query.toLowerCase()
+
+  const companies: SearchResult[] = []
+  const sectorMatches = new Map<string, number>()
+
+  for (const item of items) {
+    const nameMatch =
+      item.symbol.toLowerCase().includes(q) ||
+      (item.company_name ?? "").toLowerCase().includes(q) ||
+      item.sector.toLowerCase().includes(q)
+
+    if (nameMatch) {
+      companies.push({
+        type: "company",
+        title: item.company_name ?? item.symbol,
+        symbol: item.symbol,
+        context: item.research_available
+          ? "Full research"
+          : "Limited data",
+        to: `/companies/${encodeURIComponent(item.symbol)}`,
+        sector: item.sector,
+        researchAvailable: item.research_available,
+      })
+    }
+
+    if (item.sector.toLowerCase().includes(q)) {
+      sectorMatches.set(
+        item.sector,
+        (sectorMatches.get(item.sector) ?? 0) + 1,
+      )
+    }
+  }
+
+  const sectors: SearchResult[] = []
+  for (const [sector, count] of sectorMatches) {
+    sectors.push({
+      type: "sector",
+      title: formatLabel(sector),
+      symbol: "",
+      context: `${count} tracked ${count === 1 ? "company" : "companies"}`,
+      to: "/industries",
+      sector,
+      researchAvailable: true,
+    })
+  }
+
+  return { companies, sectors }
 }
 
 export default function GlobalSearchPage() {
   const { items, loading, error } = useDiscovery()
+  const navigate = useNavigate()
   const [query, setQuery] = useState("")
   const [activeFilter, setActiveFilter] = useState<ResultType | "all">("all")
+  const inputRef = useRef<HTMLInputElement | null>(null)
+  const q = query.trim()
 
-  const q = query.trim().toLowerCase()
+  const { companies, sectors } = useMemo(
+    () => buildResults(items, q),
+    [items, q],
+  )
 
-  const results = useMemo<SearchResult[]>(() => {
-    if (!q) return []
+  const filteredCompanies =
+    activeFilter === "all" || activeFilter === "company" ? companies : []
+  const filteredSectors =
+    activeFilter === "all" || activeFilter === "sector" ? sectors : []
 
-    const matched: SearchResult[] = []
+  const totalResults = filteredCompanies.length + filteredSectors.length
+  const hasQuery = q.length > 0
 
-    for (const item of items) {
-      const nameMatch =
-        item.symbol.toLowerCase().includes(q) ||
-        (item.company_name ?? "").toLowerCase().includes(q) ||
-        item.sector.toLowerCase().includes(q)
-
-      if (nameMatch) {
-        matched.push({
-          type: "company",
-          title: item.company_name ?? item.symbol,
-          subtitle: `${item.symbol} · ${formatLabel(item.sector)}`,
-          to: `/companies/${encodeURIComponent(item.symbol)}`,
-          icon: Building2,
-          tone: "blue",
-        })
-
-        if (item.research_available) {
-          matched.push({
-            type: "evidence",
-            title: `Evidence for ${item.company_name ?? item.symbol}`,
-            subtitle: `${item.symbol} · Research evidence and provenance`,
-            to: `/companies/${encodeURIComponent(item.symbol)}?tab=evidence`,
-            icon: Shield,
-            tone: "blue",
-          })
-
-          matched.push({
-            type: "event",
-            title: `Events for ${item.company_name ?? item.symbol}`,
-            subtitle: `${item.symbol} · Recorded timeline`,
-            to: `/companies/${encodeURIComponent(item.symbol)}?tab=events`,
-            icon: Clock,
-            tone: "slate",
-          })
-        }
+  const handleSelect = useCallback(
+    (result: SearchResult) => {
+      if (result.type === "company" && result.symbol) {
+        trackRecentVisit(result.symbol)
       }
-    }
+      navigate(result.to)
+    },
+    [navigate],
+  )
 
-    const themes = [
-      "artificial-intelligence",
-      "cloud",
-      "semiconductor",
-      "fintech",
-      "edtech",
-      "pharma",
-      "ev",
-      "renewable",
-      "banking",
-      "insurance",
-    ]
-    for (const theme of themes) {
-      if (theme.includes(q)) {
-        matched.push({
-          type: "theme",
-          title: formatLabel(theme),
-          subtitle: "Technology and market theme",
-          to: "/themes",
-          icon: Lightbulb,
-          tone: "amber",
-        })
-      }
-    }
-
-    const industries = [...new Set(items.map((i) => i.sector))]
-    for (const industry of industries) {
-      if (industry.toLowerCase().includes(q)) {
-        matched.push({
-          type: "industry",
-          title: formatLabel(industry),
-          subtitle: `${items.filter((i) => i.sector === industry).length} tracked companies`,
-          to: "/industries",
-          icon: Globe,
-          tone: "slate",
-        })
-      }
-    }
-
-    return matched
-  }, [q, items])
-
-  const filteredResults = useMemo(() => {
-    if (activeFilter === "all") return results
-    return results.filter((r) => r.type === activeFilter)
-  }, [results, activeFilter])
-
-  const typeCounts = useMemo(() => {
-    const counts: Record<string, number> = {}
-    for (const r of results) {
-      counts[r.type] = (counts[r.type] ?? 0) + 1
-    }
-    return counts
-  }, [results])
+  useEffect(() => {
+    inputRef.current?.focus()
+  }, [])
 
   return (
     <div className="page-global-search">
-      <section className="discover-hero" aria-label="Global research search">
+      {/* ── Header ──────────────────────────────────────────── */}
+      <header className="gs-header">
         <p className="page-kicker">Global search</p>
         <h1>Search the research universe</h1>
-        <p className="page-subtitle">
-          Cross-domain search across companies, evidence, events, themes, and industries.
-          Each result identifies its type clearly.
+        <p className="gs-scope">
+          Companies by name, ticker, or sector — results open directly into the
+          research workspace.
         </p>
-        <div className="discover-hero-search">
-          <Search size={18} aria-hidden />
+      </header>
+
+      {/* ── Search Input ────────────────────────────────────── */}
+      <div className="gs-input-area">
+        <div className="gs-input-wrap">
+          <Search size={17} className="gs-input-icon" aria-hidden />
           <input
+            ref={inputRef}
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search companies, sectors, evidence, events — TCS, Pharma, AI…"
-            aria-label="Global research search"
-            autoFocus
+            onChange={(e) => {
+              setQuery(e.target.value)
+              setActiveFilter("all")
+            }}
+            placeholder="Company, ticker, or sector…"
+            aria-label="Search companies, sectors, and industries"
+            autoComplete="off"
+            className="gs-input"
           />
-          {query && (
+          {hasQuery && (
             <button
               type="button"
-              className="search-clear"
-              onClick={() => setQuery("")}
+              className="gs-clear"
+              onClick={() => {
+                setQuery("")
+                setActiveFilter("all")
+                inputRef.current?.focus()
+              }}
               aria-label="Clear search"
             >
-              <XCircle size={15} />
+              <X size={14} />
             </button>
           )}
         </div>
-      </section>
 
-      {loading && <LoadingState label="Fetching tracked universe…" />}
+        {!hasQuery && (
+          <div className="gs-examples">
+            <span className="gs-examples-label">Try:</span>
+            {EXAMPLES.map((ex) => (
+              <button
+                key={ex.label}
+                type="button"
+                className="gs-example"
+                onClick={() => {
+                  setQuery(ex.query)
+                  inputRef.current?.focus()
+                }}
+              >
+                {ex.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
 
+      {/* ── Loading / Error ─────────────────────────────────── */}
+      {loading && <LoadingState label="Loading research universe…" />}
       {error && <ErrorState error={error} />}
 
-      {!loading && !error && q && (
-        <section className="discover-section discover-primary" aria-label="Search results">
-          <div className="stream-controls">
-            <SegmentedFilter
-              activeFilter={activeFilter}
-              onChange={setActiveFilter}
-              typeCounts={typeCounts}
-            />
-            <span className="search-result-count">
-              {filteredResults.length} result{filteredResults.length !== 1 ? "s" : ""}
-            </span>
-          </div>
-
-          {filteredResults.length === 0 ? (
-            <EmptyState
-              icon={Search}
-              title="No results match this search"
-              description="Try a different query or broaden the type filter."
-            />
-          ) : (
-            <ul className="search-results-list">
-              {filteredResults.map((result, index) => {
-                const Icon = result.icon
+      {/* ── Results ─────────────────────────────────────────── */}
+      {!loading && !error && hasQuery && (
+        <div className="gs-results">
+          <div className="gs-results-bar">
+            <div className="gs-scope-pills" role="radiogroup" aria-label="Filter by type">
+              {(
+                [
+                  { value: "all", label: "All" },
+                  { value: "company", label: "Companies" },
+                  { value: "sector", label: "Sectors" },
+                ] as const
+              ).map((opt) => {
+                const count =
+                  opt.value === "all"
+                    ? companies.length + sectors.length
+                    : opt.value === "company"
+                      ? companies.length
+                      : sectors.length
                 return (
-                  <li key={`${result.type}-${result.to}-${index}`}>
-                    <Link to={result.to} className={`search-result-item search-result-${result.type}`}>
-                      <span className={`search-result-icon ${result.type}`}>
-                        <Icon size={16} />
-                      </span>
-                      <div className="search-result-body">
-                        <span className="search-result-title">{result.title}</span>
-                        <span className="search-result-subtitle">{result.subtitle}</span>
-                      </div>
-                      <Tag text={TYPE_LABELS[result.type]} tone={result.tone} />
-                    </Link>
-                  </li>
+                  <button
+                    key={opt.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={activeFilter === opt.value}
+                    className={`gs-pill ${activeFilter === opt.value ? "gs-pill--active" : ""}`}
+                    onClick={() => setActiveFilter(opt.value)}
+                  >
+                    {opt.label}
+                    {count > 0 && (
+                      <span className="gs-pill-count">{count}</span>
+                    )}
+                  </button>
                 )
               })}
-            </ul>
+            </div>
+          </div>
+
+          {totalResults === 0 ? (
+            <div className="gs-no-results">
+              <p className="gs-no-results-title">
+                No results for &ldquo;{q}&rdquo;
+              </p>
+              <p className="gs-no-results-desc">
+                Try a different name, ticker, or sector. The tracked universe
+                includes {items.length} companies.
+              </p>
+              <div className="gs-no-results-actions">
+                <button
+                  type="button"
+                  className="gs-action-link"
+                  onClick={() => {
+                    setQuery("")
+                    setActiveFilter("all")
+                    inputRef.current?.focus()
+                  }}
+                >
+                  Clear search
+                </button>
+                <span className="gs-no-results-sep">·</span>
+                {EXAMPLES.slice(0, 3).map((ex) => (
+                  <button
+                    key={ex.label}
+                    type="button"
+                    className="gs-action-link"
+                    onClick={() => {
+                      setQuery(ex.query)
+                      setActiveFilter("all")
+                    }}
+                  >
+                    {ex.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="gs-result-groups">
+              {filteredCompanies.length > 0 && (
+                <section className="gs-group" aria-label="Company results">
+                  <h2 className="gs-group-heading">
+                    Companies
+                    <span className="gs-group-count">
+                      {filteredCompanies.length}
+                    </span>
+                  </h2>
+                  <ul className="gs-group-list" role="listbox">
+                    {filteredCompanies.map((r) => (
+                      <li key={r.to}>
+                        <SearchRow result={r} onSelect={handleSelect} />
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+
+              {filteredSectors.length > 0 && (
+                <section className="gs-group" aria-label="Sector results">
+                  <h2 className="gs-group-heading">
+                    Sectors &amp; Industries
+                    <span className="gs-group-count">
+                      {filteredSectors.length}
+                    </span>
+                  </h2>
+                  <ul className="gs-group-list" role="listbox">
+                    {filteredSectors.map((r) => (
+                      <li key={r.to}>
+                        <SearchRow result={r} onSelect={handleSelect} />
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+            </div>
           )}
-        </section>
+        </div>
       )}
 
-      {!loading && !error && !q && (
-        <section className="discover-section" aria-label="Search guidance">
-          <EmptyState
-            icon={Search}
-            title="Enter a search query"
-            description="Search by company name, symbol, sector, theme, or industry. Results include companies, evidence records, events, themes, and industries."
-          />
-        </section>
+      {/* ── Empty State (no query) ──────────────────────────── */}
+      {!loading && !error && !hasQuery && (
+        <div className="gs-welcome">
+          <p className="gs-welcome-hint">
+            Search across {items.length} tracked companies to open their full
+            research workspace — evidence, financials, coverage, and
+            provenance.
+          </p>
+        </div>
       )}
     </div>
   )
 }
 
-function SegmentedFilter({
-  activeFilter,
-  onChange,
-  typeCounts,
+/* ── Search Row ──────────────────────────────────────────────── */
+
+function SearchRow({
+  result,
+  onSelect,
 }: {
-  activeFilter: ResultType | "all"
-  onChange: (value: ResultType | "all") => void
-  typeCounts: Record<string, number>
+  result: SearchResult
+  onSelect: (r: SearchResult) => void
 }) {
-  const options: Array<{ value: ResultType | "all"; label: string }> = [
-    { value: "all", label: "All" },
-    { value: "company", label: "Companies" },
-    { value: "evidence", label: "Evidence" },
-    { value: "event", label: "Events" },
-    { value: "theme", label: "Themes" },
-    { value: "industry", label: "Industries" },
-  ]
+  const Icon = result.type === "company" ? Building2 : Globe
 
   return (
-    <div className="segmented-control" role="radiogroup" aria-label="Filter by result type">
-      {options.map((option) => {
-        const count = option.value === "all"
-          ? Object.values(typeCounts).reduce((a, b) => a + b, 0)
-          : (typeCounts[option.value] ?? 0)
-        return (
-          <button
-            key={option.value}
-            type="button"
-            role="radio"
-            aria-checked={activeFilter === option.value}
-            className={activeFilter === option.value ? "segmented-active" : ""}
-            onClick={() => onChange(option.value)}
-          >
-            {option.label}
-            {count > 0 && <span className="segmented-count">{count}</span>}
-          </button>
-        )
-      })}
-    </div>
+    <a
+      href={result.to}
+      className={`gs-row gs-row--${result.type}`}
+      onClick={(e) => {
+        e.preventDefault()
+        onSelect(result)
+      }}
+      role="option"
+    >
+      <span className={`gs-row-icon gs-row-icon--${result.type}`}>
+        <Icon size={15} />
+      </span>
+      <div className="gs-row-body">
+        <div className="gs-row-title-line">
+          <span className="gs-row-title">{result.title}</span>
+          {result.symbol && (
+            <span className="gs-row-symbol">{result.symbol}</span>
+          )}
+        </div>
+        <div className="gs-row-meta">
+          <span>{result.context}</span>
+          <span className="gs-row-dot">·</span>
+          <span>{formatLabel(result.sector)}</span>
+        </div>
+      </div>
+      <ChevronRight size={15} className="gs-row-arrow" />
+    </a>
   )
 }

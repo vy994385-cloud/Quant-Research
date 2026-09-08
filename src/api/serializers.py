@@ -1114,7 +1114,7 @@ def _quality_observation(obs) -> dict:
         "description": obs.explanation,
         "calculation_inputs": dict(obs.calculation_inputs) if obs.calculation_inputs else {},
         "methodology": getattr(obs, "calculation_method", "") or "",
-        "confidence": getattr(obs, "confidence", None),
+        "confidence": _str(getattr(obs, "confidence", None)),
         "severity": obs.severity,
         "as_of": _utc_iso(obs.as_of),
     }
@@ -1212,7 +1212,7 @@ def _cross_domain_observation(obs) -> dict:
         "limitations": list(getattr(obs, "limitations", ())),
         "calculation_inputs": dict(obs.calculation_inputs) if obs.calculation_inputs else {},
         "methodology": getattr(obs, "calculation_method", "") or "",
-        "confidence": getattr(obs, "confidence", None),
+        "confidence": _str(getattr(obs, "confidence", None)),
         "severity": obs.severity,
         "as_of": _utc_iso(obs.as_of),
         "source_name": getattr(obs, "source_name", None),

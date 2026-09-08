@@ -231,7 +231,7 @@ export function ObservationCard({
     <div className="observation-card">
       <div className="observation-card-head">
         {direction && dirTone[direction] && (
-          <Tag text={direction} tone={dirTone[direction]} />
+          <Tag text={formatLabel(direction)} tone={dirTone[direction]} />
         )}
         {category && <Tag text={formatLabel(category)} tone="slate" />}
         <strong>{title}</strong>

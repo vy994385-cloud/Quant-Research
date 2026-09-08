@@ -14,13 +14,23 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import {
   AlertTriangle,
   ChevronRight,
+  Download,
   Search,
   Shield,
 } from "lucide-react"
-import { fetchDiscovery, fetchEvidenceLineage, ApiError } from "../api/client"
+import {
+  fetchDiscovery,
+  fetchEvidenceLineage,
+  fetchExportPackage,
+  downloadExportPackage,
+  searchEvidence,
+  ApiError,
+} from "../api/client"
 import type {
   CompanyEvidenceResponse,
   DiscoveryItem,
+  EvidenceSearchHit,
+  EvidenceSearchResponse,
   F7Claim,
   F7EvidenceItem,
 } from "../api/types"
@@ -67,6 +77,75 @@ function observationWindow(items: F7EvidenceItem[]): string | null {
   return first === last ? first : `${first} → ${last}`
 }
 
+/* ── Unified stream row ────────────────────────────────────────────
+   Both the per-company lineage and the universe search surface render
+   through the same row shape; search hits are adapted explicitly.   */
+
+interface UIRow {
+  key: string
+  date: string | null
+  title: string
+  explanation: string
+  epistemic_type: string
+  evidence_type: string
+  direction: string
+  sourceLabel: string | null
+  item: F7EvidenceItem
+}
+
+function fromLineage(e: F7EvidenceItem): UIRow {
+  return {
+    key: e.evidence_id,
+    date: e.observation_at ?? e.published_at,
+    title: e.title,
+    explanation: e.explanation,
+    epistemic_type: e.epistemic_type,
+    evidence_type: e.evidence_type,
+    direction: e.direction,
+    sourceLabel: e.source?.name ?? null,
+    item: e,
+  }
+}
+
+function hitToEvidenceItem(hit: EvidenceSearchHit): F7EvidenceItem {
+  return {
+    evidence_id: hit.evidence_id,
+    symbol: hit.symbol,
+    title: hit.title,
+    explanation: hit.explanation,
+    evidence_type: hit.evidence_type,
+    direction: hit.direction,
+    confidence: "\u2014",
+    reliability: "\u2014",
+    epistemic_type: hit.epistemic_type,
+    verification_status: hit.verification_status,
+    observation_at: hit.observation_at ?? null,
+    published_at: hit.published_at ?? null,
+    available_at: hit.available_at ?? null,
+    source_ids: hit.source_ids,
+    provenance_ids: hit.provenance_ids,
+    source: null,
+    source_records: [],
+    category: hit.category,
+    topic: null,
+    derivation: null,
+  }
+}
+
+function fromHit(hit: EvidenceSearchHit): UIRow {
+  return {
+    key: hit.evidence_id,
+    date: hit.observation_at ?? hit.published_at ?? hit.available_at ?? null,
+    title: hit.title,
+    explanation: hit.explanation,
+    epistemic_type: hit.epistemic_type,
+    evidence_type: hit.evidence_type,
+    direction: hit.direction,
+    sourceLabel: hit.source_ids.length > 0 ? hit.source_ids.join(" · ") : null,
+    item: hitToEvidenceItem(hit),
+  }
+}
+
 /* ── Main Component ─────────────────────────────────────────────── */
 
 export default function EvidencePage() {
@@ -81,6 +160,12 @@ export default function EvidencePage() {
   const [filterDirection, setFilterDirection] = useState("ALL")
   const [filterEpistemic, setFilterEpistemic] = useState("ALL")
   const [drawerItem, setDrawerItem] = useState<F7EvidenceItem | null>(null)
+  const [searchResults, setSearchResults] = useState<EvidenceSearchResponse | null>(null)
+  const [searchLoading, setSearchLoading] = useState(false)
+  const [exporting, setExporting] = useState(false)
+  const [exportNotice, setExportNotice] = useState<string | null>(null)
+
+  const searchMode = query.trim() !== ""
 
   const loadEvidence = useCallback(async (sym: string) => {
     setSelectedSymbol(sym)
@@ -124,6 +209,63 @@ export default function EvidencePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  /* Universe search fires after a short debounce whenever a query is
+     present; empty query returns to the per-company lineage view. */
+  useEffect(() => {
+    if (query.trim() === "") {
+      setSearchResults(null)
+      return undefined
+    }
+
+    let cancelled = false
+    const timer = window.setTimeout(() => {
+      setSearchLoading(true)
+      searchEvidence({
+        q: query.trim(),
+        symbol: selectedSymbol || undefined,
+      })
+        .then((res) => {
+          if (!cancelled) {
+            setSearchResults(res)
+            setFilterDirection("ALL")
+            setFilterEpistemic("ALL")
+          }
+        })
+        .catch((err: unknown) => {
+          if (!cancelled) {
+            setSearchResults(null)
+          }
+          // eslint-disable-next-line no-console
+          console.error("Evidence search failed", err)
+        })
+        .finally(() => {
+          if (!cancelled) setSearchLoading(false)
+        })
+    }, 400)
+
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+    }
+  }, [query, selectedSymbol])
+
+  const handleExport = useCallback(async () => {
+    if (!selectedSymbol) return
+    setExporting(true)
+    setExportNotice(null)
+    try {
+      const pkg = await fetchExportPackage(selectedSymbol)
+      downloadExportPackage(pkg)
+      setExportNotice("Export package downloaded.")
+    } catch (err) {
+      setExportNotice(
+        err instanceof ApiError ? err.message : "Export failed to download.",
+      )
+    } finally {
+      setExporting(false)
+    }
+  }, [selectedSymbol])
+
   const researchable = useMemo(
     () => items.filter((i) => i.research_available),
     [items],
@@ -150,25 +292,50 @@ export default function EvidencePage() {
     [lineage],
   )
 
-  const filteredEvidence = useMemo(() => {
-    let result = evidence
-    if (query.trim()) {
-      const q = query.trim().toLowerCase()
-      result = result.filter(
-        (e) =>
-          e.title.toLowerCase().includes(q) ||
-          e.explanation.toLowerCase().includes(q) ||
-          (e.source?.name ?? "").toLowerCase().includes(q),
-      )
+  const rows = useMemo(() => {
+    if (searchMode && searchResults) {
+      return searchResults.items.map(fromHit)
     }
+    return evidence.map(fromLineage)
+  }, [searchMode, searchResults, evidence])
+
+  const searchEpistemicCounts = useMemo(
+    () => {
+      const counts: Record<string, number> = {}
+      for (const hit of searchResults?.items ?? []) {
+        const ep = hit.epistemic_type || "UNKNOWN"
+        counts[ep] = (counts[ep] ?? 0) + 1
+      }
+      return counts
+    },
+    [searchResults],
+  )
+
+  const searchDirectionCounts = useMemo(
+    () => {
+      const counts: Record<string, number> = {}
+      for (const hit of searchResults?.items ?? []) {
+        counts[hit.direction] = (counts[hit.direction] ?? 0) + 1
+      }
+      return counts
+    },
+    [searchResults],
+  )
+
+  const shownEpistemicCounts = searchMode ? searchEpistemicCounts : epistemicCounts
+  const shownDirectionCounts = searchMode ? searchDirectionCounts : directionCounts
+  const activeTotal = searchMode ? (searchResults?.hit_count ?? 0) : totalEvidence
+
+  const filteredRows = useMemo(() => {
+    let result = rows
     if (filterDirection !== "ALL") {
-      result = result.filter((e) => e.direction === filterDirection)
+      result = result.filter((r) => r.direction === filterDirection)
     }
     if (filterEpistemic !== "ALL") {
-      result = result.filter((e) => e.epistemic_type === filterEpistemic)
+      result = result.filter((r) => r.epistemic_type === filterEpistemic)
     }
     return result
-  }, [evidence, filterDirection, filterEpistemic, query])
+  }, [rows, filterDirection, filterEpistemic])
 
   /** Claims that cite a given evidence item — shown in the drawer. */
   const relatedClaims = useMemo(() => {
@@ -223,18 +390,34 @@ export default function EvidencePage() {
           </div>
           <div className="evx-company">
             <label className="evx-control-label" htmlFor="evx-company-select">Company</label>
-            <select
-              id="evx-company-select"
-              className="scr-select"
-              value={selectedSymbol}
-              onChange={(e) => void loadEvidence(e.target.value)}
-            >
-              {researchable.map((item) => (
-                <option key={item.symbol} value={item.symbol}>
-                  {item.symbol}{item.company_name ? ` — ${item.company_name}` : ""}
-                </option>
-              ))}
-            </select>
+            <div className="evx-company-row">
+              <select
+                id="evx-company-select"
+                className="scr-select"
+                value={selectedSymbol}
+                disabled={searchMode}
+                onChange={(e) => void loadEvidence(e.target.value)}
+              >
+                {researchable.map((item) => (
+                  <option key={item.symbol} value={item.symbol}>
+                    {item.symbol}{item.company_name ? ` — ${item.company_name}` : ""}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                className="evx-export-btn"
+                onClick={() => void handleExport()}
+                disabled={exporting || !selectedSymbol}
+                title="Download the canonical export package for this company"
+              >
+                <Download size={13} />
+                {exporting ? "Exporting…" : "Export"}
+              </button>
+            </div>
+            {!searchMode && exportNotice && (
+              <span className="evx-export-notice">{exportNotice}</span>
+            )}
           </div>
         </div>
         <div className="evx-bar-row">
@@ -243,11 +426,11 @@ export default function EvidencePage() {
             value={filterEpistemic}
             onChange={setFilterEpistemic}
             options={[
-              { key: "ALL", label: "All", count: totalEvidence },
-              ...Object.keys(epistemicCounts).sort().map((ep) => ({
+              { key: "ALL", label: "All", count: activeTotal },
+              ...Object.keys(shownEpistemicCounts).sort().map((ep) => ({
                 key: ep,
                 label: formatLabel(ep),
-                count: epistemicCounts[ep],
+                count: shownEpistemicCounts[ep],
               })),
             ]}
           />
@@ -256,11 +439,11 @@ export default function EvidencePage() {
             value={filterDirection}
             onChange={setFilterDirection}
             options={[
-              { key: "ALL", label: "All", count: totalEvidence },
-              ...Object.keys(directionCounts).sort().map((dir) => ({
+              { key: "ALL", label: "All", count: activeTotal },
+              ...Object.keys(shownDirectionCounts).sort().map((dir) => ({
                 key: dir,
                 label: formatLabel(dir),
-                count: directionCounts[dir],
+                count: shownDirectionCounts[dir],
               })),
             ]}
           />
@@ -270,23 +453,38 @@ export default function EvidencePage() {
       {/* ── Result summary ─────────────────────────────────────────── */}
       <div className="scr-context">
         <span className="scr-context-item">
-          <strong>{filteredEvidence.length}</strong> of {totalEvidence} evidence items
+          <strong>{filteredRows.length}</strong> of {activeTotal} evidence items
         </span>
-        <span className="scr-context-sep" />
-        <span className="scr-context-item">
-          <strong>{selectedSymbol || "—"}</strong> {selectedCompany?.company_name ?? ""}
-        </span>
-        <span className="scr-context-sep" />
-        <span className="scr-context-item">
-          <strong>{totalSources > 0 ? totalSources : "—"}</strong> sources
-        </span>
-        {windowLabel && (
+        {searchMode ? (
+          <>
+            <span className="scr-context-sep" />
+            <span className="scr-context-item">
+              searched <strong>{searchResults?.searched_count ?? "—"}</strong> records
+            </span>
+            <span className="scr-context-sep" />
+            <span className="scr-context-item">
+              <strong>{searchResults?.symbols_searched.length ?? "—"}</strong> companies
+            </span>
+          </>
+        ) : (
+          <>
+            <span className="scr-context-sep" />
+            <span className="scr-context-item">
+              <strong>{selectedSymbol || "—"}</strong> {selectedCompany?.company_name ?? ""}
+            </span>
+            <span className="scr-context-sep" />
+            <span className="scr-context-item">
+              <strong>{totalSources > 0 ? totalSources : "—"}</strong> sources
+            </span>
+          </>
+        )}
+        {!searchMode && windowLabel && (
           <>
             <span className="scr-context-sep" />
             <span className="scr-context-item">observed <strong>{windowLabel}</strong></span>
           </>
         )}
-        {pitFiltered > 0 && (
+        {pitFiltered > 0 && !searchMode && (
           <>
             <span className="scr-context-sep" />
             <span className="scr-context-item evx-pit-note">
@@ -298,11 +496,19 @@ export default function EvidencePage() {
 
       {/* ── Evidence stream ────────────────────────────────────────── */}
       <section className="scr-section" aria-label="Evidence stream">
-        {lineageLoading && <LoadingState label="Loading evidence lineage" />}
+        {(lineageLoading || searchLoading) && <LoadingState label="Loading evidence" />}
 
-        {lineageError && !lineageLoading && <ErrorState error={lineageError} />}
+        {!searchLoading && searchMode && searchResults && filteredRows.length === 0 && (
+          <EmptyState
+            icon={Search}
+            title="No matching evidence"
+            description={searchResults.notes.join(" ") || "Try adjusting the search terms or filters."}
+          />
+        )}
 
-        {lineage && !lineageLoading && filteredEvidence.length === 0 && (
+        {lineageError && !lineageLoading && !searchMode && <ErrorState error={lineageError} />}
+
+        {!searchMode && !lineageLoading && filteredRows.length === 0 && (
           <EmptyState
             icon={Search}
             title="No matching evidence"
@@ -312,37 +518,37 @@ export default function EvidencePage() {
           />
         )}
 
-        {!lineageLoading && filteredEvidence.length > 0 && (
+        {!lineageLoading && !searchLoading && filteredRows.length > 0 && (
           <div className="evx-list">
-            {filteredEvidence.map((item) => {
-              const dir = directionMark(item.direction)
+            {filteredRows.map((row) => {
+              const dir = directionMark(row.direction)
               return (
                 <button
-                  key={item.evidence_id}
+                  key={row.key}
                   type="button"
                   className="evx-row"
-                  onClick={() => setDrawerItem(item)}
+                  onClick={() => setDrawerItem(row.item)}
                   aria-haspopup="dialog"
                 >
                   <span className="evx-date">
-                    {item.observation_at ? formatEvidenceObservation(item.observation_at) : "—"}
+                    {row.date ? formatEvidenceObservation(row.date) : "—"}
                   </span>
                   <span className="evx-main">
-                    <strong className="evx-title">{item.title}</strong>
-                    <span className="evx-explanation">{item.explanation}</span>
+                    <strong className="evx-title">{row.title}</strong>
+                    <span className="evx-explanation">{row.explanation}</span>
                     <span className="evx-meta">
-                      <span className={`epi-badge ${epistemicClass(item.epistemic_type)}`}>
-                        {formatLabel(item.epistemic_type || "UNKNOWN")}
+                      <span className={`epi-badge ${epistemicClass(row.epistemic_type)}`}>
+                        {formatLabel(row.epistemic_type || "UNKNOWN")}
                       </span>
-                      <span className="evx-meta-type">{formatLabel(item.evidence_type)}</span>
+                      <span className="evx-meta-type">{formatLabel(row.evidence_type)}</span>
                       {dir && (
                         <span className={`evx-direction ${dir.cls}`}>
                           <span className="evx-direction-dot" />
                           {dir.label}
                         </span>
                       )}
-                      {item.source && (
-                        <span className="evx-source">{item.source.name}</span>
+                      {row.sourceLabel && (
+                        <span className="evx-source">{row.sourceLabel}</span>
                       )}
                     </span>
                   </span>
@@ -355,7 +561,7 @@ export default function EvidencePage() {
       </section>
 
       {/* ── Claims ─────────────────────────────────────────────────── */}
-      {claims.length > 0 && !lineageLoading && lineage && (
+      {claims.length > 0 && !lineageLoading && !searchMode && lineage && (
         <details className="evx-section-collapse">
           <summary>
             Claims <span className="evx-count-chip">{claims.length}</span>
@@ -382,7 +588,7 @@ export default function EvidencePage() {
       )}
 
       {/* ── Source profiles ────────────────────────────────────────── */}
-      {sourceProfiles.length > 0 && !lineageLoading && lineage && (
+      {sourceProfiles.length > 0 && !lineageLoading && !searchMode && lineage && (
         <details className="evx-section-collapse">
           <summary>
             Sources <span className="evx-count-chip">{sourceProfiles.length}</span>
@@ -401,7 +607,7 @@ export default function EvidencePage() {
       )}
 
       {/* ── Notes footer ───────────────────────────────────────────── */}
-      {(notes.length > 0 || lineage) && !lineageLoading && lineage && (
+      {(notes.length > 0 || lineage) && !lineageLoading && !searchMode && lineage && (
         <footer className="evx-footnote">
           <Shield size={12} />
           <span>

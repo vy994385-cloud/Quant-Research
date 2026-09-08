@@ -766,7 +766,7 @@ export default function TimelinePage() {
                   <span>
                     Events are sourced facts from recorded company disclosures, financial filings,
                     and management statements. Each entry shows what was reported, when, from which
-                    source, and its verification status. Semantic labels (FACT, COMMENTARY, etc.)
+                    source, and its verification status. Semantic labels (fact, commentary, etc.)
                     distinguish sourced facts from management commentary or derived observations.
                   </span>
                 </div>

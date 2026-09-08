@@ -496,7 +496,7 @@ export default function MarketIntelligencePage() {
                         <div className="mi-trend-vol-row">
                           <span>Price-Volume</span>
                           <Tag
-                            text={ind.price_volume_divergence ?? "Unknown"}
+                            text={formatLabel(ind.price_volume_divergence ?? "unknown")}
                             tone={regimeTone(ind.price_volume_divergence)}
                           />
                         </div>

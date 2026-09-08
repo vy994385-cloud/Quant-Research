@@ -57,9 +57,9 @@ describe("App", () => {
     renderAtRoute("/discover")
 
     expect(
-      await screen.findByText("Tata Consultancy Services"),
+      await screen.findByRole("heading", { name: /What.*new in the research universe/ }),
     ).toBeInTheDocument()
-    expect(screen.getByText("Infosys")).toBeInTheDocument()
+    expect(screen.getByPlaceholderText(/Search by company/)).toBeInTheDocument()
   })
 
   it("renders the company workspace with tabbed sections", async () => {

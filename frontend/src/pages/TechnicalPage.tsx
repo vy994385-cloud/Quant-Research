@@ -395,11 +395,11 @@ export default function TechnicalPage() {
 
                     {/* Volume */}
                     <Section id="volume" title="Volume" subtitle="OBV, AD Line, MFI, divergence">
-                      <IndicatorRow label="On-balance volume" value={indicators.obv?.toString() ?? null} />
-                      <IndicatorRow label="AD Line" value={indicators.ad_line?.toString() ?? null} />
+                      <IndicatorRow label="On-balance volume" value={indicators.obv != null ? String(indicators.obv) : null} />
+                      <IndicatorRow label="AD Line" value={indicators.ad_line != null ? String(indicators.ad_line) : null} />
                       <IndicatorRow label="MFI (14)" value={indicators.mfi_14} signal={indicators.mfi_signal} />
                       <IndicatorRow label="MFI Signal" value={indicators.mfi_signal} signal={indicators.mfi_signal} />
-                      <IndicatorRow label="Price-Volume Divergence" value={indicators.price_volume_divergence} signal={indicators.price_volume_divergence} />
+                      <IndicatorRow label="Price-Volume Divergence" value={formatLabel(indicators.price_volume_divergence ?? "unknown")} signal={indicators.price_volume_divergence} />
                     </Section>
 
                     {/* Support / Resistance */}

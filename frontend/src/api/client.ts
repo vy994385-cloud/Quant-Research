@@ -8,6 +8,8 @@
  */
 
 import type {
+  CalendarResponse,
+  CompanyComparison,
   CompanyCorporateActionsResponse,
   CompanyCrossDomainResponse,
   CompanyDeepTechnicalResponse,
@@ -17,7 +19,16 @@ import type {
   CompanyResearch,
   CompanyResearchGapsResponse,
   CompanyTimelineResponse,
+  DiscoveryFeed,
   DiscoveryResponse,
+  EvidenceDeltaReport,
+  EvidenceSearchResponse,
+  ExportPackage,
+  ResearchChangesResponse,
+  ScreenDefinitionPayload,
+  ScreenExecutionOutput,
+  ScreenerFieldCatalog,
+  TrendingResult,
 } from "./types"
 import type { ApiErrorBody } from "./types"
 
@@ -76,6 +87,7 @@ async function probeApiReachable(): Promise<boolean> {
 async function request<T>(
   path: string,
   query: Record<string, string | undefined> = {},
+  init?: { method?: string; body?: unknown },
 ): Promise<T> {
   const url = new URL(`${API_URL}${path}`)
 
@@ -88,7 +100,15 @@ async function request<T>(
   let response: Response
 
   try {
-    response = await fetch(url)
+    response = await fetch(url, {
+      method: init?.method ?? "GET",
+      headers:
+        init?.body !== undefined
+          ? { "Content-Type": "application/json" }
+          : undefined,
+      body:
+        init?.body !== undefined ? JSON.stringify(init.body) : undefined,
+    })
   } catch {
     // The fetch itself failed. Distinguish an unreachable API from a
     // server-side failure on this specific research area (e.g. a 5xx whose
@@ -221,4 +241,149 @@ export function fetchProfessionalReport(
     `/api/v1/companies/${encodeURIComponent(symbol)}/research-report`,
     { as_of: asOf },
   )
+}
+
+/* ── Capability layer: screener ──────────────────────────────────── */
+
+export function fetchScreenerFields(): Promise<ScreenerFieldCatalog> {
+  return request<ScreenerFieldCatalog>("/api/v1/screener/fields")
+}
+
+export function runScreen(
+  definition: ScreenDefinitionPayload,
+  columns?: string[],
+): Promise<ScreenExecutionOutput> {
+  return request<ScreenExecutionOutput>(
+    "/api/v1/screener",
+    {},
+    { method: "POST", body: { definition, columns: columns ?? null } },
+  )
+}
+
+/* ── Capability layer: evidence search ───────────────────────────── */
+
+export function searchEvidence(params: {
+  q?: string
+  exact_phrase?: string
+  symbol?: string
+  category?: string
+  source_id?: string
+  as_of?: string
+}): Promise<EvidenceSearchResponse> {
+  return request<EvidenceSearchResponse>("/api/v1/evidence/search", {
+    q: params.q,
+    exact_phrase: params.exact_phrase,
+    symbol: params.symbol,
+    category: params.category,
+    source_id: params.source_id,
+    as_of: params.as_of,
+  })
+}
+
+/* ── Research change radar ───────────────────────────────────────── */
+
+export function fetchResearchChanges(
+  symbol: string,
+  baselineAsOf: string,
+  currentAsOf: string,
+): Promise<ResearchChangesResponse> {
+  return request<ResearchChangesResponse>("/api/v1/research-changes", {
+    symbol,
+    baseline_as_of: baselineAsOf,
+    current_as_of: currentAsOf,
+  })
+}
+
+export function fetchResearchDelta(
+  symbol: string,
+  baselineAsOf: string,
+  currentAsOf: string,
+): Promise<EvidenceDeltaReport> {
+  return request<EvidenceDeltaReport>("/api/v1/research-delta", {
+    symbol,
+    baseline_as_of: baselineAsOf,
+    current_as_of: currentAsOf,
+  })
+}
+
+export function fetchCalendar(
+  symbols: string,
+  rangeFrom: string,
+  rangeTo: string,
+): Promise<CalendarResponse> {
+  return request<CalendarResponse>("/api/v1/calendar", {
+    symbols,
+    range_from: rangeFrom,
+    range_to: rangeTo,
+  })
+}
+
+/* ── Capability layer: discovery feed / trending ─────────────────── */
+
+export function fetchDiscoveryFeed(params?: {
+  as_of?: string
+  item_types?: string[]
+  limit_per_symbol?: number
+}): Promise<DiscoveryFeed> {
+  return request<DiscoveryFeed>("/api/v1/discovery", {
+    as_of: params?.as_of,
+    item_types: params?.item_types?.length
+      ? params.item_types.join(",")
+      : undefined,
+    limit_per_symbol:
+      params?.limit_per_symbol !== undefined
+        ? String(params.limit_per_symbol)
+        : undefined,
+  })
+}
+
+export function fetchDiscoveryTrending(params?: {
+  as_of?: string
+  window_days?: number
+}): Promise<TrendingResult> {
+  return request<TrendingResult>("/api/v1/discovery/trending", {
+    as_of: params?.as_of,
+    window_days:
+      params?.window_days !== undefined
+        ? String(params.window_days)
+        : undefined,
+  })
+}
+
+/* ── Capability layer: comparison ────────────────────────────────── */
+
+export function fetchCompare(
+  symbols: string[],
+  asOf?: string,
+): Promise<CompanyComparison> {
+  return request<CompanyComparison>("/api/v1/companies/compare", {
+    symbols: symbols.join(","),
+    as_of: asOf,
+  })
+}
+
+/* ── Capability layer: export package ────────────────────────────── */
+
+export function fetchExportPackage(
+  symbol: string,
+  asOf?: string,
+): Promise<ExportPackage> {
+  return request<ExportPackage>(
+    `/api/v1/companies/${encodeURIComponent(symbol)}/export`,
+    { as_of: asOf },
+  )
+}
+
+export function downloadExportPackage(pkg: ExportPackage): void {
+  const blob = new Blob([JSON.stringify(pkg, null, 2)], {
+    type: "application/json",
+  })
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement("a")
+  anchor.href = url
+  anchor.download = `quant-research-export-${pkg.as_of.slice(0, 10)}.json`
+  document.body.appendChild(anchor)
+  anchor.click()
+  anchor.remove()
+  URL.revokeObjectURL(url)
 }

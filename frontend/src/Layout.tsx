@@ -1,9 +1,9 @@
 /**
- * Application shell — one coherent evidence-first research terminal.
+ * Application shell — premium editorial research workspace.
  *
  * Structure:
  *   TOP COMMAND BAR   global search · contextual actions
- *   LEFT PRIMARY NAV  workflow-aligned research terminal navigation
+ *   LEFT PRIMARY NAV  workflow-aligned navigation
  *                     DISCOVER · RESEARCH · SCREEN · MONITOR · OUTPUT · ASSETS
  *   MAIN CANVAS       the routed research workspace
  *
@@ -171,7 +171,7 @@ function SideNav({
         <span className="brand-mark">QR</span>
         <span className="brand-text">
           <strong>Quant Research</strong>
-          <small>Evidence terminal</small>
+          <small>Research workspace</small>
         </span>
         <button
           type="button"

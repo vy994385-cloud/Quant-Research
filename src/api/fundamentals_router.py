@@ -757,6 +757,40 @@ def _fetch_snapshots(
         return []
 
 
+def _stamp_live_snapshots(
+    snapshots: list[FinancialSnapshot],
+    capture_time: datetime,
+) -> list[FinancialSnapshot]:
+    """Stamp a live provider retrieval time onto fetched snapshots.
+
+    The Yahoo provider returns no archival timestamp, so its snapshots
+    carry ``available_at=None`` and every PIT filter rejects them. The
+    API boundary stamps the *actual retrieval instant* as
+    ``available_at`` (only where the provider did not already supply
+    one) so that:
+
+    - a default (now) vantage uses the current snapshot set, and
+    - an explicit historical ``as_of`` queried vantage still honestly
+      rejects this live data, because it was retrieved after the
+      requested point in time.
+
+    The stamp is deliberately independent of the requested ``as_of``;
+    stamping with the vantage itself would leak current data into a
+    historical query. Snapshots are copied immutably; the underlying
+    model is untouched.
+    """
+    return [
+        snapshot.model_copy(
+            update={
+                "available_at": (
+                    snapshot.available_at or capture_time
+                )
+            }
+        )
+        for snapshot in snapshots
+    ]
+
+
 def _parse_date_param(
     value: str | None,
     default: date,
@@ -823,8 +857,10 @@ def create_fundamentals_router(
 
         captured_at = parse_as_of(as_of)
 
+        capture_time = datetime.now(timezone.utc)
+
         if captured_at is None:
-            captured_at = datetime.now(timezone.utc)
+            captured_at = capture_time
 
         today = date.today()
 
@@ -839,7 +875,9 @@ def create_fundamentals_router(
         )
 
         history = build_financial_history(
-            snapshots=snapshots,
+            snapshots=_stamp_live_snapshots(
+                snapshots, capture_time
+            ),
             symbol=normalized,
             as_of=captured_at,
         )
@@ -893,8 +931,10 @@ def create_fundamentals_router(
 
         captured_at = parse_as_of(as_of)
 
+        capture_time = datetime.now(timezone.utc)
+
         if captured_at is None:
-            captured_at = datetime.now(timezone.utc)
+            captured_at = capture_time
 
         today = date.today()
 
@@ -909,7 +949,9 @@ def create_fundamentals_router(
         )
 
         result = analyze_deep_fundamentals(
-            snapshots=snapshots,
+            snapshots=_stamp_live_snapshots(
+                snapshots, capture_time
+            ),
             symbol=normalized,
             as_of=captured_at,
         )

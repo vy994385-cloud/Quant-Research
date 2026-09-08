@@ -308,6 +308,25 @@ def create_business_router() -> APIRouter:
         except RuntimeError:
             profile = None
 
+        if profile is None:
+            from src.api.recorded_research import (
+                RecordedCompanyResearchService,
+            )
+
+            _svc = RecordedCompanyResearchService()
+            _cname = _svc.company_name(symbol)
+            return CompanyBusinessIntelligenceContract(
+                company={
+                    "symbol": symbol,
+                    "company_name": _cname or symbol,
+                },
+                business_intelligence=ContractBusinessIntelligence(
+                    symbol=symbol,
+                    as_of=as_of_dt.isoformat(),
+                    has_profile=False,
+                ),
+            )
+
         # Fetch financials
         financial_provider = YahooFinanceFinancialProvider()
         from datetime import timedelta
@@ -315,9 +334,12 @@ def create_business_router() -> APIRouter:
         end_date = as_of_dt.date()
         start_date = end_date - timedelta(days=365 * 10)
 
-        snapshots = financial_provider.get_financial_snapshots(
-            symbol, start_date, end_date
-        )
+        try:
+            snapshots = financial_provider.get_annual_financials(
+                symbol, start_date, end_date
+            )
+        except Exception:
+            snapshots = []
 
         # Run business intelligence analysis
         result = analyze_business_intelligence(

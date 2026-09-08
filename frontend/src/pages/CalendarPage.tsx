@@ -9,11 +9,14 @@
 import { useEffect, useMemo, useState } from "react"
 import { Link } from "react-router-dom"
 import { Calendar } from "lucide-react"
-import { useDiscovery } from "../useDiscovery"
-import { fetchTimeline, fetchCorporateActions } from "../api/client"
-import { formatLabel, formatIsoShort, formatTitle, formatSourceName } from "../lib/format"
+import { fetchCalendar } from "../api/client"
+import { formatIsoShort, formatLabel, formatTitle } from "../lib/format"
 import { LoadingState, EmptyState, ErrorState } from "../components/States"
 import { Tag } from "../components/ui"
+
+/** Recorded archive window mirrored from the backend (DEFAULT_AS_OF). */
+const CALENDAR_RANGE_FROM = "2025-01-01T00:00:00Z"
+const CALENDAR_RANGE_TO = "2026-12-31T23:59:59Z"
 
 interface CalendarRow {
   key: string
@@ -26,65 +29,32 @@ interface CalendarRow {
 }
 
 export default function CalendarPage() {
-  const { items, loading: discoveryLoading } = useDiscovery()
   const [events, setEvents] = useState<CalendarRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const tracked = useMemo(() => items.filter((i) => i.research_available), [items])
-
   useEffect(() => {
-    if (tracked.length === 0) return undefined
     let cancelled = false
 
     async function run() {
       setLoading(true)
-      const symbols = tracked.map((i) => i.symbol)
-      const now = new Date().toISOString().slice(0, 10)
-
       try {
-        const [timelineResults, actionResults] = await Promise.all([
-          Promise.allSettled(symbols.map((s) => fetchTimeline(s))),
-          Promise.allSettled(symbols.map((s) => fetchCorporateActions(s))),
-        ])
-
+        const result = await fetchCalendar(
+          "all",
+          CALENDAR_RANGE_FROM,
+          CALENDAR_RANGE_TO,
+        )
         if (cancelled) return
 
-        const rows: CalendarRow[] = []
-
-        for (const result of timelineResults) {
-          if (result.status !== "fulfilled") continue
-          for (const entry of result.value.timeline.entries) {
-            const date = entry.timeline_at ?? entry.published_at ?? entry.effective_at
-            if (!date) continue
-            rows.push({
-              key: entry.entry_id,
-              symbol: entry.symbol,
-              date,
-              title: formatTitle(entry.title, entry.symbol),
-              category: entry.event_type ?? "Event",
-              source: formatSourceName(entry.source.source_name),
-              past: date.slice(0, 10) <= now,
-            })
-          }
-        }
-
-        for (const result of actionResults) {
-          if (result.status !== "fulfilled" || !result.value.corporate_actions) continue
-          for (const item of result.value.corporate_actions.items) {
-            const date = item.announcement_date
-            if (!date) continue
-            rows.push({
-              key: item.action_id,
-              symbol: item.symbol,
-              date,
-              title: formatTitle(item.title, item.symbol),
-              category: item.action_type ?? "Corporate action",
-              source: formatSourceName(item.source_name),
-              past: date.slice(0, 10) <= now,
-            })
-          }
-        }
+        const rows: CalendarRow[] = result.events.map((event) => ({
+          key: event.event_id,
+          symbol: event.symbol,
+          date: event.event_date,
+          title: formatTitle(event.title, event.symbol),
+          category: event.category ?? "Event",
+          source: event.source ?? null,
+          past: event.state !== "ANNOUNCED",
+        }))
 
         rows.sort((a, b) => a.date.localeCompare(b.date))
         setEvents(rows)
@@ -97,7 +67,7 @@ export default function CalendarPage() {
 
     void run()
     return () => { cancelled = true }
-  }, [tracked])
+  }, [])
 
   const pastEvents = useMemo(() => events.filter((e) => e.past), [events])
   const upcomingEvents = useMemo(() => events.filter((e) => !e.past), [events])
@@ -114,23 +84,23 @@ export default function CalendarPage() {
         </p>
       </section>
 
-      {(discoveryLoading || loading) && (
-        <LoadingState label="Loading calendar" description="Scanning per-company timelines…" />
+      {loading && (
+        <LoadingState label="Loading calendar" description="Reading the recorded-event calendar…" />
       )}
 
       {error && (
         <ErrorState error={error} />
       )}
 
-      {!discoveryLoading && !loading && !error && events.length === 0 && (
+      {!loading && !error && events.length === 0 && (
         <EmptyState
           icon={Calendar}
           title="No recorded events"
-          description="No events found in the current data window."
+          description="No events found in the recorded data window."
         />
       )}
 
-      {!discoveryLoading && !loading && !error && events.length > 0 && (
+      {!loading && !error && events.length > 0 && (
         <>
           {upcomingEvents.length > 0 && (
             <section className="discover-section discover-primary" aria-label="Upcoming events">
@@ -162,7 +132,7 @@ export default function CalendarPage() {
                           {formatTitle(row.title, row.symbol)}
                         </td>
                         <td>
-                          <Tag text={formatLabel(row.category)} tone="slate" />
+                          <Tag text={formatLabel(row.category ?? "Event")} tone="slate" />
                         </td>
                         <td>{row.source ?? "\u2014"}</td>
                       </tr>
@@ -203,7 +173,7 @@ export default function CalendarPage() {
                           {formatTitle(row.title, row.symbol)}
                         </td>
                         <td>
-                          <Tag text={formatLabel(row.category)} tone="slate" />
+                          <Tag text={formatLabel(row.category ?? "Event")} tone="slate" />
                         </td>
                         <td>{row.source ?? "\u2014"}</td>
                       </tr>

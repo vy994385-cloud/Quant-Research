@@ -18,7 +18,6 @@ from src.api.contracts import (
 )
 from src.api.errors import (
     ResearchDataUnavailableError,
-    UnknownCompanyError,
 )
 from src.data.providers.yahoo_ownership import (
     YahooOwnershipProvider,
@@ -46,6 +45,8 @@ async def get_ownership_summary(
     shareHolderSummary module.
     """
 
+    from src.api.recorded_research import RecordedCompanyResearchService
+
     normalized = symbol.strip().upper()
 
     profile_provider = YahooProfileProvider()
@@ -55,9 +56,19 @@ async def get_ownership_summary(
         profile = None
 
     if profile is None:
-        raise UnknownCompanyError(
-            f"Company {normalized} not found",
-            details={"symbol": normalized},
+        # Live Yahoo data unavailable — return honest empty state
+        _svc = RecordedCompanyResearchService()
+        _cname = _svc.company_name(normalized)
+        return CompanyOwnershipSummaryContract(
+            company={
+                "symbol": normalized,
+                "company_name": _cname or normalized,
+                "sector": _svc.company_sector(normalized),
+            },
+            ownership_summary=ContractOwnershipSummary(
+                symbol=normalized,
+                period_end="",
+            ),
         )
 
     provider = YahooOwnershipProvider()

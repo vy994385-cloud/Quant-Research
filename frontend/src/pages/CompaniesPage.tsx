@@ -136,30 +136,31 @@ export default function CompaniesPage() {
 
   return (
     <div className="page-companies">
-      <section className="page-hero directory-hero">
-        <div>
-          <h1>Companies</h1>
-          <p className="page-subtitle">
-            The tracked research universe as one directory. Open any company to enter its
-            full research workspace — financials, business, market, technology, events,
-            evidence and coverage.
-          </p>
+      <header className="page-hero">
+        <p className="page-kicker">Research</p>
+        <h1>Companies</h1>
+        <p className="page-subtitle">
+          The tracked research universe as one directory. Open any company to enter its
+          full research workspace — financials, business, market, technology, events,
+          evidence and coverage.
+        </p>
+        <div className="page-hero-meta">
+          <dl className="directory-stats">
+            <div>
+              <dd>{items.length}</dd>
+              <dt>Companies</dt>
+            </div>
+            <div>
+              <dd>{items.filter((item) => item.research_available).length}</dd>
+              <dt>With research</dt>
+            </div>
+            <div>
+              <dd>{sectors.length}</dd>
+              <dt>Sectors</dt>
+            </div>
+          </dl>
         </div>
-        <dl className="directory-stats">
-          <div>
-            <dd>{items.length}</dd>
-            <dt>Companies</dt>
-          </div>
-          <div>
-            <dd>{items.filter((item) => item.research_available).length}</dd>
-            <dt>With research</dt>
-          </div>
-          <div>
-            <dd>{sectors.length}</dd>
-            <dt>Sectors</dt>
-          </div>
-        </dl>
-      </section>
+      </header>
 
       {loading && (
         <div className="loading-state" role="status">

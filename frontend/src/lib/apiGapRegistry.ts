@@ -1,14 +1,16 @@
 /**
  * API Gap Registry: machine-readable list of all backend API requirements.
  *
- * This registry documents every backend endpoint that the frontend needs
- * but is not yet available. Each entry specifies:
+ * This register documents backend endpoints that the frontend needs
+ * but is not (yet) available. Entries that are now served by the
+ * capability layer are marked "implemented" so the list reflects the
+ * live contract surface. Each entry specifies:
  * - Endpoint path and method
  * - Required query/path parameters
  * - Response shape requirements
  * - Frontend page/feature that depends on it
  * - Priority (critical / high / medium / low)
- * - Status (planned / in-progress / blocked)
+ * - Status (planned / in-progress / implemented / blocked)
  *
  * This file is the single source of truth for backend API requirements.
  * Update this file whenever a new feature is added to the frontend that
@@ -24,7 +26,7 @@ export interface ApiGap {
   responseShape: string
   frontendDependency: string
   priority: "critical" | "high" | "medium" | "low"
-  status: "planned" | "in-progress" | "blocked"
+  status: "planned" | "in-progress" | "implemented" | "blocked"
   notes?: string
 }
 
@@ -33,14 +35,14 @@ export const API_GAP_REGISTRY: ApiGap[] = [
   {
     id: "screener-filter",
     endpoint: "/api/v1/screener",
-    method: "GET",
+    method: "POST",
     description: "Filter companies by financial, growth, valuation, technology, and competitive criteria",
-    requiredParams: ["filters (JSON array)", "page", "limit"],
-    responseShape: "{ results: ScreenerResult[], total: number, page: number }",
-    frontendDependency: "ScreenerPage — composable filter architecture",
+    requiredParams: ["definition (ScreenDefinition)", "columns (optional)"],
+    responseShape: "ScreenExecutionOutput { name, description, definition_hash, selected_filters, selected_columns, rows: ScreenResultRow[], matched_count, universe_size, notes }",
+    frontendDependency: "ScreenerPage — backend screen builder (fields loaded from /screener/fields)",
     priority: "critical",
-    status: "planned",
-    notes: "Backend currently only supports /api/v1/rankings/{horizon}. Screener needs per-company financial, growth, valuation, technology data with filter evaluation.",
+    status: "implemented",
+    notes: "Implemented. Field catalog: GET /api/v1/screener/fields. Operators by value_type (eq/ne/gt/gte/lt/lte/between/contains/is_true/is_false/has/missing).",
   },
   {
     id: "sector-intelligence",
@@ -79,15 +81,15 @@ export const API_GAP_REGISTRY: ApiGap[] = [
   // ── High ──
   {
     id: "screener-financials",
-    endpoint: "/api/v1/companies/{symbol}/deep-financial-insights",
+    endpoint: "/api/v1/screener/fields",
     method: "GET",
-    description: "Per-company financial data for screener filtering: revenue, margins, EPS, ROE, ROCE, OCF, FCF",
-    requiredParams: ["symbol"],
-    responseShape: "{ metrics: DeepMetricObservation[], series: DeepFinancialSeries[] }",
+    description: "Per-company financial/growth/profitability metrics exposed as screener fields for filtering",
+    requiredParams: [],
+    responseShape: "ScreenerFieldCatalog { fields: ScreenerFieldSpec[], available_count, unavailable_count }",
     frontendDependency: "ScreenerPage — fundamentals, growth, financial quality, valuation filters",
     priority: "high",
-    status: "planned",
-    notes: "Endpoint exists but not designed for bulk filtering. Needs batch/bulk variant for screener.",
+    status: "implemented",
+    notes: "Implemented. Field catalog covers FUNDAMENTALS/GROWTH/PROFITABILITY/CASH_FLOW/BALANCE_SHEET/MARKET/TECHNICAL/OWNERSHIP categories; per-company deep-financial endpoints remain for the company page.",
   },
   {
     id: "technology-intelligence",
@@ -114,14 +116,15 @@ export const API_GAP_REGISTRY: ApiGap[] = [
   },
   {
     id: "market-data",
-    endpoint: "/api/v1/companies/{symbol}/market-data",
+    endpoint: "/api/v1/screener/fields",
     method: "GET",
-    description: "Market price, volume, P/E, EV/EBITDA, P/B for valuation filters",
-    requiredParams: ["symbol"],
-    responseShape: "{ price: {...}, valuation: {...}, volume: {...} }",
+    description: "Market/valuation data surfaced as screener fields (MARKET + TECHNICAL categories)",
+    requiredParams: [],
+    responseShape: "ScreenerFieldCatalog (MARKET/TECHNICAL categories)",
     frontendDependency: "ScreenerPage — valuation filters",
     priority: "high",
-    status: "planned",
+    status: "implemented",
+    notes: "Implemented as screener fields. Finite snapshot-only market data; live market feed (price/volume streaming) is out of scope.",
   },
   {
     id: "rd-data",
@@ -138,14 +141,15 @@ export const API_GAP_REGISTRY: ApiGap[] = [
   // ── Medium ──
   {
     id: "batch-research",
-    endpoint: "/api/v1/companies/batch-research",
-    method: "POST",
-    description: "Batch fetch research data for multiple companies (screener results, compare)",
-    requiredParams: ["symbols (array)"],
-    responseShape: "{ companies: CompanyResearch[] }",
-    frontendDependency: "ScreenerPage — displaying research data for results; ComparePage",
+    endpoint: "/api/v1/companies/compare",
+    method: "GET",
+    description: "Side-by-side research comparison for multiple companies",
+    requiredParams: ["symbols (comma-separated)", "as_of (optional)"],
+    responseShape: "CompanyComparison { comparison_context, as_of, companies, rows: ComparisonRow[], row_count, coverage_summary, conflict_summary, notes }",
+    frontendDependency: "ComparePage — single canonical compare call",
     priority: "medium",
-    status: "planned",
+    status: "implemented",
+    notes: "Implemented. Replaces the per-company fetchResearch loop.",
   },
   {
     id: "company-search",
@@ -184,14 +188,15 @@ export const API_GAP_REGISTRY: ApiGap[] = [
   },
   {
     id: "evidence-bulk",
-    endpoint: "/api/v1/evidence/bulk",
-    method: "POST",
-    description: "Bulk fetch evidence for multiple source IDs",
-    requiredParams: ["source_ids (array)"],
-    responseShape: "{ evidence: EvidenceRecord[] }",
-    frontendDependency: "EvidencePage — bulk evidence traceability",
+    endpoint: "/api/v1/evidence/search",
+    method: "GET",
+    description: "Universe-wide evidence search (deterministic lexical, source + PIT filters)",
+    requiredParams: ["q", "symbol (optional)", "as_of (optional)"],
+    responseShape: "EvidenceSearchResponse { query, items: EvidenceSearchHit[], hit_count, searched_count, symbols_searched, notes }",
+    frontendDependency: "EvidencePage — universe search across all companies",
     priority: "medium",
-    status: "planned",
+    status: "implemented",
+    notes: "Implemented. Per-canonical-record bulk export via /api/v1/companies/{symbol}/export.",
   },
 
   // ── Low ──
@@ -208,14 +213,15 @@ export const API_GAP_REGISTRY: ApiGap[] = [
   },
   {
     id: "export-screener",
-    endpoint: "/api/v1/screener/export",
-    method: "POST",
-    description: "Export screener results as CSV/Excel",
-    requiredParams: ["filters (JSON array)", "format"],
-    responseShape: "{ download_url: string }",
-    frontendDependency: "ScreenerPage — export functionality",
+    endpoint: "/api/v1/companies/{symbol}/export",
+    method: "GET",
+    description: "Canonical export package per company (research, evidence, screener fields, manifest, sha256)",
+    requiredParams: ["symbol"],
+    responseShape: "ExportPackage { schema_version, as_of, files, manifest, package_sha256 }",
+    frontendDependency: "EvidencePage — Export Package download",
     priority: "low",
-    status: "planned",
+    status: "implemented",
+    notes: "Implemented. Schema v2.0.0; JSON payload downloaded as a browser file.",
   },
 ]
 
@@ -251,6 +257,7 @@ export function getRegistryStats() {
     byStatus: {
       planned: getGapsByStatus("planned").length,
       "in-progress": getGapsByStatus("in-progress").length,
+      implemented: getGapsByStatus("implemented").length,
       blocked: getGapsByStatus("blocked").length,
     },
   }

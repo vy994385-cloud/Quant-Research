@@ -3,8 +3,8 @@
 ## Status
 
 - Backend: EXISTS at `https://quant-research-api-50u0.onrender.com` (health OK)
-- Frontend: NOT YET DEPLOYED
-- CORS: Configured via FRONTEND_ORIGINS env var (set in render.yaml)
+- Frontend: DEPLOYED at `https://quant-research-alpha.vercel.app` (Vercel, SPA rewrite active)
+- CORS: Configured via FRONTEND_ORIGINS env var (set in render.yaml) — includes the Vercel origin
 
 ## Architecture
 
@@ -18,6 +18,7 @@
 |------|---------|
 | `Dockerfile` | Python 3.12 backend image (optional Docker deployment) |
 | `render.yaml` | Render Blueprint config for both services |
+| `frontend/vercel.json` | Vercel SPA rewrite: `""/(.*)"" -> "/index.html"` (deep-link refresh must not 404) |
 | `frontend/.env.production` | Points to deployed backend URL |
 | `.dockerignore` | Excludes tests, node_modules, non-essential data |
 | `.gitignore` | Un-ignores `data/raw/research`, `data/raw/research_api`, `data/raw/universe` — recorded data MUST be committed |
@@ -96,7 +97,7 @@ TCS, RELIANCE, INFY, HDFCBANK, SUNPHARMA, M&M (6 verified companies with recorde
 
 | Variable | Where | Value |
 |----------|-------|-------|
-| `FRONTEND_ORIGINS` | Backend | Comma-separated origins; must contain the **actual** deployed frontend origin + local dev origins |
+| `FRONTEND_ORIGINS` | Backend | Comma-separated origins; must contain the **actual** deployed frontend origin + local dev origins (render.yaml currently sets `https://quant-research-alpha.vercel.app, https://quant-research-frontend.onrender.com, http://127.0.0.1:5173, http://localhost:5173`) |
 | `VITE_API_URL` | Frontend | `https://quant-research-api-50u0.onrender.com` (set in render.yaml and `.env.production`; Vite bakes it in at build time) |
 
 > **URL suffix caveat:** Render appends a random suffix to new service URLs
@@ -149,8 +150,24 @@ deployed checkout.
 1. Open the frontend URL
 2. Search for "TCS" and click it
 3. Verify: research panel loads with evidence, rankings, timeline, intelligence
-4. Deep-link refresh (e.g. reload while on `/reports`) must not 404 (SPA rewrite)
+4. Deep-link refresh on Vercel (e.g. reload while on `/reports`) must not 404 — `frontend/vercel.json` rewrites all routes to `/index.html`
 5. Check browser console for CORS errors (should be none)
+
+## Frontend on Vercel (steps the owner must run)
+
+The render.yaml static-service path and the Vercel path both work; the Vercel
+deploy is the live one. To (re)deploy the frontend on Vercel:
+
+1. Push to GitHub (Vercel auto-deploys on the connected branch)
+2. In the Vercel project settings confirm:
+   - **Framework preset**: `Vite`
+   - **Build command**: `npm run build` (root: `frontend/`)
+   - **Output directory**: `dist`
+   - **Environment variables**: `VITE_API_URL=https://quant-research-api-50u0.onrender.com`
+   - `frontend/vercel.json` in the repo enables the SPA rewrite — no Vercel dashboard rewrite needed
+3. After deploy, confirm the exact origin. If it changed, add it to the backend
+   `FRONTEND_ORIGINS` env var and redeploy the Render backend (CORS mismatch shows
+   as console errors on every API call).
 
 ## Data Directories
 
