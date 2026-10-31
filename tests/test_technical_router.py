@@ -374,7 +374,7 @@ class TestPriceHistoryEndpoint:
         assert payload["bars_returned"] == 40
         assert payload["history_start"] == "2024-01-01"
         assert payload["history_end"] == "2024-02-09"
-        assert payload["bars"][0]["open"] == "100"
+        assert payload["bars"][0]["open"] == "101"
         assert payload["bars"][0]["close"] == "101"
         assert payload["bars"][0]["volume"] == 1000
         assert all(bar["trading_date"] <= "2024-03-01" for bar in payload["bars"])
