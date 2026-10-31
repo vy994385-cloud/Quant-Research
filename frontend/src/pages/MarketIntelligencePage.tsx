@@ -487,8 +487,11 @@ export default function MarketIntelligencePage() {
                   <div className="mi-feed-items"><span>NIFTY 50 · Pending feed</span><span>SENSEX · Pending feed</span><span>India VIX · Pending feed</span><span>Market breadth · Pending feed</span><span>Sector returns · Pending feed</span></div>
                 </div>
                 <section className="mi-default-next-step">
-                  <div><strong>Company-level analysis is available</strong><p>Use the company list to the left to open price history, period returns, trend context, drawdowns and indicator coverage.</p></div>
+                  <div><strong>Company-level analysis is available</strong><p>Select a company from the left to open its research workspace.</p></div>
                   <span>{researchable.length} tracked companies · {new Set(researchable.map((company) => company.sector || "Unclassified")).size} sectors</span>
+                  <div className="mi-available-modules" aria-label="Available company analysis">
+                    <span>Price history &amp; volume</span><span>Period returns</span><span>Trend &amp; volatility</span><span>52-week context</span><span>Drawdowns</span><span>Data quality</span>
+                  </div>
                 </section>
               </section>
             )}
