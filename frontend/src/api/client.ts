@@ -27,7 +27,7 @@ if (import.meta.env.PROD && !configuredApiUrl) {
   throw new Error("Missing VITE_API_URL: production API endpoint must be configured.")
 }
 
-export const API_URL = (configuredApiUrl || "http://127.0.0.1:8000").replace(/\\/$/, "")
+export const API_URL = (configuredApiUrl || "http://127.0.0.1:8000").replace(/\/$/, "")
 
 export const HORIZONS = [
   "INTRADAY",
