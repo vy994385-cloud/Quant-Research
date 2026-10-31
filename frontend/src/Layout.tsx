@@ -166,7 +166,7 @@ const PAGE_THEMES: Array<[string, string]> = [
 
 function getPageTheme(pathname: string): string {
   return PAGE_THEMES.find(([path]) =>
-    pathname === path || (path.endsWith("/") && pathname.startsWith(path))
+    pathname === path || (path.endsWith("/") ? pathname.startsWith(path) : pathname.startsWith(path + "/"))
   )?.[1] ?? "research"
 }
 
