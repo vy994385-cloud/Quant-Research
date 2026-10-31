@@ -151,7 +151,8 @@ function GapIndicator({
   gapType: string | null | undefined
   gapPct: string | null | undefined
 }) {
-  const hasGap = gapType && gapType !== "NONE" && gapType !== "none"
+  const normalizedGapType = (gapType ?? "").toUpperCase()
+  const hasGap = Boolean(normalizedGapType && normalizedGapType !== "NONE" && normalizedGapType !== "NO_GAP")
   if (!hasGap) return null
   const isUp = (gapType ?? "").toUpperCase().includes("UP")
   return (
@@ -188,6 +189,7 @@ export default function MarketIntelligencePage() {
   const [error, setError] = useState<string | null>(null)
   const [query, setQuery] = useState("")
   const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null)
+  const [recentSymbols, setRecentSymbols] = useState<string[]>([])
   const [techData, setTechData] = useState<CompanyDeepTechnicalResponse | null>(null)
   const [researchData, setResearchData] = useState<CompanyResearch | null>(null)
   const [dataLoading, setDataLoading] = useState(false)
@@ -229,6 +231,7 @@ export default function MarketIntelligencePage() {
 
   const loadCompany = useCallback(async (sym: string) => {
     setSelectedSymbol(sym)
+    setRecentSymbols((previous) => [sym, ...previous.filter((item) => item !== sym)].slice(0, 5))
     setTechData(null)
     setResearchData(null)
     setDataLoading(true)
@@ -288,6 +291,23 @@ export default function MarketIntelligencePage() {
                   aria-label="Filter companies"
                 />
               </div>
+              {recentSymbols.length > 0 && (
+                <div className="mi-recent-companies">
+                  <span className="mi-recent-label">RECENTLY OPENED</span>
+                  <div className="mi-recent-list">
+                    {recentSymbols.map((symbol) => (
+                      <button
+                        key={symbol}
+                        type="button"
+                        className={selectedSymbol === symbol ? "active" : ""}
+                        onClick={() => void loadCompany(symbol)}
+                      >
+                        {symbol}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div className="fi-company-list">
                 {filteredCompanies.map((item) => (
                   <button
@@ -382,6 +402,20 @@ export default function MarketIntelligencePage() {
                   </div>
                 </div>
 
+                <details className="mi-methodology">
+                  <summary>How these metrics are calculated</summary>
+                  <div className="mi-methodology-grid">
+                    <article><strong>Trend regime & strength</strong><p>Compares the latest close with up to six simple moving averages (5, 10, 20, 50, 100 and 200 bars). Regime labels are based on how many averages price is above or below; strength is the share of available averages price is above. This is a rule-based description, not a forecast.</p></article>
+                    <article><strong>ATR volatility</strong><p>14-period Average True Range uses the greatest of high–low, high–previous-close and low–previous-close. ATR % expresses that range as a percentage of the latest close. It measures magnitude, not direction.</p></article>
+                    <article><strong>Current drawdown</strong><p>Calculated from the highest close in the fetched history to the latest close. It is not necessarily a lifetime or full 52-week drawdown; its scope is limited by the returned price history.</p></article>
+                    <article><strong>Money Flow Index</strong><p>MFI(14) compares positive and negative typical-price × volume flows over 14 periods. Values at or above 80 are labelled overbought; values at or below 20 are labelled oversold.</p></article>
+                    <article><strong>Price–volume divergence</strong><p>A simple five-bar check: price rising while the latest volume falls versus five bars earlier is labelled bearish divergence; price falling while volume rises is labelled bullish divergence. It is a heuristic, not a statistical confirmation.</p></article>
+                    <article><strong>Gap events</strong><p>Compares the latest session open with the previous session close. A gap is recorded when the absolute difference is at least 1%; smaller moves are classified as no gap.</p></article>
+                    <article><strong>52-week context</strong><p>Uses up to 252 returned daily bars, taking the highest high and lowest low in that window. If fewer bars are available, the displayed range is shorter and should not be interpreted as a complete 52-week range.</p></article>
+                    <article><strong>Returns</strong><p>Period returns compare the latest close with the close 1, 5, 10, 20, 50, 100 or 200 bars earlier. They are price returns and do not include dividends.</p></article>
+                  </div>
+                </details>
+
                 {/* 1. MARKET OVERVIEW */}
                 <Section id="overview" title="Market Overview" subtitle="Price context and key market metrics">
                   <div className="mi-section-body">
@@ -390,7 +424,7 @@ export default function MarketIntelligencePage() {
                     <MarketMetric label="52-Week Low" value={ind.low_52w} />
                     <MarketMetric label="% From 52W High" value={ind.pct_from_52w_high} />
                     <MarketMetric label="% From 52W Low" value={ind.pct_from_52w_low} />
-                    <MarketMetric label="Trend Regime" value={ind.regime} regime={ind.regime} />
+                    <MarketMetric label="Trend Regime" value={null} regime={ind.regime} availability={ind.regime ? "available" : "missing"} />
                     <MarketMetric label="Trend Strength" value={ind.trend_strength} />
                     <MarketMetric label="Volatility (ATR %)" value={ind.atr_pct} />
                     <MarketMetric label="Current Drawdown" value={ind.current_drawdown} />
@@ -508,7 +542,7 @@ export default function MarketIntelligencePage() {
                       </div>
                       <div className="mi-trend-vol-body">
                         <GapIndicator gapType={ind.gap_type} gapPct={ind.gap_pct} />
-                        {!ind.gap_type || ind.gap_type === "NONE" || ind.gap_type === "none" ? (
+                        {!ind.gap_type || ["NONE", "NO_GAP"].includes(ind.gap_type.toUpperCase()) ? (
                           <div className="mi-trend-vol-row">
                             <span>No gap event detected</span>
                           </div>
@@ -585,10 +619,22 @@ export default function MarketIntelligencePage() {
                     </div>
                     {tech && tech.missing_indicators.length > 0 && (
                       <div className="mi-dq-row warn">
-                        <span>Missing indicators</span>
+                        <span>Unavailable calculations</span>
                         <span className="mono">{tech.missing_indicators.join(", ")}</span>
                       </div>
                     )}
+                    <div className="mi-dq-row">
+                      <span>History scope</span>
+                      <span className="mono">Up to 800 calendar days requested · {tech?.bars_used ?? 0} returned bars used</span>
+                    </div>
+                    <div className="mi-dq-row">
+                      <span>Latest trading date</span>
+                      <span className="mono">{tech?.trading_date ? formatIso(tech.trading_date) : "Unavailable"}</span>
+                    </div>
+                    <div className="mi-dq-row">
+                      <span>Calculation scope</span>
+                      <span className="mono">Daily OHLCV bars · point-in-time filtered</span>
+                    </div>
                     {tech && tech.notes.length > 0 && (
                       <div className="mi-dq-notes">
                         {tech.notes.map((n, i) => <span key={i}>{n}</span>)}
