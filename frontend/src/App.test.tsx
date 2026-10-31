@@ -48,7 +48,7 @@ describe("App", () => {
     expect(within(sideNav).getByText("Themes")).toBeInTheDocument()
     expect(within(sideNav).getByText("Watchlists")).toBeInTheDocument()
     expect(within(sideNav).getByText("Compare")).toBeInTheDocument()
-    expect(within(sideNav).getAllByText("Evidence").length).toBeGreaterThanOrEqual(1)
+    expect(within(sideNav).getByText("Evidence Center")).toBeInTheDocument()
   })
 
   it("renders the Discover page with discovery data", async () => {
