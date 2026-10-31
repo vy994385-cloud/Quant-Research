@@ -6,7 +6,7 @@
  * Does NOT duplicate TechnicalPage (RSI/MACD/Bollinger/ADX/ATR/pivots/MAs).
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   Search,
   TrendingUp,
@@ -212,6 +212,9 @@ function PriceChart({ history, loading, error }: {
   }, [history, range])
 
   const series = useMemo(() => {
+    const allBars = history?.bars ?? []
+    const firstVisibleIndex = bars.length ? allBars.findIndex((bar) => bar.trading_date === bars[0].trading_date) : 0
+    const allCloses = allBars.map((bar) => Number(bar.close))
     const closes = bars.map((bar) => Number(bar.close))
     const max = Math.max(...closes.filter(Number.isFinite))
     const min = Math.min(...closes.filter(Number.isFinite))
@@ -222,9 +225,10 @@ function PriceChart({ history, loading, error }: {
       .map((value, index) => value == null || !Number.isFinite(value) ? null : `${x(index)},${y(value)}`)
       .filter(Boolean).join(" ")
     const sma = (period: number) => closes.map((_, index) => {
-      if (index + 1 < period) return null
-      const window = closes.slice(index + 1 - period, index + 1)
-      return window.every(Number.isFinite) ? window.reduce((sum, value) => sum + value, 0) / period : null
+      const endIndex = firstVisibleIndex + index
+      if (endIndex + 1 < period) return null
+      const window = allCloses.slice(endIndex + 1 - period, endIndex + 1)
+      return window.length === period && window.every(Number.isFinite) ? window.reduce((sum, value) => sum + value, 0) / period : null
     })
     const peak = closes.map((value, index) => Math.max(...closes.slice(0, index + 1)))
     const drawdown = closes.map((value, index) => peak[index] > 0 ? ((value / peak[index]) - 1) * 100 : 0)
@@ -250,7 +254,7 @@ function PriceChart({ history, loading, error }: {
       min,
       max,
     }
-  }, [bars])
+  }, [bars, history])
 
   if (loading) return <div className="mi-chart-state">Loading historical price bars…</div>
   if (error) return <div className="mi-chart-state">Price history unavailable: {error}</div>
@@ -319,6 +323,7 @@ export default function MarketIntelligencePage() {
   const [chartError, setChartError] = useState<string | null>(null)
   const [dataLoading, setDataLoading] = useState(false)
   const [dataError, setDataError] = useState<string | null>(null)
+  const requestSequence = useRef(0)
 
   useEffect(() => {
     let cancelled = false
@@ -355,6 +360,7 @@ export default function MarketIntelligencePage() {
   }, [researchable, query])
 
   const loadCompany = useCallback(async (sym: string) => {
+    const requestId = ++requestSequence.current
     setSelectedSymbol(sym)
     setRecentSymbols((previous) => [sym, ...previous.filter((item) => item !== sym)].slice(0, 5))
     setTechData(null)
@@ -369,10 +375,12 @@ export default function MarketIntelligencePage() {
         fetchDeepTechnicals(sym),
         fetchResearch(sym),
       ])
+      if (requestId !== requestSequence.current) return
       setTechData(tech)
       setResearchData(research)
-      void fetchPriceHistory(sym).then((history) => setPriceHistory(history)).catch((err: unknown) => setChartError(err instanceof Error ? err.message : "Price history request failed")).finally(() => setChartLoading(false))
+      void fetchPriceHistory(sym).then((history) => { if (requestId === requestSequence.current) setPriceHistory(history) }).catch((err: unknown) => { if (requestId === requestSequence.current) setChartError(err instanceof Error ? err.message : "Price history request failed") }).finally(() => { if (requestId === requestSequence.current) setChartLoading(false) })
     } catch (err) {
+      if (requestId !== requestSequence.current) return
       setChartLoading(false)
       setDataError(
         err instanceof ApiError
@@ -380,7 +388,7 @@ export default function MarketIntelligencePage() {
           : err instanceof Error ? err.message : "Failed to load market data",
       )
     } finally {
-      setDataLoading(false)
+      if (requestId === requestSequence.current) setDataLoading(false)
     }
   }, [])
 
