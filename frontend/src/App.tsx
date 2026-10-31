@@ -5,12 +5,12 @@
  * Never presents rankings, scores, recommendations, or investment judgements.
  *
  * Information architecture:
- *   DISCOVER  → find and enter the research universe
- *   RESEARCH  → deep investigation of companies and domains
- *   SCREEN    → filter, compare, screen
- *   MONITOR   → track changes, watch, alert
- *   OUTPUT    → reports, export, evidence packages
- *   ASSETS    → multi-asset class entry points
+ *   MARKETS   → market conditions, movers and scheduled events
+ *   DISCOVER  → companies, themes, sectors and screening
+ *   ANALYZE   → financial, technical and evidence workspaces
+ *   TRACK     → watchlists, saved context and change monitoring
+ *   RESEARCH  → reports and evidence packages
+ *   ASSETS    → supported asset-class entry points
  *
  * Pages are route-level code-split (React.lazy).
  */
@@ -29,7 +29,7 @@ const CompaniesPage = lazy(() => import("./pages/CompaniesPage"))
 const IndustriesPage = lazy(() => import("./pages/IndustriesPage"))
 const ThemesPage = lazy(() => import("./pages/ThemesPage"))
 
-/* ── RESEARCH ─────────────────────────────────────────────────── */
+/* ── ANALYZE ──────────────────────────────────────────────────── */
 const CompanyResearchPage = lazy(() => import("./pages/CompanyResearchPage"))
 const FinancialIntelligencePage = lazy(() => import("./pages/FinancialIntelligencePage"))
 const MarketIntelligencePage = lazy(() => import("./pages/MarketIntelligencePage"))
@@ -38,19 +38,19 @@ const TimelinePage = lazy(() => import("./pages/TimelinePage"))
 const EvidencePage = lazy(() => import("./pages/EvidencePage"))
 const ResearchGapsPage = lazy(() => import("./pages/ResearchGapsPage"))
 
-/* ── SCREEN ───────────────────────────────────────────────────── */
+/* ── DISCOVERY TOOLS ──────────────────────────────────────────── */
 const ScreenerPage = lazy(() => import("./pages/ScreenerPage"))
 const ComparePage = lazy(() => import("./pages/ComparePage"))
 const PeerResearchPage = lazy(() => import("./pages/PeerResearchPage"))
 
-/* ── MONITOR ──────────────────────────────────────────────────── */
+/* ── TRACK ───────────────────────────────────────────────────── */
 const MyResearchPage = lazy(() => import("./pages/MyResearchPage"))
 const WatchlistsPage = lazy(() => import("./pages/WatchlistsPage"))
 const ResearchChangesPage = lazy(() => import("./pages/ResearchChangesPage"))
 const EvidenceAlertsPage = lazy(() => import("./pages/EvidenceAlertsPage"))
 const CalendarPage = lazy(() => import("./pages/CalendarPage"))
 
-/* ── OUTPUT ───────────────────────────────────────────────────── */
+/* ── RESEARCH OUTPUT ─────────────────────────────────────────── */
 const ReportsPage = lazy(() => import("./pages/ReportsPage"))
 const ProfessionalReportPage = lazy(() => import("./pages/ProfessionalReportPage"))
 
