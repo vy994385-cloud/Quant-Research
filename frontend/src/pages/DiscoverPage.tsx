@@ -19,7 +19,7 @@ import "./DiscoverLanding.css"
 
 import { useEffect, useMemo, useState } from "react"
 import { Link } from "react-router-dom"
-import { Activity, ArrowRight, BarChart3, FileSearch, Filter, GitCompareArrows, Lightbulb, Search, ShieldCheck, Sparkles, XCircle } from "lucide-react"
+import { Activity, ArrowRight, BarChart3, FileSearch, Filter, GitCompareArrows, Search, XCircle } from "lucide-react"
 import {
   fetchCompanyNews,
   fetchCorporateActions,
