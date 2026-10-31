@@ -538,22 +538,11 @@ export default function DiscoverPage() {
             <section className="discover-section discover-compact" aria-label="What changed">
               <SectionDivider label="What changed" />
               <div className="what-changed-grid">
-                <div className="what-changed-stat">
-                  <strong>{disclosures.length}</strong>
-                  <span>Financial disclosures</span>
-                </div>
-                <div className="what-changed-stat">
-                  <strong>{businessDevelopments.length}</strong>
-                  <span>Business developments</span>
-                </div>
-                <div className="what-changed-stat">
-                  <strong>{actionsFeed.length}</strong>
-                  <span>Corporate actions</span>
-                </div>
-                <div className="what-changed-stat">
-                  <strong>{techRows.length}</strong>
-                  <span>Technology activity</span>
-                </div>
+                {disclosures.length > 0 && <div className="what-changed-stat"><strong>{disclosures.length}</strong><span>Financial disclosures</span></div>}
+                {businessDevelopments.length > 0 && <div className="what-changed-stat"><strong>{businessDevelopments.length}</strong><span>Business developments</span></div>}
+                {actionsFeed.length > 0 && <div className="what-changed-stat"><strong>{actionsFeed.length}</strong><span>Corporate actions</span></div>}
+                {techRows.length > 0 && <div className="what-changed-stat"><strong>{techRows.length}</strong><span>Technology activity</span></div>}
+                {disclosures.length + businessDevelopments.length + actionsFeed.length + techRows.length === 0 && <p className="what-changed-empty">No recorded changes in the current research feed.</p>}
               </div>
             </section>
           )}
