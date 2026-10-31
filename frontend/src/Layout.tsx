@@ -17,7 +17,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import { NavLink, Outlet, useNavigate } from "react-router-dom"
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom"
 import {
   Activity,
   AlertTriangle,
@@ -237,6 +237,7 @@ function SideNav({
 
 export default function Layout() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [navOpen, setNavOpen] = useState(false)
   const [collapsed, setCollapsed] = useState<string[]>(readCollapsed)
   const [mobileNav, setMobileNav] = useState(
@@ -300,8 +301,24 @@ export default function Layout() {
     [navigate],
   )
 
+  const pageTheme = location.pathname.startsWith("/companies/")
+    ? "company"
+    : location.pathname.startsWith("/market-intelligence") || location.pathname.startsWith("/calendar")
+      ? "markets"
+      : location.pathname.startsWith("/screener") || location.pathname.startsWith("/compare") || location.pathname.startsWith("/peer-research")
+        ? "discover"
+        : location.pathname.startsWith("/my-research") || location.pathname.startsWith("/watchlists") || location.pathname.startsWith("/research-changes") || location.pathname.startsWith("/evidence-alerts")
+          ? "track"
+          : location.pathname.startsWith("/reports") || location.pathname.startsWith("/professional-report") || location.pathname.startsWith("/evidence-package")
+            ? "reports"
+            : location.pathname.startsWith("/asset-classes")
+              ? "assets"
+              : location.pathname.startsWith("/discover") || location.pathname.startsWith("/companies") || location.pathname.startsWith("/themes") || location.pathname.startsWith("/industries")
+                ? "discover"
+                : "research"
+
   return (
-    <div className={navOpen ? "terminal-shell nav-open" : "terminal-shell"}>
+    <div className={navOpen ? "terminal-shell nav-open" : "terminal-shell"} data-page={pageTheme}>
       <div
         className={navOpen ? "sidebar-scrim visible" : "sidebar-scrim"}
         onClick={close}
