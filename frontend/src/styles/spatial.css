@@ -356,7 +356,6 @@
 .terminal-shell .research-workspace .panel-head { border-color:#ecece5 !important; }
 .terminal-shell .research-workspace .panel p,
 .terminal-shell .research-workspace .panel label,
-.terminal-shell .research-workspace .panel span { }
 .terminal-shell .research-workspace .page-kicker,
 .terminal-shell .research-workspace .panel-kicker { color:var(--page-accent) !important; }
 .terminal-shell .research-workspace .workspace-tab.active {
