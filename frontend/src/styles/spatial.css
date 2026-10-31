@@ -484,6 +484,7 @@
 .mi-drawdown-strip>span { min-width:155px; padding-top:8px; color:#78847a; font-size:9px; }
 .mi-drawdown-strip svg { width:100%; height:55px; }
 .mi-chart-drawdown { stroke:#b46e62; stroke-width:1.5; }
+.mi-chart-drawdown-area { fill:#c77f72; opacity:.13; }
 .mi-chart-footnote { margin:4px 0 0; color:#8a948b; font-size:9px; line-height:1.5; }
 .mi-chart-state { margin:0 0 16px; padding:22px; border:1px dashed #dce4da; border-radius:12px; background:#fffefa; color:#78847a; font-size:11px; }
 @media(max-width:650px) {
