@@ -427,3 +427,18 @@
  .mi-default-companies { grid-template-columns:1fr; }
 }
 @media(prefers-reduced-motion:reduce) { .mi-default-companies button { transition:none; } }
+
+
+/* Market Intelligence: selector continuity and transparent methodology */
+.mi-recent-companies { padding:10px 12px 2px; border-top:1px solid #edf0e9; }
+.mi-recent-label { display:block; margin-bottom:7px; color:#879188; font-size:9px; font-weight:800; letter-spacing:.12em; }
+.mi-recent-list { display:flex; flex-wrap:wrap; gap:6px; }
+.mi-recent-list button { padding:5px 8px; border:1px solid #e2e8df; border-radius:7px; background:#f8faf6; color:#526257; font-size:10px; font-weight:700; cursor:pointer; }
+.mi-recent-list button:hover,.mi-recent-list button.active { border-color:#a9c8b0; background:#edf5ed; color:#356b4d; }
+.mi-methodology { margin:0 0 16px; padding:13px 15px; border:1px solid #e4e8df; border-radius:11px; background:#fffefa; }
+.mi-methodology summary { color:#3c5e48; font-size:11px; font-weight:750; cursor:pointer; }
+.mi-methodology-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; padding-top:13px; }
+.mi-methodology-grid article { min-width:0; padding:10px; border:1px solid #edf0e9; border-radius:8px; background:#fbfcf9; }
+.mi-methodology-grid strong { color:#34463a; font-size:10px; }
+.mi-methodology-grid p { margin:5px 0 0; color:#6d796f; font-size:10px; line-height:1.6; }
+@media(max-width:650px) { .mi-methodology-grid { grid-template-columns:1fr; } }
