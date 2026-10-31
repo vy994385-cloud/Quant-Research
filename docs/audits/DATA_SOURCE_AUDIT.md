@@ -107,3 +107,18 @@ The repository does contain event-domain foundations and tests; the gap is integ
 - `tests/test_phase5a_provider_fixes.py` uses mocked Yahoo payloads for analyst/ownership/financial provider parsing. These are useful parser contract tests, not evidence of production provider availability, data freshness, full coverage, or stable external API access.
 
 **Revised priority:** retain the existing event provider/normalizer/analysis layers. The first implementation should connect a real source adapter to the normalized event contract, then expose one coherent API contract for news + corporate actions + event analysis. Add deterministic integration tests with fixture payloads and explicit empty/unavailable/partial states. Avoid creating parallel duplicate event pipelines.
+
+
+## First implementation checkpoint: Events source visibility
+
+Implemented on `qrquant/phase-0-audit` in commit `69316757176ee6e34ee027657549852b1bec4fd7`.
+
+Changed `frontend/src/components/CompanyEventsPanel.tsx`:
+- Added independent status reporting for the news request and corporate-actions request.
+- A failed news request can no longer be silently hidden merely because the corporate-actions request succeeded (and vice versa).
+- Successful empty responses are labelled "No records returned", not presented as proof that no real-world events occurred.
+- Shows the number of recorded timeline entries supplied to the panel.
+
+This is a deliberately narrow UI integrity fix. It does not pretend to implement the missing backend endpoints or create live event ingestion. The next implementation must establish the API contracts and connect a real source adapter to the existing event normalization pipeline.
+
+**Verification status:** static patch applied through GitHub. Automated frontend tests/build have not yet been run against this isolated branch; do not treat this change as runtime-verified.
