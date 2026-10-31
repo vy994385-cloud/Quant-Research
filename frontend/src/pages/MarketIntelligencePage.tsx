@@ -371,14 +371,28 @@ export default function MarketIntelligencePage() {
     setDataLoading(true)
     setDataError(null)
     try {
-      const [tech, research] = await Promise.all([
-        fetchDeepTechnicals(sym),
-        fetchResearch(sym),
+      // The recorded research service owns the canonical replay cutoff.
+      // Use that exact timestamp for technicals and chart bars so this
+      // workspace cannot silently mix the Aug-10 research replay with
+      // later market observations.
+      const research = await fetchResearch(sym)
+      if (requestId !== requestSequence.current) return
+      const asOf = research.company.as_of
+      const [tech, chartResult] = await Promise.all([
+        fetchDeepTechnicals(sym, asOf),
+        fetchPriceHistory(sym, asOf)
+          .then((history) => ({ history, error: null as string | null }))
+          .catch((err: unknown) => ({
+            history: null,
+            error: err instanceof Error ? err.message : "Price history request failed",
+          })),
       ])
       if (requestId !== requestSequence.current) return
-      setTechData(tech)
       setResearchData(research)
-      void fetchPriceHistory(sym).then((history) => { if (requestId === requestSequence.current) setPriceHistory(history) }).catch((err: unknown) => { if (requestId === requestSequence.current) setChartError(err instanceof Error ? err.message : "Price history request failed") }).finally(() => { if (requestId === requestSequence.current) setChartLoading(false) })
+      setTechData(tech)
+      setPriceHistory(chartResult.history)
+      setChartError(chartResult.error)
+      setChartLoading(false)
     } catch (err) {
       if (requestId !== requestSequence.current) return
       setChartLoading(false)
@@ -523,7 +537,7 @@ export default function MarketIntelligencePage() {
                   <div className="mi-header-row">
                     <span className="mi-company-symbol"><strong>{tech?.symbol}</strong></span>
                     <span>Latest trading date: {formatIso(tech?.trading_date ?? "")}</span>
-                    <span>Calculation run: {formatIso(tech?.as_of ?? "")}</span>
+                    <span>Research replay cutoff: {formatIso(researchData?.company.as_of ?? tech?.as_of ?? "")}</span>
                     <span>Source: Yahoo Finance</span>
                   </div>
                 </div>
