@@ -495,3 +495,28 @@
  .mi-drawdown-strip>span { min-width:0; }
  .mi-chart-axis { font-size:12px; }
 }
+
+
+/* Keep Market Intelligence on the same warm-light workspace surface as its shell. */
+.page-market-intelligence .mi-header,
+.page-market-intelligence .mi-section,
+.page-market-intelligence .mi-metric,
+.page-market-intelligence .mi-trend-vol-card,
+.page-market-intelligence .mi-volume-card,
+.page-market-intelligence .mi-52w-card,
+.page-market-intelligence .fi-sidebar .panel {
+  background:#fffefa;
+  border-color:#e4e9e1;
+  color:#344238;
+  box-shadow:0 2px 8px rgba(37,55,42,.035);
+}
+.page-market-intelligence .mi-section-head { border-color:#edf0e9; }
+.page-market-intelligence .mi-section-head h3,
+.page-market-intelligence .mi-metric-value,
+.page-market-intelligence .mi-trend-vol-head,
+.page-market-intelligence .mi-trend-vol-row .mono,
+.page-market-intelligence .mi-dq-row .mono { color:#344238; }
+.page-market-intelligence .mi-metric-label,
+.page-market-intelligence .mi-section-head span,
+.page-market-intelligence .mi-trend-vol-row span:first-child,
+.page-market-intelligence .mi-dq-row span:first-child { color:#77847a; }
