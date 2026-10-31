@@ -502,7 +502,7 @@ export default function MarketIntelligencePage() {
                     ))}
                     {researchable.length === 0 && <p>No researchable companies are currently returned by the discovery service.</p>}
                   </div>
-                  <p className="mi-default-footnote">Live index levels, market breadth, sector returns and market-regime analysis are not yet connected. They will appear only after a timestamped, source-backed market feed is integrated.</p>
+                  <p className="mi-default-footnote">This is the currently researchable company universe returned by the discovery service; it is not a count of all listed Indian companies.</p>
                 </section>
               </section>
             )}
