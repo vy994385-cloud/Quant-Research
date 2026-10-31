@@ -253,3 +253,150 @@
 @media (prefers-reduced-motion: reduce) {
   .terminal-shell .research-workspace::before { animation: none !important; }
 }
+
+
+/* ── QRQuant light editorial workspace ────────────────────────────────
+   Warm, high-contrast surfaces. Glass is reserved for the shell and
+   feature surfaces; dense research records stay opaque and readable.
+   ─────────────────────────────────────────────────────────────────── */
+.terminal-shell {
+  --page-accent: #397b68;
+  --page-accent-soft: rgba(75, 139, 113, .12);
+  --page-glow: rgba(113, 172, 145, .16);
+  --glass-bg: rgba(255, 255, 255, .82);
+  --glass-border: rgba(91, 105, 95, .16);
+  --glass-highlight: rgba(255, 255, 255, .88);
+  background: #f5f4ef;
+  color: #252d29;
+}
+.terminal-shell[data-page="markets"] { --page-accent:#397ca0; --page-accent-soft:rgba(76,145,184,.12); --page-glow:rgba(112,174,207,.18); }
+.terminal-shell[data-page="discover"] { --page-accent:#397b68; --page-accent-soft:rgba(75,139,113,.12); --page-glow:rgba(113,172,145,.16); }
+.terminal-shell[data-page="company"] { --page-accent:#7765a7; --page-accent-soft:rgba(130,112,177,.12); --page-glow:rgba(156,143,199,.16); }
+.terminal-shell[data-page="screener"] { --page-accent:#92723b; --page-accent-soft:rgba(175,139,73,.13); --page-glow:rgba(199,170,111,.16); }
+.terminal-shell[data-page="evidence"], .terminal-shell[data-page="coverage"], .terminal-shell[data-page="evidence-package"] { --page-accent:#a36e35; --page-accent-soft:rgba(191,139,76,.13); --page-glow:rgba(213,174,119,.16); }
+.terminal-shell[data-page="financials"], .terminal-shell[data-page="technical"] { --page-accent:#477caa; --page-accent-soft:rgba(90,145,190,.12); --page-glow:rgba(130,177,210,.16); }
+.terminal-shell[data-page="reports"], .terminal-shell[data-page="report"] { --page-accent:#956b70; --page-accent-soft:rgba(177,126,133,.12); --page-glow:rgba(203,159,163,.15); }
+.terminal-shell .side-nav {
+  color: #35413b !important;
+  background: #fffefa !important;
+  border-right: 1px solid #e5e4dc !important;
+  box-shadow: 8px 0 28px rgba(44, 54, 47, .045) !important;
+}
+.terminal-shell .brand-text strong { color:#26332d !important; }
+.terminal-shell .brand-text small,
+.terminal-shell .side-nav-principle { color:#7a867e !important; }
+.terminal-shell .brand-mark {
+  background: #e7f1eb !important;
+  color: var(--page-accent) !important;
+  box-shadow: inset 0 0 0 1px rgba(68,125,99,.16) !important;
+}
+.terminal-shell .nav-group-head { color:#7b867e !important; }
+.terminal-shell .nav-item { color:#4c5851 !important; }
+.terminal-shell .nav-item:hover { background:#f3f5f0 !important; color:#25372e !important; }
+.terminal-shell .side-nav .nav-active {
+  color:#275b48 !important;
+  background:var(--page-accent-soft) !important;
+  border-radius:9px;
+}
+.terminal-shell .side-nav .nav-active::before { background:var(--page-accent) !important; }
+.terminal-shell .side-nav .nav-active svg { color:var(--page-accent) !important; }
+.terminal-shell .cmd-bar {
+  background:rgba(250,249,245,.9) !important;
+  border-bottom:1px solid #e7e5dc !important;
+  backdrop-filter:blur(18px) saturate(130%);
+  -webkit-backdrop-filter:blur(18px) saturate(130%);
+}
+.terminal-shell .command-search {
+  background:#fff !important;
+  border-color:#e1e4dd !important;
+  color:#34413a !important;
+}
+.terminal-shell .command-search input { color:#26332d !important; }
+.terminal-shell .command-search input::placeholder { color:#929b94 !important; }
+.terminal-shell .command-search button,
+.terminal-shell .refresh-button,
+.terminal-shell .btn-primary { background:var(--page-accent) !important; color:#fff !important; }
+.terminal-shell .research-workspace {
+  background:
+    radial-gradient(ellipse at 82% 0%, rgba(255,255,255,.7), transparent 48%),
+    #f5f4ef !important;
+  color:#29342e !important;
+}
+.terminal-shell .research-workspace::before {
+  inset:58px 0 0 var(--sidebar-width);
+  background:
+    radial-gradient(ellipse at 78% 0%, var(--page-glow), transparent 45%),
+    radial-gradient(ellipse at 8% 48%, rgba(216,224,211,.3), transparent 44%);
+  opacity:.72;
+}
+.terminal-shell .research-workspace h1,
+.terminal-shell .research-workspace h2,
+.terminal-shell .research-workspace h3,
+.terminal-shell .research-workspace h4 { color:#26332d; }
+.terminal-shell .research-workspace .page-hero {
+  background:linear-gradient(120deg,rgba(255,255,255,.96),rgba(247,249,244,.92)) !important;
+  border:1px solid #e5e8df !important;
+  box-shadow:0 12px 32px rgba(44,58,48,.055),inset 0 1px #fff !important;
+  backdrop-filter:blur(14px);
+}
+.terminal-shell .research-workspace .page-hero h1 { color:#26332d !important; }
+.terminal-shell .research-workspace .page-hero .page-subtitle { color:#68766d !important; }
+.terminal-shell .research-workspace .panel,
+.terminal-shell .research-workspace .company-header-block,
+.terminal-shell .research-workspace .workspace-tabs,
+.terminal-shell .research-workspace .scr-builder,
+.terminal-shell .research-workspace .capability-card {
+  background:#fffefa !important;
+  border:1px solid #e5e7df !important;
+  box-shadow:0 8px 24px rgba(48,60,51,.045),inset 0 1px #fff !important;
+  backdrop-filter:none !important;
+  -webkit-backdrop-filter:none !important;
+}
+.terminal-shell .research-workspace .panel > header,
+.terminal-shell .research-workspace .panel-head { border-color:#ecece5 !important; }
+.terminal-shell .research-workspace .panel p,
+.terminal-shell .research-workspace .panel label,
+.terminal-shell .research-workspace .panel span { }
+.terminal-shell .research-workspace .page-kicker,
+.terminal-shell .research-workspace .panel-kicker { color:var(--page-accent) !important; }
+.terminal-shell .research-workspace .workspace-tab.active {
+  color:var(--page-accent) !important;
+  background:var(--page-accent-soft) !important;
+  border-color:color-mix(in srgb,var(--page-accent) 32%,white) !important;
+}
+.terminal-shell .research-workspace .table-scroll,
+.terminal-shell .research-workspace .feed-table,
+.terminal-shell .research-workspace table { background:#fff !important; }
+.terminal-shell .research-workspace table th {
+  color:#59675e !important;
+  background:#f3f5f0 !important;
+  border-color:#e7eae3 !important;
+}
+.terminal-shell .research-workspace table td {
+  color:#39463e !important;
+  border-color:#eceee8 !important;
+}
+.terminal-shell .research-workspace input,
+.terminal-shell .research-workspace select,
+.terminal-shell .research-workspace textarea {
+  color:#29362f;
+  background:#fff;
+  border-color:#dfe4dc;
+}
+.terminal-shell .research-workspace input::placeholder,
+.terminal-shell .research-workspace textarea::placeholder { color:#929b94; }
+.terminal-shell .research-workspace .empty-state,
+.terminal-shell .research-workspace .loading-state {
+  color:#56645b !important;
+  background:#fffefa !important;
+  border:1px solid #e5e8df !important;
+  box-shadow:0 8px 24px rgba(48,60,51,.04);
+}
+.terminal-shell .research-workspace a:not(.nav-item) { color:var(--page-accent); }
+@media (max-width:900px) {
+  .terminal-shell .research-workspace { background:#f5f4ef !important; }
+  .terminal-shell .research-workspace::before { left:0; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .terminal-shell .research-workspace::before { animation:none !important; }
+}
