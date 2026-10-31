@@ -18,6 +18,7 @@ import type {
   CompanyResearchGapsResponse,
   CompanyTimelineResponse,
   DiscoveryResponse,
+  PriceHistoryResponse,
 } from "./types"
 import type { ApiErrorBody } from "./types"
 
@@ -174,6 +175,16 @@ export function fetchCorporateActions(
 ): Promise<CompanyCorporateActionsResponse> {
   return request<CompanyCorporateActionsResponse>(
     `/api/v1/companies/${encodeURIComponent(symbol)}/corporate-actions`,
+    { as_of: asOf },
+  )
+}
+
+export function fetchPriceHistory(
+  symbol: string,
+  asOf?: string,
+): Promise<PriceHistoryResponse> {
+  return request<PriceHistoryResponse>(
+    `/api/v1/companies/${encodeURIComponent(symbol)}/price-history`,
     { as_of: asOf },
   )
 }
