@@ -15,7 +15,7 @@ import {
   ArrowDownRight,
   AlertTriangle,
 } from "lucide-react"
-import { fetchDiscovery, fetchDeepTechnicals, fetchResearch } from "../api/client"
+import { fetchDiscovery, fetchDeepTechnicals, fetchPriceHistory, fetchResearch } from "../api/client"
 import { ApiError } from "../api/client"
 import type {
   CompanyDeepTechnicalResponse,
@@ -23,6 +23,8 @@ import type {
   DeepTechnicalResult,
   DiscoveryItem,
   TechnicalIndicatorSet,
+  PriceHistoryResponse,
+  PriceHistoryBar,
 } from "../api/types"
 import { formatIso, formatLabel } from "../lib/format"
 import { Section, Tag } from "../components/ui"
@@ -49,6 +51,13 @@ function pctClass(v: string | null | undefined): "" | "pos" | "neg" {
   const n = parseNum(v)
   if (n === null) return ""
   return n >= 0 ? "pos" : "neg"
+}
+
+function fmtCompact(v: number): string {
+  const abs = Math.abs(v)
+  const suffix = abs >= 1e9 ? "B" : abs >= 1e6 ? "M" : abs >= 1e3 ? "K" : ""
+  const divisor = abs >= 1e9 ? 1e9 : abs >= 1e6 ? 1e6 : abs >= 1e3 ? 1e3 : 1
+  return `${(v / divisor).toLocaleString("en-IN", { maximumFractionDigits: 2 })}${suffix}`
 }
 
 function fmtVal(v: string | null | undefined): string {
@@ -81,12 +90,14 @@ function MarketMetric({
   pct,
   regime,
   availability,
+  unit,
 }: {
   label: string
   value: string | null | undefined
   pct?: string | null
   regime?: string | null
   availability?: DataAvailability
+  unit?: string
 }) {
   const avail = availability ?? availabilityFor(value)
   return (
@@ -96,7 +107,7 @@ function MarketMetric({
         <DataStatus availability={avail} />
       </div>
       <div className="mi-metric-body">
-        <span className="mi-metric-value mono">{fmtVal(value)}</span>
+        <span className="mi-metric-value mono">{value == null ? "—" : `${fmtVal(value)}${unit ?? ""}`}</span>
         {pct !== undefined && (
           <span className={`mi-metric-pct ${pctClass(pct)}`}>
             {fmtPct(pct)}
@@ -181,6 +192,111 @@ function ObservationTextList({ observations }: { observations: string[] }) {
   )
 }
 
+
+function PriceChart({ history, loading, error }: {
+  history: PriceHistoryResponse | null
+  loading: boolean
+  error: string | null
+}) {
+  const [range, setRange] = useState<"3M" | "6M" | "1Y" | "ALL">("1Y")
+  const [show20, setShow20] = useState(true)
+  const [show50, setShow50] = useState(true)
+  const [show200, setShow200] = useState(false)
+
+  const bars = useMemo(() => {
+    const all = history?.bars ?? []
+    if (range === "ALL" || all.length === 0) return all
+    const days = range === "3M" ? 92 : range === "6M" ? 184 : 366
+    const cutoff = new Date(all[all.length - 1].trading_date)
+    cutoff.setDate(cutoff.getDate() - days)
+    return all.filter((bar) => new Date(bar.trading_date) >= cutoff)
+  }, [history, range])
+
+  const series = useMemo(() => {
+    const closes = bars.map((bar) => Number(bar.close))
+    const max = Math.max(...closes.filter(Number.isFinite))
+    const min = Math.min(...closes.filter(Number.isFinite))
+    const spread = max - min || 1
+    const x = (index: number) => 48 + (index / Math.max(bars.length - 1, 1)) * 820
+    const y = (value: number) => 18 + ((max - value) / spread) * 166
+    const line = (values: Array<number | null>) => values
+      .map((value, index) => value == null || !Number.isFinite(value) ? null : `${x(index)},${y(value)}`)
+      .filter(Boolean).join(" ")
+    const sma = (period: number) => closes.map((_, index) => {
+      if (index + 1 < period) return null
+      const window = closes.slice(index + 1 - period, index + 1)
+      return window.every(Number.isFinite) ? window.reduce((sum, value) => sum + value, 0) / period : null
+    })
+    const peak = closes.map((value, index) => Math.max(...closes.slice(0, index + 1)))
+    const drawdown = closes.map((value, index) => peak[index] > 0 ? ((value / peak[index]) - 1) * 100 : 0)
+    const maxVolume = Math.max(...bars.map((bar) => bar.volume), 1)
+    return {
+      close: line(closes),
+      sma20: line(sma(20)),
+      sma50: line(sma(50)),
+      sma200: line(sma(200)),
+      drawdown: drawdown.map((value, index) => `${x(index)},${18 + ((0 - value) / Math.max(Math.abs(Math.min(...drawdown)), 1)) * 48}`).join(" "),
+      volumes: bars.map((bar, index) => ({
+        x: x(index),
+        y: 226 - (bar.volume / maxVolume) * 30,
+        height: (bar.volume / maxVolume) * 30,
+      })),
+      first: bars[0]?.trading_date,
+      last: bars[bars.length - 1]?.trading_date,
+      latest: closes[closes.length - 1],
+      min,
+      max,
+    }
+  }, [bars])
+
+  if (loading) return <div className="mi-chart-state">Loading historical price bars…</div>
+  if (error) return <div className="mi-chart-state">Price history unavailable: {error}</div>
+  if (bars.length === 0) return <div className="mi-chart-state">No historical OHLCV bars were returned for this analysis cutoff.</div>
+
+  return (
+    <section className="mi-price-chart" aria-label="Historical price and volume chart">
+      <div className="mi-chart-head">
+        <div><span className="mi-chart-kicker">PRICE HISTORY</span><strong>{fmtVal(String(series.latest))}</strong><small>Latest close · {series.last ? formatIso(series.last) : "—"}</small></div>
+        <div className="mi-chart-ranges" aria-label="Chart date range">
+          {(["3M", "6M", "1Y", "ALL"] as const).map((item) => <button key={item} className={range === item ? "active" : ""} onClick={() => setRange(item)}>{item}</button>)}
+        </div>
+      </div>
+      <div className="mi-chart-toggles">
+        <label><input type="checkbox" checked={show20} onChange={(e) => setShow20(e.target.checked)} /> SMA 20</label>
+        <label><input type="checkbox" checked={show50} onChange={(e) => setShow50(e.target.checked)} /> SMA 50</label>
+        <label><input type="checkbox" checked={show200} onChange={(e) => setShow200(e.target.checked)} /> SMA 200</label>
+      </div>
+      <svg className="mi-chart-svg" viewBox="0 0 900 244" role="img" aria-label="Closing price with moving average overlays and daily volume">
+        <line x1="48" y1="18" x2="868" y2="18" className="mi-chart-gridline" />
+        <line x1="48" y1="101" x2="868" y2="101" className="mi-chart-gridline" />
+        <line x1="48" y1="184" x2="868" y2="184" className="mi-chart-gridline" />
+        {show200 && <polyline points={series.sma200} className="mi-chart-sma mi-chart-sma200" />}
+        {show50 && <polyline points={series.sma50} className="mi-chart-sma mi-chart-sma50" />}
+        {show20 && <polyline points={series.sma20} className="mi-chart-sma mi-chart-sma20" />}
+        <polyline points={series.close} className="mi-chart-price" />
+        {series.volumes.map((bar, index) => <rect key={index} x={bar.x - 1.5} y={bar.y} width="3" height={bar.height} className="mi-chart-volume" />)}
+        <text x="48" y="242" className="mi-chart-axis">{series.first ? formatIso(series.first) : ""}</text>
+        <text x="868" y="242" textAnchor="end" className="mi-chart-axis">{series.last ? formatIso(series.last) : ""}</text>
+      </svg>
+      <div className="mi-chart-legend">
+        <span><i className="price" /> Close</span>
+        {show20 && <span><i className="sma20" /> SMA 20</span>}
+        {show50 && <span><i className="sma50" /> SMA 50</span>}
+        {show200 && <span><i className="sma200" /> SMA 200</span>}
+        <span><i className="volume" /> Volume</span>
+      </div>
+      <div className="mi-drawdown-strip">
+        <span>Drawdown from rolling peak</span>
+        <svg viewBox="0 0 900 72" role="img" aria-label="Drawdown from running historical peak">
+          <line x1="48" y1="12" x2="868" y2="12" className="mi-chart-gridline" />
+          <polyline points={series.drawdown} className="mi-chart-drawdown" />
+        </svg>
+      </div>
+      <p className="mi-chart-footnote">{history?.bars_returned ?? bars.length} daily bars returned · {history?.price_basis ?? "Provider OHLC"} · Moving averages calculated from displayed close series. Adjusted-close treatment is not applied to the OHLC line.</p>
+    </section>
+  )
+}
+
 /* ── Main Component ──────────────────────────────────────────────────── */
 
 export default function MarketIntelligencePage() {
@@ -192,6 +308,9 @@ export default function MarketIntelligencePage() {
   const [recentSymbols, setRecentSymbols] = useState<string[]>([])
   const [techData, setTechData] = useState<CompanyDeepTechnicalResponse | null>(null)
   const [researchData, setResearchData] = useState<CompanyResearch | null>(null)
+  const [priceHistory, setPriceHistory] = useState<PriceHistoryResponse | null>(null)
+  const [chartLoading, setChartLoading] = useState(false)
+  const [chartError, setChartError] = useState<string | null>(null)
   const [dataLoading, setDataLoading] = useState(false)
   const [dataError, setDataError] = useState<string | null>(null)
 
@@ -234,6 +353,9 @@ export default function MarketIntelligencePage() {
     setRecentSymbols((previous) => [sym, ...previous.filter((item) => item !== sym)].slice(0, 5))
     setTechData(null)
     setResearchData(null)
+    setPriceHistory(null)
+    setChartError(null)
+    setChartLoading(true)
     setDataLoading(true)
     setDataError(null)
     try {
@@ -243,7 +365,9 @@ export default function MarketIntelligencePage() {
       ])
       setTechData(tech)
       setResearchData(research)
+      void fetchPriceHistory(sym).then((history) => setPriceHistory(history)).catch((err: unknown) => setChartError(err instanceof Error ? err.message : "Price history request failed")).finally(() => setChartLoading(false))
     } catch (err) {
+      setChartLoading(false)
       setDataError(
         err instanceof ApiError
           ? err.message
@@ -344,11 +468,10 @@ export default function MarketIntelligencePage() {
                   </div>
                   <span className="mi-default-note">Research coverage · not live market quotes</span>
                 </header>
-                <div className="mi-default-pulse">
-                  <article><span>Major indices</span><strong>Not connected</strong><small>NIFTY · SENSEX · BANK NIFTY</small></article>
-                  <article><span>Market breadth</span><strong>Not available</strong><small>Advances · declines · unchanged</small></article>
-                  <article><span>India VIX</span><strong>Not connected</strong><small>Volatility reference</small></article>
-                  <article><span>Sector performance</span><strong>Not available</strong><small>Verified sector returns required</small></article>
+                <div className="mi-market-feed-notice">
+                  <div><span className="mi-feed-indicator" /><strong>India market feeds are not integrated yet</strong></div>
+                  <p>Market levels, breadth, volatility and sector returns will appear here only when timestamped source data is available. Your research universe below is available now.</p>
+                  <div className="mi-feed-items"><span>NIFTY 50 · Pending feed</span><span>SENSEX · Pending feed</span><span>India VIX · Pending feed</span><span>Market breadth · Pending feed</span><span>Sector returns · Pending feed</span></div>
                 </div>
                 <section className="mi-default-universe">
                   <div className="mi-default-section-head">
@@ -402,6 +525,8 @@ export default function MarketIntelligencePage() {
                   </div>
                 </div>
 
+                <PriceChart history={priceHistory} loading={chartLoading} error={chartError} />
+
                 <details className="mi-methodology">
                   <summary>How these metrics are calculated</summary>
                   <div className="mi-methodology-grid">
@@ -420,14 +545,10 @@ export default function MarketIntelligencePage() {
                 <Section id="overview" title="Market Overview" subtitle="Price context and key market metrics">
                   <div className="mi-section-body">
                   <div className="mi-overview-grid">
-                    <MarketMetric label="52-Week High" value={ind.high_52w} />
-                    <MarketMetric label="52-Week Low" value={ind.low_52w} />
-                    <MarketMetric label="% From 52W High" value={ind.pct_from_52w_high} />
-                    <MarketMetric label="% From 52W Low" value={ind.pct_from_52w_low} />
-                    <MarketMetric label="Trend Regime" value={null} regime={ind.regime} availability={ind.regime ? "available" : "missing"} />
+                    <MarketMetric label="Trend Regime" value={null} regime={ind.regime ? formatLabel(ind.regime) : null} availability={ind.regime ? "available" : "missing"} />
                     <MarketMetric label="Trend Strength" value={ind.trend_strength} />
-                    <MarketMetric label="Volatility (ATR %)" value={ind.atr_pct} />
-                    <MarketMetric label="Current Drawdown" value={ind.current_drawdown} />
+                    <MarketMetric label="Volatility (ATR %)" value={ind.atr_pct} unit="%" />
+                    <MarketMetric label="Current Drawdown" value={ind.current_drawdown} unit="%" />
                   </div>
                   </div>
                 </Section>
@@ -463,7 +584,7 @@ export default function MarketIntelligencePage() {
                         </div>
                         <div className="mi-trend-vol-row">
                           <span>Strength</span>
-                          <span className="mono">{fmtVal(ind.trend_strength)}</span>
+                          <span className="mono">{fmtPct(ind.trend_strength)}</span>
                         </div>
                         <div className="mi-trend-vol-row">
                           <span>SMA Alignment</span>
@@ -494,10 +615,6 @@ export default function MarketIntelligencePage() {
                           <span className="mono">{fmtVal(ind.bollinger_bandwidth)}</span>
                         </div>
                         <div className="mi-trend-vol-row">
-                          <span>Current Drawdown</span>
-                          <span className="mono">{fmtPct(ind.current_drawdown)}</span>
-                        </div>
-                        <div className="mi-trend-vol-row">
                           <span>Max Drawdown (20d)</span>
                           <span className="mono">{fmtPct(ind.max_drawdown_20d)}</span>
                         </div>
@@ -523,7 +640,7 @@ export default function MarketIntelligencePage() {
                       <div className="mi-trend-vol-body">
                         <div className="mi-trend-vol-row">
                           <span>On-Balance Volume</span>
-                          <span className="mono">{ind.obv !== null ? ind.obv.toLocaleString() : "\u2014"}</span>
+                          <span className="mono">{ind.obv !== null ? fmtCompact(ind.obv) : "\u2014"}</span>
                         </div>
                         <div className="mi-trend-vol-row">
                           <span>MFI (14)</span>
@@ -558,7 +675,7 @@ export default function MarketIntelligencePage() {
                         <div className="mi-trend-vol-row">
                           <span>Price-Volume</span>
                           <Tag
-                            text={ind.price_volume_divergence ?? "Unknown"}
+                            text={ind.price_volume_divergence ? formatLabel(ind.price_volume_divergence) : "Unknown"}
                             tone={regimeTone(ind.price_volume_divergence)}
                           />
                         </div>
@@ -620,7 +737,7 @@ export default function MarketIntelligencePage() {
                     {tech && tech.missing_indicators.length > 0 && (
                       <div className="mi-dq-row warn">
                         <span>Unavailable calculations</span>
-                        <span className="mono">{tech.missing_indicators.join(", ")}</span>
+                        <span className="mono">{tech.missing_indicators.map(formatLabel).join(", ")}</span>
                       </div>
                     )}
                     <div className="mi-dq-row">
