@@ -118,7 +118,7 @@ export default function CompanySearch({
         onFocus={() => setOpen(true)}
         onBlur={() => setOpen(false)}
         onKeyDown={handleKeyDown}
-        placeholder="Search company — TCS, INFY, HDFCBANK, M&M"
+        placeholder="Search company, symbol or sector…"
         aria-label="Company search"
         aria-expanded={open}
         autoComplete="off"
