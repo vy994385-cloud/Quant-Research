@@ -400,3 +400,31 @@
 @media (prefers-reduced-motion:reduce) {
   .terminal-shell .research-workspace::before { animation:none !important; }
 }
+
+/* Market Intelligence default overview */
+.mi-default-overview { display:flex; flex-direction:column; gap:16px; min-width:0; }
+.mi-default-heading,.mi-default-section-head { display:flex; align-items:flex-end; justify-content:space-between; gap:14px; }
+.mi-default-kicker { display:block; margin-bottom:7px; color:#56816a; font-size:9px; font-weight:800; letter-spacing:.14em; }
+.mi-default-heading h2,.mi-default-section-head h3 { margin:0; color:#29372f; font-size:21px; letter-spacing:-.035em; }
+.mi-default-heading p { margin:7px 0 0; color:#748078; font-size:12px; line-height:1.6; }
+.mi-default-note,.mi-default-section-head p { color:#7a877e; font-size:10px; }
+.mi-default-section-head p { margin:0; }
+.mi-default-section-head p strong { color:#2e3d33; font-size:17px; }
+.mi-default-pulse { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:9px; }
+.mi-default-pulse article { min-width:0; padding:14px; border:1px solid #e4e8df; border-radius:12px; background:#fffefa; }
+.mi-default-pulse article span,.mi-default-pulse article small { display:block; color:#78857c; font-size:10px; }
+.mi-default-pulse article strong { display:block; margin:8px 0 5px; color:#68756c; font-size:14px; }
+.mi-default-universe { padding:16px; border:1px solid #e4e8df; border-radius:14px; background:#fffefa; }
+.mi-default-companies { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin-top:14px; }
+.mi-default-companies button { display:flex; flex-direction:column; align-items:flex-start; min-width:0; padding:11px; border:1px solid #e9ece5; border-radius:10px; background:#fff; text-align:left; cursor:pointer; transition:border-color .18s ease,background .18s ease; }
+.mi-default-companies button:hover { border-color:#c6d9c9; background:#f8fbf7; }
+.mi-default-companies button strong { color:#376b50; font-size:12px; }
+.mi-default-companies button span { overflow:hidden; max-width:100%; margin-top:4px; color:#344238; font-size:11px; text-overflow:ellipsis; white-space:nowrap; }
+.mi-default-companies button small { margin-top:4px; color:#879188; font-size:9px; }
+.mi-default-footnote { margin:13px 0 0; padding:11px 13px; border-left:3px solid #d2b47a; border-radius:0 8px 8px 0; background:#f7f3e8; color:#7d7157; font-size:10px; line-height:1.6; }
+@media(max-width:1100px) { .mi-default-pulse { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media(max-width:650px) {
+ .mi-default-heading,.mi-default-section-head { align-items:flex-start; flex-direction:column; }
+ .mi-default-companies { grid-template-columns:1fr; }
+}
+@media(prefers-reduced-motion:reduce) { .mi-default-companies button { transition:none; } }
