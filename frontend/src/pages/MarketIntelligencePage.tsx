@@ -315,11 +315,39 @@ export default function MarketIntelligencePage() {
           {/* RIGHT: Market intelligence content */}
           <div className="fi-content">
             {!selectedSymbol && (
-              <EmptyState
-                icon={BarChart3}
-                title="Select a company"
-                description="Choose a company from the list to view market intelligence."
-              />
+              <section className="mi-default-overview">
+                <header className="mi-default-heading">
+                  <div>
+                    <span className="mi-default-kicker">MARKET DESK</span>
+                    <h2>India market overview</h2>
+                    <p>Start with the available research universe. Select a company to open its price and technical analysis.</p>
+                  </div>
+                  <span className="mi-default-note">Research coverage · not live market quotes</span>
+                </header>
+                <div className="mi-default-pulse">
+                  <article><span>Major indices</span><strong>Not connected</strong><small>NIFTY · SENSEX · BANK NIFTY</small></article>
+                  <article><span>Market breadth</span><strong>Not available</strong><small>Advances · declines · unchanged</small></article>
+                  <article><span>India VIX</span><strong>Not connected</strong><small>Volatility reference</small></article>
+                  <article><span>Sector performance</span><strong>Not available</strong><small>Verified sector returns required</small></article>
+                </div>
+                <section className="mi-default-universe">
+                  <div className="mi-default-section-head">
+                    <div><span className="mi-default-kicker">AVAILABLE RESEARCH COVERAGE</span><h3>Research universe</h3></div>
+                    <p><strong>{researchable.length}</strong> companies <span>·</span> <strong>{new Set(researchable.map((company) => company.sector || "Unclassified")).size}</strong> sectors</p>
+                  </div>
+                  <div className="mi-default-companies">
+                    {researchable.slice(0, 8).map((company) => (
+                      <button key={company.symbol} type="button" onClick={() => void loadCompany(company.symbol)}>
+                        <strong>{company.symbol}</strong>
+                        <span>{company.company_name ?? company.symbol}</span>
+                        <small>{company.sector || "Sector not classified"}</small>
+                      </button>
+                    ))}
+                    {researchable.length === 0 && <p>No researchable companies are currently returned by the discovery service.</p>}
+                  </div>
+                  <p className="mi-default-footnote">Live index levels, market breadth, sector returns and market-regime analysis are not yet connected. They will appear only after a timestamped, source-backed market feed is integrated.</p>
+                </section>
+              </section>
             )}
 
             {selectedSymbol && dataLoading && (
