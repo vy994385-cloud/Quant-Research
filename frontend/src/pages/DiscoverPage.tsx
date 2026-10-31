@@ -656,15 +656,16 @@ export default function DiscoverPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {gapGroups.slice(0, 8).map((group) => (
-                      <tr key={`cov-${group.key}`}>
-                        <td>
-                          <span className="gap-company-chips">
-                            {group.symbols.map((symbol) => (
-                              <span key={symbol} className="gap-company-cell">
-                                {companyCell(symbol)}
-                              </span>
-                            ))}
+                    {gapGroups.slice(0, 8)
+                      .flatMap((group) => group.symbols.map((symbol) => ({ group, symbol })))
+                      .map(({ group, symbol }) => (
+                        <tr key={"cov-" + group.key + "-" + symbol}>
+                          <td>{companyCell(symbol)}</td>
+                          <td><span className="feed-type">{group.category}</span></td>
+                          <td>{group.statuses.map((status) => <Tag key={status} text={formatLabel(status)} tone="amber" />)}</td>
+                          <td className="feed-event">{group.description}</td>
+                        </tr>
+                      ))}
                           </span>
                         </td>
                         <td><span className="feed-type">{group.category}</span></td>
@@ -754,15 +755,16 @@ export default function DiscoverPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {gapGroups.slice(0, SECTION_CAP).map((group) => (
-                      <tr key={group.key}>
-                        <td>
-                          <span className="gap-company-chips">
-                            {group.symbols.map((symbol) => (
-                              <span key={symbol} className="gap-company-cell">
-                                {companyCell(symbol)}
-                              </span>
-                            ))}
+                    {gapGroups.slice(0, SECTION_CAP)
+                      .flatMap((group) => group.symbols.map((symbol) => ({ group, symbol })))
+                      .map(({ group, symbol }) => (
+                        <tr key={group.key + "-" + symbol}>
+                          <td>{companyCell(symbol)}</td>
+                          <td><span className="feed-type">{group.category}</span></td>
+                          <td>{group.statuses.map((status) => <Tag key={status} text={formatLabel(status)} tone="amber" />)}</td>
+                          <td className="feed-event">{group.description}</td>
+                        </tr>
+                      ))}
                           </span>
                         </td>
                         <td><span className="feed-type">{group.category}</span></td>
