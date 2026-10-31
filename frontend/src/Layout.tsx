@@ -4,16 +4,16 @@
  * Structure:
  *   TOP COMMAND BAR   global search · contextual actions
  *   LEFT PRIMARY NAV  workflow-aligned research terminal navigation
- *                     DISCOVER · RESEARCH · SCREEN · MONITOR · OUTPUT · ASSETS
+ *                     MARKETS · DISCOVER · ANALYZE · TRACK · RESEARCH · ASSETS
  *   MAIN CANVAS       the routed research workspace
  *
  * Navigation expresses the user workflow:
- *   DISCOVER  → find and enter the research universe
- *   RESEARCH  → deep investigation of companies and domains
- *   SCREEN    → filter, compare, screen
- *   MONITOR   → track changes, watch, alert
- *   OUTPUT    → reports, export, evidence packages
- *   ASSETS    → multi-asset class entry points
+ *   MARKETS   → understand market conditions and scheduled events
+ *   DISCOVER  → find companies, themes and research opportunities
+ *   ANALYZE   → investigate fundamentals, technicals and evidence
+ *   TRACK     → maintain watchlists and follow changes
+ *   RESEARCH  → create reports and evidence packages
+ *   ASSETS    → explore supported asset classes
  */
 
 import { useCallback, useEffect, useRef, useState } from "react"
@@ -82,7 +82,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { to: "/discover", label: "Research Home", icon: Home },
       { to: "/discover/search", label: "Global Search", icon: Search },
-      { to: "/companies", label: "Company Universe", icon: Building2 },
+      { to: "/companies", label: "Companies", icon: Building2 },
       { to: "/screener", label: "Stock Screener", icon: Filter },
       { to: "/compare", label: "Compare", icon: GitCompareArrows },
       { to: "/themes", label: "Themes", icon: Lightbulb },
@@ -98,7 +98,7 @@ const NAV_GROUPS: NavGroup[] = [
       { to: "/financial-intelligence", label: "Financials", icon: BarChart3 },
       { to: "/technical", label: "Technical Analysis", icon: TrendingUp },
       { to: "/events", label: "News & Events", icon: Clock },
-      { to: "/evidence", label: "Evidence & Sources", icon: Shield },
+      { to: "/evidence", label: "Evidence", icon: Shield },
       { to: "/research-gaps", label: "Coverage & Gaps", icon: AlertTriangle },
     ],
   },
