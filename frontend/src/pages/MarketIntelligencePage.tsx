@@ -302,7 +302,7 @@ function PriceChart({ history, loading, error }: {
           <polyline points={series.drawdown} className="mi-chart-drawdown" />
         </svg>
       </div>
-      <p className="mi-chart-footnote">{history?.bars_returned ?? bars.length} daily bars returned · {history?.price_basis ?? "Provider OHLC"} · Moving averages calculated from displayed close series. Adjusted-close treatment is not applied to the OHLC line.</p>
+      <p className="mi-chart-footnote">{history?.bars_returned ?? bars.length} daily bars returned · {history?.price_basis ?? "Provider OHLC"} · Moving averages use preceding available history, including bars before the selected display window. The OHLC line uses provider OHLC; adjusted-close treatment is not applied.</p>
     </section>
   )
 }
