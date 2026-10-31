@@ -442,3 +442,55 @@
 .mi-methodology-grid strong { color:#34463a; font-size:10px; }
 .mi-methodology-grid p { margin:5px 0 0; color:#6d796f; font-size:10px; line-height:1.6; }
 @media(max-width:650px) { .mi-methodology-grid { grid-template-columns:1fr; } }
+
+
+/* Market Intelligence — price chart and intentional market-feed empty state */
+.mi-market-feed-notice { padding:18px 20px; border:1px solid #dfe7dc; border-radius:14px; background:linear-gradient(120deg,#f6faf4 0%,#fffefa 72%); }
+.mi-market-feed-notice>div:first-child { display:flex; align-items:center; gap:9px; color:#34483a; font-size:13px; }
+.mi-feed-indicator { width:8px; height:8px; flex:0 0 8px; border-radius:50%; background:#c28b43; box-shadow:0 0 0 4px #f3eadb; }
+.mi-market-feed-notice p { max-width:760px; margin:9px 0 13px; color:#6d796f; font-size:11px; line-height:1.65; }
+.mi-feed-items { display:flex; flex-wrap:wrap; gap:7px; }
+.mi-feed-items span { padding:5px 8px; border:1px solid #e5e9e1; border-radius:6px; background:#fff; color:#7a857b; font-size:9px; }
+.mi-price-chart { margin:0 0 16px; padding:17px 18px 13px; border:1px solid #e2e7df; border-radius:13px; background:#fffefa; color:#344238; }
+.mi-chart-head { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.mi-chart-head>div:first-child { display:grid; grid-template-columns:auto auto; align-items:baseline; column-gap:10px; }
+.mi-chart-kicker { grid-column:1/-1; color:#718276; font-size:9px; font-weight:800; letter-spacing:.13em; }
+.mi-chart-head strong { color:#26382c; font-size:22px; font-variant-numeric:tabular-nums; }
+.mi-chart-head small { color:#849087; font-size:9px; }
+.mi-chart-ranges { display:flex; gap:4px; padding:3px; border:1px solid #e8ece5; border-radius:8px; background:#f7f9f5; }
+.mi-chart-ranges button { padding:5px 8px; border:0; border-radius:5px; background:transparent; color:#778279; font-size:9px; cursor:pointer; }
+.mi-chart-ranges button.active { background:#e7f0e6; color:#356b4d; font-weight:750; }
+.mi-chart-toggles { display:flex; flex-wrap:wrap; gap:13px; margin:13px 0 4px; }
+.mi-chart-toggles label { display:flex; align-items:center; gap:5px; color:#68766b; font-size:10px; cursor:pointer; }
+.mi-chart-toggles input { accent-color:#548467; }
+.mi-chart-svg { display:block; width:100%; height:auto; overflow:visible; }
+.mi-chart-gridline { stroke:#e9ede7; stroke-width:1; stroke-dasharray:3 4; }
+.mi-chart-price,.mi-chart-sma,.mi-chart-drawdown { fill:none; stroke-linecap:round; stroke-linejoin:round; vector-effect:non-scaling-stroke; }
+.mi-chart-price { stroke:#356d50; stroke-width:2; }
+.mi-chart-sma { stroke-width:1.35; stroke-dasharray:5 3; }
+.mi-chart-sma20 { stroke:#d49a43; }
+.mi-chart-sma50 { stroke:#6289b5; }
+.mi-chart-sma200 { stroke:#9476ae; }
+.mi-chart-volume { fill:#b8c9b8; opacity:.5; }
+.mi-chart-axis { fill:#879188; font-size:10px; }
+.mi-chart-legend { display:flex; flex-wrap:wrap; gap:13px; padding:2px 0 8px; color:#758176; font-size:9px; }
+.mi-chart-legend span { display:flex; align-items:center; gap:5px; }
+.mi-chart-legend i { display:inline-block; width:13px; height:2px; background:#356d50; }
+.mi-chart-legend i.sma20 { background:#d49a43; }
+.mi-chart-legend i.sma50 { background:#6289b5; }
+.mi-chart-legend i.sma200 { background:#9476ae; }
+.mi-chart-legend i.volume { height:7px; background:#b8c9b8; }
+.mi-drawdown-strip { display:flex; align-items:flex-start; gap:16px; padding-top:8px; border-top:1px solid #edf0e9; }
+.mi-drawdown-strip>span { min-width:155px; padding-top:8px; color:#78847a; font-size:9px; }
+.mi-drawdown-strip svg { width:100%; height:55px; }
+.mi-chart-drawdown { stroke:#b46e62; stroke-width:1.5; }
+.mi-chart-footnote { margin:4px 0 0; color:#8a948b; font-size:9px; line-height:1.5; }
+.mi-chart-state { margin:0 0 16px; padding:22px; border:1px dashed #dce4da; border-radius:12px; background:#fffefa; color:#78847a; font-size:11px; }
+@media(max-width:650px) {
+ .mi-price-chart { padding:13px 10px; }
+ .mi-chart-head { align-items:flex-start; flex-direction:column; }
+ .mi-chart-head>div:first-child { grid-template-columns:auto auto; }
+ .mi-drawdown-strip { flex-direction:column; gap:0; }
+ .mi-drawdown-strip>span { min-width:0; }
+ .mi-chart-axis { font-size:12px; }
+}
