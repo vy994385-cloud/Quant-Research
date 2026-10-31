@@ -552,7 +552,7 @@ export default function MarketIntelligencePage() {
                   <div className="mi-section-body">
                   <div className="mi-overview-grid">
                     <MarketMetric label="Trend Regime" value={null} regime={ind.regime ? formatLabel(ind.regime) : null} availability={ind.regime ? "available" : "missing"} />
-                    <MarketMetric label="Trend Strength" value={ind.trend_strength} />
+                    <MarketMetric label="Trend Strength" value={ind.trend_strength == null ? null : String(Number(ind.trend_strength) * 100)} unit="%" />
                     <MarketMetric label="Volatility (ATR %)" value={ind.atr_pct} unit="%" />
                     <MarketMetric label="Current Drawdown" value={ind.current_drawdown} unit="%" />
                   </div>
@@ -590,7 +590,7 @@ export default function MarketIntelligencePage() {
                         </div>
                         <div className="mi-trend-vol-row">
                           <span>Strength</span>
-                          <span className="mono">{fmtPct(ind.trend_strength)}</span>
+                          <span className="mono">{ind.trend_strength == null ? "—" : `${(Number(ind.trend_strength) * 100).toFixed(1)}%`}</span>
                         </div>
                         <div className="mi-trend-vol-row">
                           <span>SMA Alignment</span>
