@@ -7613,3 +7613,18 @@ tr.evidence-row { cursor: pointer; }
 @media (max-width: 650px) {
   .terminal-shell .research-workspace .page-hero { padding: 17px 15px; border-radius: 13px; }
 }
+
+
+@supports (animation-timeline: scroll()) {
+  .terminal-shell .research-workspace::before {
+    animation: atmosphere-drift linear both;
+    animation-timeline: scroll(root block);
+  }
+}
+@keyframes atmosphere-drift {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to { transform: translate3d(0, 54px, 0) scale(1.07); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .terminal-shell .research-workspace::before { animation: none !important; }
+}
