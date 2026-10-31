@@ -588,6 +588,35 @@ export default function DiscoverPage() {
 
           {/* One activity stream only. Detailed category feeds live on their own pages. */}
 
+          {/* Coverage summary belongs on the home page; the full gap register stays in Coverage & Gaps. */}
+          {!feedsLoading && (
+            <section className="discover-section discover-coverage-summary" aria-label="Coverage overview">
+              <div className="discover-section-heading">
+                <div><span className="landing-eyebrow">DATA COVERAGE</span><h2>Coverage overview</h2><p>Reported gaps across the currently tracked universe—not a measure of company quality.</p></div>
+                <Link to="/research-gaps">Open Coverage &amp; Gaps <ArrowRight size={15} aria-hidden /></Link>
+              </div>
+              {gapGroups.length === 0 ? (
+                <EmptyCopy text="No coverage gaps were returned for this universe. This does not mean every data domain is complete." />
+              ) : (
+                <div className="coverage-summary-grid">
+                  <div><strong>{gapGroups.length}</strong><span>Research areas with reported gaps</span></div>
+                  <div><strong>{new Set(gaps.map((gap) => gap.symbol)).size}</strong><span>Companies affected</span></div>
+                  <div><strong>{gaps.length}</strong><span>Gap records returned</span></div>
+                </div>
+              )}
+              <div className="coverage-area-list">
+                {gapGroups.slice(0, 6).map((group) => (
+                  <div className="coverage-area-row" key={group.key}>
+                    <span>{group.category}</span>
+                    <span className="coverage-area-companies">{group.symbols.slice(0, 6).map((symbol) => <Link key={symbol} to={`/companies/${encodeURIComponent(symbol)}`} className="mono">{symbol}</Link>)}{group.symbols.length > 6 ? <small>+{group.symbols.length - 6} more</small> : null}</span>
+                    <Tag text={`${group.symbols.length} affected`} tone="amber" />
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+
           {/* 5. Recently researched — quick return to recent work */}
           {recentVisits.length > 0 && (
             <section className="discover-section" aria-label="Recently researched">
@@ -632,60 +661,32 @@ export default function DiscoverPage() {
             </div>
           </section>
 
-          {/* Coverage summary belongs on the home page; the full gap register stays in Coverage & Gaps. */}
-          {!feedsLoading && (
-            <section className="discover-section discover-coverage-summary" aria-label="Coverage overview">
-              <div className="discover-section-heading">
-                <div><span className="landing-eyebrow">DATA COVERAGE</span><h2>Coverage overview</h2><p>Reported gaps across the currently tracked universe—not a measure of company quality.</p></div>
-                <Link to="/research-gaps">Open Coverage &amp; Gaps <ArrowRight size={15} aria-hidden /></Link>
-              </div>
-              {gapGroups.length === 0 ? (
-                <EmptyCopy text="No coverage gaps were returned for this universe. This does not mean every data domain is complete." />
-              ) : (
-                <div className="coverage-summary-grid">
-                  <div><strong>{gapGroups.length}</strong><span>Research areas with reported gaps</span></div>
-                  <div><strong>{new Set(gaps.map((gap) => gap.symbol)).size}</strong><span>Companies affected</span></div>
-                  <div><strong>{gaps.length}</strong><span>Gap records returned</span></div>
+          {/* Full company directory is secondary; keep the home page focused on current work. */}
+          <section className="discover-section discover-index" aria-label="Company index">
+            <details className="discover-index-details">
+              <summary>Company index <span>{tracked.length} tracked companies</span></summary>
+              <div className="company-table">
+                <div className="company-table-head">
+                  <span className="col-symbol">Symbol</span>
+                  <span className="col-name">Company</span>
+                  <span className="col-sector">Sector</span>
                 </div>
-              )}
-              <div className="coverage-area-list">
-                {gapGroups.slice(0, 6).map((group) => (
-                  <div className="coverage-area-row" key={group.key}>
-                    <span>{group.category}</span>
-                    <span className="coverage-area-companies">{group.symbols.slice(0, 6).map((symbol) => <Link key={symbol} to={`/companies/${encodeURIComponent(symbol)}`} className="mono">{symbol}</Link>)}{group.symbols.length > 6 ? <small>+{group.symbols.length - 6} more</small> : null}</span>
-                    <Tag text={`${group.symbols.length} affected`} tone="amber" />
-                  </div>
+                {tracked.map((item: DiscoveryItem) => (
+                  <Link
+                    key={item.symbol}
+                    className="company-table-row"
+                    to={`/companies/${encodeURIComponent(item.symbol)}`}
+                  >
+                    <span className="col-symbol mono">{item.symbol}</span>
+                    <span className="col-name">{item.company_name ?? item.symbol}</span>
+                    <span className="col-sector">
+                      <Tag text={formatLabel(item.sector)} tone="slate" />
+                    </span>
+                  </Link>
                 ))}
               </div>
-            </section>
-          )}
-
-          {/* 7. Company index — the full tracked universe */}
-          <section className="discover-section discover-index" aria-label="Company index">
-            <SectionDivider label="Company index" />
-            <div className="company-table">
-              <div className="company-table-head">
-                <span className="col-symbol">Symbol</span>
-                <span className="col-name">Company</span>
-                <span className="col-sector">Sector</span>
-              </div>
-              {tracked.map((item: DiscoveryItem) => (
-                <Link
-                  key={item.symbol}
-                  className="company-table-row"
-                  to={`/companies/${encodeURIComponent(item.symbol)}`}
-                >
-                  <span className="col-symbol mono">{item.symbol}</span>
-                  <span className="col-name">{item.company_name ?? item.symbol}</span>
-                  <span className="col-sector">
-                    <Tag text={formatLabel(item.sector)} tone="slate" />
-                  </span>
-                </Link>
-              ))}
-            </div>
-            <p className="feed-more">
-              The full research directory lives in <Link to="/companies">Companies</Link>.
-            </p>
+              <p className="feed-more">Open the full directory in <Link to="/companies">Companies</Link>.</p>
+            </details>
           </section>
         </>
       )}
