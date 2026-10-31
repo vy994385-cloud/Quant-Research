@@ -45,7 +45,6 @@ import {
   Menu,
   Search,
   Shield,
-  SlidersHorizontal,
   TrendingUp,
   UserRound,
   X,
@@ -137,6 +136,39 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
 ]
+
+const PAGE_THEMES: Array<[string, string]> = [
+  ["/discover/search", "search"],
+  ["/market-intelligence", "markets"],
+  ["/financial-intelligence", "financials"],
+  ["/research-changes", "changes"],
+  ["/evidence-alerts", "alerts"],
+  ["/research-gaps", "coverage"],
+  ["/professional-report", "report"],
+  ["/evidence-package", "evidence-package"],
+  ["/peer-research", "peers"],
+  ["/companies/", "company"],
+  ["/companies", "universe"],
+  ["/screener", "screener"],
+  ["/compare", "compare"],
+  ["/calendar", "calendar"],
+  ["/technical", "technical"],
+  ["/events", "events"],
+  ["/evidence", "evidence"],
+  ["/my-research", "workspace"],
+  ["/watchlists", "watchlists"],
+  ["/reports", "reports"],
+  ["/themes", "themes"],
+  ["/industries", "industries"],
+  ["/asset-classes", "assets"],
+  ["/discover", "discover"],
+]
+
+function getPageTheme(pathname: string): string {
+  return PAGE_THEMES.find(([path]) =>
+    pathname === path || (path.endsWith("/") && pathname.startsWith(path))
+  )?.[1] ?? "research"
+}
 
 const COLLAPSED_KEY = "qrt.nav.collapsed.v1"
 
@@ -301,21 +333,7 @@ export default function Layout() {
     [navigate],
   )
 
-  const pageTheme = location.pathname.startsWith("/companies/")
-    ? "company"
-    : location.pathname.startsWith("/market-intelligence") || location.pathname.startsWith("/calendar")
-      ? "markets"
-      : location.pathname.startsWith("/screener") || location.pathname.startsWith("/compare") || location.pathname.startsWith("/peer-research")
-        ? "discover"
-        : location.pathname.startsWith("/my-research") || location.pathname.startsWith("/watchlists") || location.pathname.startsWith("/research-changes") || location.pathname.startsWith("/evidence-alerts")
-          ? "track"
-          : location.pathname.startsWith("/reports") || location.pathname.startsWith("/professional-report") || location.pathname.startsWith("/evidence-package")
-            ? "reports"
-            : location.pathname.startsWith("/asset-classes")
-              ? "assets"
-              : location.pathname.startsWith("/discover") || location.pathname.startsWith("/companies") || location.pathname.startsWith("/themes") || location.pathname.startsWith("/industries")
-                ? "discover"
-                : "research"
+  const pageTheme = getPageTheme(location.pathname)
 
   return (
     <div className={navOpen ? "terminal-shell nav-open" : "terminal-shell"} data-page={pageTheme}>
