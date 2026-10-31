@@ -254,4 +254,49 @@ def create_technical_router() -> APIRouter:
             ),
         )
 
+
+    @router.get("/{symbol}/price-history")
+    async def get_price_history(
+        symbol: str,
+        as_of: str | None = Query(
+            None,
+            description="Point-in-time date (ISO format). Defaults to latest.",
+        ),
+    ) -> dict:
+        """Return point-in-time daily OHLCV bars for price-chart rendering."""
+        from datetime import timedelta
+        from src.data.providers.yahoo_provider import YahooFinanceMarketDataProvider
+
+        as_of_dt = (
+            datetime.fromisoformat(as_of).replace(tzinfo=timezone.utc)
+            if as_of
+            else datetime.now(timezone.utc)
+        )
+        end_date = as_of_dt.date()
+        start_date = end_date - timedelta(days=800)
+        provider = YahooFinanceMarketDataProvider()
+        bars = provider.get_daily_prices(symbol, start_date, end_date)
+        pit_bars = [bar for bar in bars if bar.trading_date <= end_date]
+
+        return {
+            "symbol": symbol.upper(),
+            "as_of": as_of_dt.isoformat(),
+            "bars": [
+                {
+                    "trading_date": bar.trading_date.isoformat(),
+                    "open": str(bar.open),
+                    "high": str(bar.high),
+                    "low": str(bar.low),
+                    "close": str(bar.close),
+                    "volume": bar.volume,
+                    "adjusted_close": str(bar.adjusted_close) if bar.adjusted_close is not None else None,
+                }
+                for bar in pit_bars
+            ],
+            "bars_returned": len(pit_bars),
+            "history_start": pit_bars[0].trading_date.isoformat() if pit_bars else None,
+            "history_end": pit_bars[-1].trading_date.isoformat() if pit_bars else None,
+            "price_basis": "provider OHLC; adjusted_close supplied separately when available",
+        }
+
     return router
