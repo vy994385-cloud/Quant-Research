@@ -666,17 +666,6 @@ export default function DiscoverPage() {
                           <td className="feed-event">{group.description}</td>
                         </tr>
                       ))}
-                          </span>
-                        </td>
-                        <td><span className="feed-type">{group.category}</span></td>
-                        <td>
-                          {group.statuses.map((status) => (
-                            <Tag key={status} text={formatLabel(status)} tone="amber" />
-                          ))}
-                        </td>
-                        <td className="feed-event">{group.description}</td>
-                      </tr>
-                    ))}
                   </tbody>
                 </table>
               </div>
@@ -765,17 +754,6 @@ export default function DiscoverPage() {
                           <td className="feed-event">{group.description}</td>
                         </tr>
                       ))}
-                          </span>
-                        </td>
-                        <td><span className="feed-type">{group.category}</span></td>
-                        <td>
-                          {group.statuses.map((status) => (
-                            <Tag key={status} text={formatLabel(status)} tone="amber" />
-                          ))}
-                        </td>
-                        <td className="feed-event">{group.description}</td>
-                      </tr>
-                    ))}
                   </tbody>
                 </table>
               </div>
