@@ -398,12 +398,11 @@ export default function MarketIntelligencePage() {
 
   return (
     <div className="page-market-intelligence">
-      <section className="page-hero">
-        <p className="page-kicker">Research</p>
-        <h1>Market Intelligence</h1>
+      <section className="page-hero mi-page-hero">
+        <p className="page-kicker">MARKETS</p>
+        <h1>Market Overview</h1>
         <p className="page-subtitle">
-          Observed market behavior: price movement, returns, trend and volatility regimes,
-          volume activity, drawdowns, and gap events. No scores, no recommendations, no trade signals.
+          Market-feed availability and company-level price context. Select a company to inspect its historical market behaviour and calculations.
         </p>
       </section>
 
@@ -487,22 +486,9 @@ export default function MarketIntelligencePage() {
                   <p>Market levels, breadth, volatility and sector returns will appear here only when timestamped source data is available. Your research universe below is available now.</p>
                   <div className="mi-feed-items"><span>NIFTY 50 · Pending feed</span><span>SENSEX · Pending feed</span><span>India VIX · Pending feed</span><span>Market breadth · Pending feed</span><span>Sector returns · Pending feed</span></div>
                 </div>
-                <section className="mi-default-universe">
-                  <div className="mi-default-section-head">
-                    <div><span className="mi-default-kicker">AVAILABLE RESEARCH COVERAGE</span><h3>Research universe</h3></div>
-                    <p><strong>{researchable.length}</strong> companies <span>·</span> <strong>{new Set(researchable.map((company) => company.sector || "Unclassified")).size}</strong> sectors</p>
-                  </div>
-                  <div className="mi-default-companies">
-                    {researchable.slice(0, 8).map((company) => (
-                      <button key={company.symbol} type="button" onClick={() => void loadCompany(company.symbol)}>
-                        <strong>{company.symbol}</strong>
-                        <span>{company.company_name ?? company.symbol}</span>
-                        <small>{company.sector || "Sector not classified"}</small>
-                      </button>
-                    ))}
-                    {researchable.length === 0 && <p>No researchable companies are currently returned by the discovery service.</p>}
-                  </div>
-                  <p className="mi-default-footnote">This is the currently researchable company universe returned by the discovery service; it is not a count of all listed Indian companies.</p>
+                <section className="mi-default-next-step">
+                  <div><strong>Company-level analysis is available</strong><p>Use the company list to the left to open price history, period returns, trend context, drawdowns and indicator coverage.</p></div>
+                  <span>{researchable.length} tracked companies · {new Set(researchable.map((company) => company.sector || "Unclassified")).size} sectors</span>
                 </section>
               </section>
             )}
@@ -532,10 +518,10 @@ export default function MarketIntelligencePage() {
                 {/* Header */}
                 <div className="mi-header">
                   <div className="mi-header-row">
-                    <span><strong>{tech?.symbol}</strong></span>
-                    <span>Trading date: {formatIso(tech?.trading_date ?? "")}</span>
-                    <span>Analysis cutoff: {formatIso(tech?.as_of ?? "")}</span>
-                    {tech && <span>{tech.bars_used} bars analyzed</span>}
+                    <span className="mi-company-symbol"><strong>{tech?.symbol}</strong></span>
+                    <span>Latest trading date: {formatIso(tech?.trading_date ?? "")}</span>
+                    <span>Calculation run: {formatIso(tech?.as_of ?? "")}</span>
+                    <span>Source: Yahoo Finance</span>
                   </div>
                 </div>
 
@@ -741,7 +727,7 @@ export default function MarketIntelligencePage() {
                   <div className="mi-section-body">
                   <div className="mi-data-quality">
                     <div className="mi-dq-row">
-                      <span>Bars used</span>
+                      <span>Daily observations used in calculations</span>
                       <span className="mono">{tech?.bars_used ?? "\u2014"}</span>
                     </div>
                     <div className="mi-dq-row">
@@ -763,7 +749,7 @@ export default function MarketIntelligencePage() {
                       <span className="mono">Not exposed by this endpoint</span>
                     </div>
                     <div className="mi-dq-row">
-                      <span>Analysis cutoff</span>
+                      <span>Calculation run timestamp</span>
                       <span className="mono">{tech?.as_of ? formatIso(tech.as_of) : "Unavailable"}</span>
                     </div>
                     <div className="mi-dq-row">
