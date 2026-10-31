@@ -477,7 +477,7 @@ export default function DiscoverPage() {
           </div>
         )}
         {!q && suggestedCompanies.length > 0 && (
-          <div className="discover-search-suggestions" aria-label="Start with a tracked company">
+          <div className="discover-search-suggestions" role="group" aria-label="Start with a tracked company">
             <span>Start with a company</span>
             {suggestedCompanies.map((item) => (
               <Link key={item.symbol} to={`/companies/${encodeURIComponent(item.symbol)}`}>
