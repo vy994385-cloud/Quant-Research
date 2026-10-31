@@ -810,6 +810,26 @@ export interface CompanyEvidenceResponse {
   evidence_lineage: F7EvidenceLineage | null
 }
 
+export interface PriceHistoryBar {
+  trading_date: string
+  open: string
+  high: string
+  low: string
+  close: string
+  volume: number
+  adjusted_close: string | null
+}
+
+export interface PriceHistoryResponse {
+  symbol: string
+  as_of: string
+  bars: PriceHistoryBar[]
+  bars_returned: number
+  history_start: string | null
+  history_end: string | null
+  price_basis: string
+}
+
 // ── F8 — Professional Research Report ─────────────────────────
 
 export interface F8ReportItem {
