@@ -106,7 +106,14 @@ export default function DiscoverPage() {
   const tracked = useMemo(() => items.filter((item) => item.research_available), [items])
 
   useEffect(() => {
-    if (tracked.length === 0) return undefined
+    if (tracked.length === 0) {
+      setActivity([])
+      setTechActivity([])
+      setGaps([])
+      setResearchCutoff(null)
+      setFeedsLoading(false)
+      return undefined
+    }
     let cancelled = false
 
     async function run() {
