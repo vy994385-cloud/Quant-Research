@@ -24,7 +24,6 @@ import type {
   DiscoveryItem,
   TechnicalIndicatorSet,
   PriceHistoryResponse,
-  PriceHistoryBar,
 } from "../api/types"
 import { formatIso, formatLabel } from "../lib/format"
 import { Section, Tag } from "../components/ui"
@@ -229,13 +228,17 @@ function PriceChart({ history, loading, error }: {
     })
     const peak = closes.map((value, index) => Math.max(...closes.slice(0, index + 1)))
     const drawdown = closes.map((value, index) => peak[index] > 0 ? ((value / peak[index]) - 1) * 100 : 0)
+    const worstDrawdown = Math.min(...drawdown, -1)
+    const drawdownPoints = drawdown.map((value, index) => `${x(index)},${18 + ((0 - value) / Math.abs(worstDrawdown)) * 48}`).join(" ")
+    const drawdownArea = `48,12 ${drawdownPoints} 868,12`
     const maxVolume = Math.max(...bars.map((bar) => bar.volume), 1)
     return {
       close: line(closes),
       sma20: line(sma(20)),
       sma50: line(sma(50)),
       sma200: line(sma(200)),
-      drawdown: drawdown.map((value, index) => `${x(index)},${18 + ((0 - value) / Math.max(Math.abs(Math.min(...drawdown)), 1)) * 48}`).join(" "),
+      drawdown: drawdownPoints,
+      drawdownArea,
       volumes: bars.map((bar, index) => ({
         x: x(index),
         y: 226 - (bar.volume / maxVolume) * 30,
@@ -270,6 +273,8 @@ function PriceChart({ history, loading, error }: {
         <line x1="48" y1="18" x2="868" y2="18" className="mi-chart-gridline" />
         <line x1="48" y1="101" x2="868" y2="101" className="mi-chart-gridline" />
         <line x1="48" y1="184" x2="868" y2="184" className="mi-chart-gridline" />
+        <text x="42" y="21" textAnchor="end" className="mi-chart-axis">{fmtVal(String(series.max))}</text>
+        <text x="42" y="187" textAnchor="end" className="mi-chart-axis">{fmtVal(String(series.min))}</text>
         {show200 && <polyline points={series.sma200} className="mi-chart-sma mi-chart-sma200" />}
         {show50 && <polyline points={series.sma50} className="mi-chart-sma mi-chart-sma50" />}
         {show20 && <polyline points={series.sma20} className="mi-chart-sma mi-chart-sma20" />}
@@ -289,6 +294,7 @@ function PriceChart({ history, loading, error }: {
         <span>Drawdown from rolling peak</span>
         <svg viewBox="0 0 900 72" role="img" aria-label="Drawdown from running historical peak">
           <line x1="48" y1="12" x2="868" y2="12" className="mi-chart-gridline" />
+          <polygon points={series.drawdownArea} className="mi-chart-drawdown-area" />
           <polyline points={series.drawdown} className="mi-chart-drawdown" />
         </svg>
       </div>
