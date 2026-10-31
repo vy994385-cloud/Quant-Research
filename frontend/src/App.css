@@ -7536,3 +7536,35 @@ tr.evidence-row { cursor: pointer; }
   .terminal-shell .research-workspace .workspace-tabs,
   .terminal-shell .research-workspace .capability-card { animation: none !important; }
 }
+
+
+/* Route-level accents: each workspace has a recognisable, restrained hue. */
+.terminal-shell[data-page="search"] { --page-accent:#83cbd7; --page-accent-soft:rgba(101,190,205,.14); --page-glow:rgba(54,143,159,.16); }
+.terminal-shell[data-page="universe"] { --page-accent:#8fd1ad; --page-accent-soft:rgba(112,192,145,.14); --page-glow:rgba(48,137,91,.15); }
+.terminal-shell[data-page="screener"] { --page-accent:#e0bf82; --page-accent-soft:rgba(207,169,100,.15); --page-glow:rgba(159,119,47,.15); }
+.terminal-shell[data-page="compare"] { --page-accent:#8dcbd0; --page-accent-soft:rgba(104,185,192,.14); --page-glow:rgba(47,133,144,.15); }
+.terminal-shell[data-page="peers"] { --page-accent:#b6a4e8; --page-accent-soft:rgba(157,136,218,.15); --page-glow:rgba(102,78,167,.16); }
+.terminal-shell[data-page="themes"] { --page-accent:#c1a8e8; --page-accent-soft:rgba(171,140,219,.15); --page-glow:rgba(118,82,168,.16); }
+.terminal-shell[data-page="industries"] { --page-accent:#d8b18b; --page-accent-soft:rgba(207,159,112,.15); --page-glow:rgba(157,105,57,.15); }
+.terminal-shell[data-page="financials"] { --page-accent:#82b9e5; --page-accent-soft:rgba(100,164,218,.15); --page-glow:rgba(52,113,173,.16); }
+.terminal-shell[data-page="technical"] { --page-accent:#78cbd0; --page-accent-soft:rgba(89,190,196,.15); --page-glow:rgba(44,137,145,.16); }
+.terminal-shell[data-page="events"] { --page-accent:#dfb579; --page-accent-soft:rgba(211,166,101,.15); --page-glow:rgba(157,112,51,.15); }
+.terminal-shell[data-page="evidence"] { --page-accent:#8acac4; --page-accent-soft:rgba(105,189,181,.15); --page-glow:rgba(49,133,126,.15); }
+.terminal-shell[data-page="coverage"] { --page-accent:#d79b9c; --page-accent-soft:rgba(202,133,137,.14); --page-glow:rgba(151,77,86,.14); }
+.terminal-shell[data-page="workspace"] { --page-accent:#9dd49e; --page-accent-soft:rgba(121,196,124,.14); --page-glow:rgba(64,142,75,.15); }
+.terminal-shell[data-page="watchlists"] { --page-accent:#a9d49a; --page-accent-soft:rgba(139,193,117,.14); --page-glow:rgba(87,139,65,.15); }
+.terminal-shell[data-page="changes"] { --page-accent:#d6ad82; --page-accent-soft:rgba(202,157,106,.15); --page-glow:rgba(151,104,57,.15); }
+.terminal-shell[data-page="alerts"] { --page-accent:#e0bd7d; --page-accent-soft:rgba(210,174,104,.15); --page-glow:rgba(161,123,49,.15); }
+.terminal-shell[data-page="reports"] { --page-accent:#e3b58a; --page-accent-soft:rgba(216,157,105,.14); --page-glow:rgba(172,106,55,.15); }
+.terminal-shell[data-page="report"] { --page-accent:#d9a2b5; --page-accent-soft:rgba(204,143,168,.14); --page-glow:rgba(151,83,111,.15); }
+.terminal-shell[data-page="evidence-package"] { --page-accent:#8bc8d5; --page-accent-soft:rgba(103,180,196,.14); --page-glow:rgba(52,127,145,.15); }
+.terminal-shell[data-page="calendar"] { --page-accent:#d6bf87; --page-accent-soft:rgba(199,174,112,.14); --page-glow:rgba(145,122,58,.15); }
+
+/* Keep route identity visible in section markers and active controls. */
+.terminal-shell[data-page] .panel-kicker,
+.terminal-shell[data-page] .page-kicker { color: var(--page-accent); }
+.terminal-shell[data-page] .workspace-tab.active {
+  color: var(--page-accent);
+  border-color: color-mix(in srgb, var(--page-accent) 52%, transparent);
+  background: var(--page-accent-soft);
+}
