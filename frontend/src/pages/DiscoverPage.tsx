@@ -19,7 +19,7 @@ import "./DiscoverLanding.css"
 
 import { useEffect, useMemo, useState } from "react"
 import { Link } from "react-router-dom"
-import { Activity, ArrowRight, BarChart3, FileSearch, Filter, GitCompareArrows, Search, XCircle } from "lucide-react"
+import { Activity, ArrowRight, BarChart3, FileSearch, Filter, GitCompareArrows } from "lucide-react"
 import {
   fetchCompanyNews,
   fetchCorporateActions,
@@ -88,7 +88,6 @@ function verificationTag(status: string | null): React.ReactNode {
 
 export default function DiscoverPage() {
   const { items, loading: discoveryLoading, error: discoveryError } = useDiscovery()
-  const [query, setQuery] = useState("")
   const [kind, setKind] = useState<"all" | ActivityKind>("all")
   const [days, setDays] = useState<"all" | "7" | "30">("all")
   // Reference point for the time-window filter, captured when feed data
@@ -283,21 +282,6 @@ export default function DiscoverPage() {
 
   /* ── Derived views ──────────────────────────────────────────── */
 
-  const q = query.trim().toLowerCase()
-  const matchedCompanies = useMemo(() => {
-    if (!q) return []
-    return items.filter(
-      (item) =>
-        item.symbol.toLowerCase().includes(q) ||
-        (item.company_name ?? "").toLowerCase().includes(q) ||
-        item.sector.toLowerCase().includes(q),
-    )
-  }, [items, q])
-
-  // Use the actual tracked universe for quick starts; never imply these are
-  // ranked or recommended companies.
-  const suggestedCompanies = useMemo(() => tracked.slice(0, 4), [tracked])
-
   const sectorActivity = useMemo(() => {
     const counts = new Map<string, number>()
     for (const item of items) counts.set(item.sector, (counts.get(item.sector) ?? 0) + 1)
@@ -452,55 +436,7 @@ export default function DiscoverPage() {
           </div>
           <Link className="discover-open-search" to="/discover/search">Open global search <ArrowRight size={15} aria-hidden /></Link>
         </div>
-        <div className="discover-hero-search">
-          <Search size={18} aria-hidden />
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search a company, symbol or sector…"
-            aria-label="Search companies, symbols, or sectors"
-          />
-          {query && (
-            <button
-              type="button"
-              className="search-clear"
-              onClick={() => setQuery("")}
-              aria-label="Clear search"
-            >
-              <XCircle size={15} />
-            </button>
-          )}
-        </div>
-        {q && (
-          <div className="discover-hero-results" role="region" aria-label="Company search results" aria-live="polite">
-            {matchedCompanies.length === 0 ? (
-              <EmptyCopy text="No tracked companies match this search. Try a ticker, company name, or sector." />
-            ) : (
-              <ul className="discover-hero-hits">
-                {matchedCompanies.slice(0, 8).map((item: DiscoveryItem) => (
-                  <li key={item.symbol}>
-                    <Link to={`/companies/${encodeURIComponent(item.symbol)}`}>
-                      <strong>{item.company_name ?? item.symbol}</strong>
-                      <span className="mono">{item.symbol}</span>
-                      <span className="hit-sector">{formatLabel(item.sector)}</span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        )}
-        {!q && suggestedCompanies.length > 0 && (
-          <div className="discover-search-suggestions" role="group" aria-label="Start with a tracked company">
-            <span>Start with a company</span>
-            {suggestedCompanies.map((item) => (
-              <Link key={item.symbol} to={`/companies/${encodeURIComponent(item.symbol)}`}>
-                <span className="mono">{item.symbol}</span>
-                <small>{item.company_name ?? item.symbol}</small>
-              </Link>
-            ))}
-          </div>
-        )}
+        <p className="discover-hero-hint">Use the global search in the top bar to find a company or symbol, or open <Link to="/discover/search">Global Search</Link> for broader research discovery.</p>
       </section>
 
       <div className="landing-section-intro landing-section-intro-compact">
