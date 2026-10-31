@@ -7519,7 +7519,7 @@ tr.evidence-row { cursor: pointer; }
 }
 @media (max-width: 900px) {
   .terminal-shell .research-workspace { padding: 20px 18px 48px; }
-  .terminal-shell .research-workspace::before { inset-left: 0; }
+  .terminal-shell .research-workspace::before { left: 0; }
 }
 @media (max-width: 560px) {
   .terminal-shell .research-workspace { padding: 16px 12px 36px; }
