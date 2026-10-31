@@ -4,16 +4,16 @@
  * Structure:
  *   TOP COMMAND BAR   global search · contextual actions
  *   LEFT PRIMARY NAV  workflow-aligned research terminal navigation
- *                     MARKETS · DISCOVER · ANALYZE · TRACK · RESEARCH · ASSETS
+ *                     MARKETS · DISCOVER · RESEARCH LAB · QUANT LAB · MONITOR · OUTPUT
  *   MAIN CANVAS       the routed research workspace
  *
  * Navigation expresses the user workflow:
  *   MARKETS   → understand market conditions and scheduled events
  *   DISCOVER  → find companies, themes and research opportunities
  *   ANALYZE   → investigate fundamentals, technicals and evidence
- *   TRACK     → maintain watchlists and follow changes
- *   RESEARCH  → create reports and evidence packages
- *   ASSETS    → explore supported asset classes
+ *   MONITOR    → maintain watchlists and follow changes
+ *   OUTPUT     → create reports and evidence packages
+ *   QUANT LAB → explore screening, comparison and supported asset classes
  */
 
 import { useCallback, useEffect, useRef, useState } from "react"
@@ -83,28 +83,26 @@ const NAV_GROUPS: NavGroup[] = [
       { to: "/discover", label: "Research Home", icon: Home },
       { to: "/discover/search", label: "Global Search", icon: Search },
       { to: "/companies", label: "Companies", icon: Building2 },
-      { to: "/screener", label: "Stock Screener", icon: Filter },
-      { to: "/compare", label: "Compare", icon: GitCompareArrows },
       { to: "/themes", label: "Themes", icon: Lightbulb },
       { to: "/industries", label: "Industries", icon: BarChart3 },
-      { to: "/peer-research", label: "Peer Research", icon: GitCompareArrows },
     ],
   },
   {
-    id: "analyze",
-    label: "Analyze",
+    id: "research-lab",
+    label: "Research Lab",
     icon: LineChart,
     items: [
-      { to: "/financial-intelligence", label: "Financials", icon: BarChart3 },
+      { to: "/financial-intelligence", label: "Financial Intelligence", icon: BarChart3 },
+      { to: "/peer-research", label: "Peer Research", icon: GitCompareArrows },
       { to: "/technical", label: "Technical Analysis", icon: TrendingUp },
       { to: "/events", label: "News & Events", icon: Clock },
-      { to: "/evidence", label: "Evidence", icon: Shield },
+      { to: "/evidence", label: "Evidence Center", icon: Shield },
       { to: "/research-gaps", label: "Coverage & Gaps", icon: AlertTriangle },
     ],
   },
   {
-    id: "track",
-    label: "Track",
+    id: "monitor",
+    label: "Monitor",
     icon: Activity,
     items: [
       { to: "/my-research", label: "My Workspace", icon: UserRound },
@@ -114,20 +112,22 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    id: "research",
-    label: "Research",
+    id: "output",
+    label: "Output",
     icon: FileOutput,
     items: [
       { to: "/reports", label: "Reports Library", icon: Layers },
-      { to: "/professional-report", label: "Research Report", icon: FileText },
-      { to: "/evidence-package", label: "Evidence Package", icon: FileSearch },
+      { to: "/professional-report", label: "Research Reports", icon: FileText },
+      { to: "/evidence-package", label: "Evidence Packages", icon: FileSearch },
     ],
   },
   {
-    id: "assets",
-    label: "Asset Classes",
+    id: "quant-lab",
+    label: "Quant Lab",
     icon: Landmark,
     items: [
+      { to: "/screener", label: "Advanced Screener", icon: Filter },
+      { to: "/compare", label: "Compare", icon: GitCompareArrows },
       { to: "/asset-classes/stocks", label: "Equities", icon: TrendingUp },
       { to: "/asset-classes/etf", label: "ETFs", icon: Layers },
       { to: "/asset-classes/mutual-funds", label: "Mutual Funds", icon: Landmark },
