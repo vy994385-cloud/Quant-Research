@@ -26,7 +26,7 @@ function observation(metric: string): DeepMetricObservation {
 describe("financial observation formatting", () => {
   it("formats total assets as a currency amount, not a percentage", () => {
     expect(fmtObsValue(observation("total_assets"), "52621193200000"))
-      .toBe("5,262,119 crore")
+      .toBe("52,62,119 crore")
   })
 
   it("formats known ratio metrics as percentages", () => {
@@ -36,6 +36,6 @@ describe("financial observation formatting", () => {
 
   it("does not assume an unknown metric is a percentage", () => {
     expect(fmtObsValue(observation("unclassified_metric"), "123456"))
-      .toBe("123,456")
+      .toBe("1,23,456")
   })
 })
