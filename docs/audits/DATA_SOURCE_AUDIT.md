@@ -122,3 +122,55 @@ Changed `frontend/src/components/CompanyEventsPanel.tsx`:
 This is a deliberately narrow UI integrity fix. It does not pretend to implement the missing backend endpoints or create live event ingestion. The next implementation must establish the API contracts and connect a real source adapter to the existing event normalization pipeline.
 
 **Verification status:** static patch applied through GitHub. Automated frontend tests/build have not yet been run against this isolated branch; do not treat this change as runtime-verified.
+
+
+## Final audit checkpoint — product coverage and build priorities
+
+**Audit status:** Phase 0 static repository audit is complete for architecture, core company workflow, provider/data semantics, API wiring, deployment configuration and the first competitor capability benchmark. This is not a runtime certification: provider requests, deployed CORS, full build/test suites and live data entitlements have not been independently verified in this audit.
+
+### Company workspace integration findings
+
+- The production FastAPI entrypoint is `src.api.main:app` and registers the recorded research, fundamentals, technical, business, events, ownership, analyst, timeline, attribution, validation, F6/F7/F8, capability and change routers.
+- The frontend API client calls news and corporate-actions endpoints that are absent from this backend branch. The company Events UI now exposes each request's status, but the missing backend endpoints remain unresolved.
+- The separate `/{symbol}/events` analysis endpoint still passes an empty event collection to the analysis engine. It must be labelled not integrated until a source adapter is connected.
+- Ownership from the inspected Yahoo provider is a latest snapshot, not a historical ownership-change dataset. Analyst provider failures can be represented as empty typed results. These must not be presented as verified absence of activity.
+- Core company research and professional reports are based on a bounded recorded-fixture universe; other sections use external Yahoo-backed providers. Their data modes must be explicit and must not be blended into a generic "live research" claim.
+- Legacy endpoints and types still contain synthetic demo data and research scores/rankings. They require a consumer/deployment migration plan before removal; they should not be treated as the new product's canonical research contract.
+
+### Competitor capability benchmark (public product documentation)
+
+| Product | Publicly described strengths | QRQuant implication |
+|---|---|---|
+| Koyfin | Custom market dashboards, financial analysis, equity screening, watchlists, alerts, company snapshots, reports and portfolio analytics. [Features](https://www.koyfin.com/features/) · [Plans](https://www.koyfin.com/Pricing/) | Build an integrated research workspace, saved views and reusable dashboards—not isolated company pages. |
+| TradingView | Multi-market charting, technical/fundamental screeners, 100+ fundamental metrics, heatmaps, alerts, financial statements, news and economic calendar. [Features](https://www.tradingview.com/features/) | Treat charts, screeners, heatmaps, calendar and alerting as core navigation, with cross-links into company research. |
+| Trendlyne | Indian-market screeners, shareholding/deal alerts, analyst reports, consensus forecasts, portfolio tools, sector/index heatmaps and corporate-event alerts. [Features](https://trendlyne.com/features/) · [Alerts](https://help.trendlyne.com/support/solutions/articles/84000396716-what-are-the-different-types-of-alerts-) | India-specific ownership disclosures, bulk/block/insider deals, research reports and alert workflows are important competitive requirements. Do not copy its opaque score-led positioning. |
+| TIKR | Global screener, long financial histories, analyst estimates/revisions, transcripts, filings, ownership and investor portfolio tracking. [Platform](https://www.tikr.com/) · [Coverage](https://www.tikr.com/pricing) | Add deep historical financials, estimates/revisions, transcript/document search and ownership history as data licensing/coverage permits. |
+
+This benchmark is a public-feature review, not a hands-on teardown of every authenticated page or a verification of each vendor's data quality and entitlements.
+
+### Consolidated implementation order
+
+**P0 — Integrity and a coherent working vertical slice**
+1. Establish explicit dataset states: live/provider-fetched, recorded, derived, stale, partial, empty, unavailable and not integrated.
+2. Resolve the missing news/corporate-action API contract honestly; connect adapters only where a dependable source and permitted access are established.
+3. Connect the existing event provider → normalizer → analysis path with fixture-backed integration tests.
+4. Add source, publication/availability/effective timestamps, retrieval time, reporting period, units and coverage metadata.
+5. Label ownership as latest snapshot until genuine historical filings/snapshots are ingested; make provider failures distinct from empty data.
+6. Run the frontend tests/build and backend test suite on this exact branch; verify the deployed API hostname and CORS origin.
+
+**P1 — Complete the daily research workflow**
+1. Market overview, sector/industry views, movers, heatmaps and economic/results calendar.
+2. Screener with observable filters, sortable tables, saved screens, compare and export.
+3. Company workspace: price/chart, annual and quarterly financials, ratios/valuation, peers, technicals, ownership, news, filings, corporate actions, analyst estimates/revisions and transcripts.
+4. Watchlists, portfolio tracking, configurable alerts and change feeds.
+5. Research notes, evidence-linked reports, document search and export.
+
+**P2 — Institutional depth and expansion**
+1. Historical exchange filings and ownership/disclosure archive; bulk/block/insider/SAST and rating-agency actions.
+2. Durable ingestion, scheduling, retries, provider health, backfills, deduplication, entitlements and data licensing.
+3. Point-in-time replay across every dataset, not only recorded fixtures.
+4. ETF, mutual fund, IPO, derivatives, global equities, macro, FX and commodities as each data domain reaches verified coverage.
+
+### Exit decision
+
+The audit is sufficient to start implementation; continuing broad static inspection before building would have diminishing returns. Remaining verification is attached to the relevant implementation checkpoints. Keep this branch isolated from `main`. Do not merge or deploy until exact-branch automated tests/build and production API/CORS checks pass.
