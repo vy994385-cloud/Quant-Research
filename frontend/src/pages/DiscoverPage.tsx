@@ -432,12 +432,15 @@ export default function DiscoverPage() {
   return (
     <div className="page-discover discover-landing">
       {/* 1. Research Home hero — global search */}
-      <section className="discover-hero" aria-label="Search the research universe">
-        <p className="page-kicker"><Sparkles size={14} aria-hidden /> A clearer way to research</p>
-        <h1>Research with clarity. <span>Discover with confidence.</span></h1>
-        <p className="page-subtitle">
-          Explore companies, follow meaningful developments, compare financials and trace every insight back to its evidence. Your research, all in one thoughtful workspace.
-        </p>
+      <section className="discover-hero discover-hero-compact" aria-label="Research Home">
+        <div className="discover-hero-heading">
+          <div>
+            <p className="page-kicker">RESEARCH WORKSPACE</p>
+            <h1>Research Home</h1>
+            <p className="page-subtitle">Your tracked universe, recent activity and coverage status in one place.</p>
+          </div>
+          <Link className="discover-open-search" to="/discover/search">Open global search <ArrowRight size={15} aria-hidden /></Link>
+        </div>
         <div className="discover-hero-search">
           <Search size={18} aria-hidden />
           <input
@@ -489,13 +492,9 @@ export default function DiscoverPage() {
         )}
       </section>
 
-      <div className="landing-quicklinks" aria-label="Explore research tools">
-        <Link to="/companies" className="landing-quicklink"><span className="landing-icon peach"><BarChart3 size={20} /></span><strong>Explore companies</strong><small>Profiles, financials and evidence</small><ArrowRight size={17} aria-hidden /></Link>
-        <Link to="/screener" className="landing-quicklink"><span className="landing-icon lavender"><Filter size={20} /></span><strong>Screen the universe</strong><small>Filter by the facts that matter</small><ArrowRight size={17} aria-hidden /></Link>
-        <Link to="/compare" className="landing-quicklink"><span className="landing-icon mint"><GitCompareArrows size={20} /></span><strong>Compare side by side</strong><small>See differences with context</small><ArrowRight size={17} aria-hidden /></Link>
-        <Link to="/evidence" className="landing-quicklink"><span className="landing-icon butter"><ShieldCheck size={20} /></span><strong>Follow the evidence</strong><small>Sources, dates and provenance</small><ArrowRight size={17} aria-hidden /></Link>
+      <div className="landing-section-intro landing-section-intro-compact">
+        <div><span className="landing-eyebrow">YOUR RESEARCH DESK</span><h2>Latest research activity</h2><p>Recent recorded developments across the tracked universe.</p></div>
       </div>
-      <div className="landing-section-intro"><div><span className="landing-eyebrow">YOUR RESEARCH DESK</span><h2>Fresh from your universe</h2><p>Recorded developments and research activity, with source context—not popularity rankings.</p></div><Link to="/discover/search">Open global search <ArrowRight size={15} aria-hidden /></Link></div>
 
       {discoveryLoading && (
         <div className="loading-state" role="status">
@@ -587,104 +586,13 @@ export default function DiscoverPage() {
             )}
           </section>
 
-          {/* 3. Supporting feeds — secondary */}
-          <div className="discover-secondary stagger-children">
-            {/* Financial disclosures */}
-            {!feedsLoading && disclosures.length > 0 && (
-              <section className="discover-section discover-compact" aria-label="Financial disclosures">
-                <SectionDivider label="Financial disclosures" />
-                {renderStreamTable(disclosures, STREAM_HEADERS)}
-              </section>
-            )}
-
-            {/* Business developments */}
-            {!feedsLoading && businessDevelopments.length > 0 && (
-              <section className="discover-section discover-compact" aria-label="Company developments">
-                <SectionDivider label="Company developments" />
-                {renderStreamTable(businessDevelopments, STREAM_HEADERS)}
-              </section>
-            )}
-
-            {/* Corporate actions */}
-            {!feedsLoading && actionsFeed.length > 0 && (
-              <section className="discover-section discover-compact" aria-label="Corporate actions">
-                <SectionDivider label="Corporate actions" />
-                {renderStreamTable(actionsFeed, STREAM_HEADERS)}
-              </section>
-            )}
-
-            {/* Technology activity */}
-            {!feedsLoading && techRows.length > 0 && (
-              <section className="discover-section discover-compact" aria-label="Technology developments">
-                <SectionDivider label="Technology developments" />
-                <div className="table-scroll">
-                  <table className="feed-table">
-                    <thead>
-                      <tr>
-                        <th scope="col">Company</th>
-                        <th scope="col">Development</th>
-                        <th scope="col">Group</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {techRows.map((item) => (
-                        <tr key={item.key}>
-                          <td>{companyCell(item.symbol)}</td>
-                          <td className="feed-event">{item.text}</td>
-                          <td><span className="feed-type">{item.group}</span></td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </section>
-            )}
-          </div>
-
-          {/* 4. Coverage changes — gap status across the universe */}
-          {!feedsLoading && gaps.length > 0 && (
-            <section className="discover-section discover-compact" aria-label="Coverage changes">
-              <SectionDivider label="Coverage changes" />
-              <div className="table-scroll">
-                <table className="feed-table">
-                  <thead>
-                    <tr>
-                      <th scope="col">Companies</th>
-                      <th scope="col">Area</th>
-                      <th scope="col">Status</th>
-                      <th scope="col">Missing / limited information</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {gapGroups.slice(0, 8)
-                      .flatMap((group) => group.symbols.map((symbol) => ({ group, symbol })))
-                      .map(({ group, symbol }) => (
-                        <tr key={"cov-" + group.key + "-" + symbol}>
-                          <td>{companyCell(symbol)}</td>
-                          <td><span className="feed-type">{group.category}</span></td>
-                          <td>{group.statuses.map((status) => <Tag key={status} text={formatLabel(status)} tone="amber" />)}</td>
-                          <td className="feed-event">{group.description}</td>
-                        </tr>
-                      ))}
-                  </tbody>
-                </table>
-              </div>
-              <p className="feed-more">
-                Full coverage center in <Link to="/research-gaps">Coverage &amp; Gaps</Link>.
-              </p>
-            </section>
-          )}
+          {/* One activity stream only. Detailed category feeds live on their own pages. */}
 
           {/* 5. Recently researched — quick return to recent work */}
           {recentVisits.length > 0 && (
             <section className="discover-section" aria-label="Recently researched">
               <SectionDivider label="Recently researched" />
               <div className="company-table">
-                <div className="company-table-head">
-                  <span className="col-symbol">Symbol</span>
-                  <span className="col-name">Company</span>
-                  <span className="col-sector">Sector</span>
-                </div>
                 {recentVisits.map((item) => (
                   <Link
                     key={item.symbol}
@@ -702,64 +610,53 @@ export default function DiscoverPage() {
             </section>
           )}
 
-          {/* 5. Themes & Industries — quick navigation to research domains */}
-          <section className="discover-section" aria-label="Themes and industries">
-            <SectionDivider label="Themes &amp; industries" />
+          {/* Only expose research domains that have a real destination; no unsupported theme claims. */}
+          <section className="discover-section" aria-label="Research tools">
+            <SectionDivider label="Research tools" />
             <div className="discover-domains">
-              <Link to="/themes" className="discover-domain-card">
-                <Lightbulb size={16} />
-                <span>Themes</span>
-                <small>AI, Cloud, Semiconductors, and more</small>
-              </Link>
               <Link to="/industries" className="discover-domain-card">
                 <BarChart3 size={16} />
                 <span>Industries</span>
-                <small>Sector-level intelligence</small>
+                <small>Browse the currently tracked sector universe</small>
               </Link>
               <Link to="/screener" className="discover-domain-card">
                 <Filter size={16} />
                 <span>Screener</span>
-                <small>Multi-criteria research filter</small>
+                <small>Explore supported company filters</small>
               </Link>
               <Link to="/compare" className="discover-domain-card">
                 <GitCompareArrows size={16} />
                 <span>Compare</span>
-                <small>Side-by-side evidence comparison</small>
+                <small>Compare available company research side by side</small>
               </Link>
             </div>
           </section>
 
-          {/* 6. Research gaps — what's missing */}
-          {!feedsLoading && gapGroups.length > 0 && (
-            <section className="discover-section discover-compact discover-wide" aria-label="Research gaps">
-              <SectionDivider label="Research gaps" />
-              <div className="table-scroll">
-                <table className="feed-table">
-                  <thead>
-                    <tr>
-                      <th scope="col">Companies</th>
-                      <th scope="col">Area</th>
-                      <th scope="col">Status</th>
-                      <th scope="col">Missing / limited information</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {gapGroups.slice(0, SECTION_CAP)
-                      .flatMap((group) => group.symbols.map((symbol) => ({ group, symbol })))
-                      .map(({ group, symbol }) => (
-                        <tr key={group.key + "-" + symbol}>
-                          <td>{companyCell(symbol)}</td>
-                          <td><span className="feed-type">{group.category}</span></td>
-                          <td>{group.statuses.map((status) => <Tag key={status} text={formatLabel(status)} tone="amber" />)}</td>
-                          <td className="feed-event">{group.description}</td>
-                        </tr>
-                      ))}
-                  </tbody>
-                </table>
+          {/* Coverage summary belongs on the home page; the full gap register stays in Coverage & Gaps. */}
+          {!feedsLoading && (
+            <section className="discover-section discover-coverage-summary" aria-label="Coverage overview">
+              <div className="discover-section-heading">
+                <div><span className="landing-eyebrow">DATA COVERAGE</span><h2>Coverage overview</h2><p>Reported gaps across the currently tracked universe—not a measure of company quality.</p></div>
+                <Link to="/research-gaps">Open Coverage &amp; Gaps <ArrowRight size={15} aria-hidden /></Link>
               </div>
-              <p className="feed-more">
-                Full control center in <Link to="/research-gaps">Coverage &amp; Gaps</Link>.
-              </p>
+              {gapGroups.length === 0 ? (
+                <EmptyCopy text="No coverage gaps were returned for this universe. This does not mean every data domain is complete." />
+              ) : (
+                <div className="coverage-summary-grid">
+                  <div><strong>{gapGroups.length}</strong><span>Research areas with reported gaps</span></div>
+                  <div><strong>{new Set(gaps.map((gap) => gap.symbol)).size}</strong><span>Companies affected</span></div>
+                  <div><strong>{gaps.length}</strong><span>Gap records returned</span></div>
+                </div>
+              )}
+              <div className="coverage-area-list">
+                {gapGroups.slice(0, 6).map((group) => (
+                  <div className="coverage-area-row" key={group.key}>
+                    <span>{group.category}</span>
+                    <span className="coverage-area-companies">{group.symbols.slice(0, 6).map((symbol) => <Link key={symbol} to={`/companies/${encodeURIComponent(symbol)}`} className="mono">{symbol}</Link>)}{group.symbols.length > 6 ? <small>+{group.symbols.length - 6} more</small> : null}</span>
+                    <Tag text={`${group.symbols.length} affected`} tone="amber" />
+                  </div>
+                ))}
+              </div>
             </section>
           )}
 
