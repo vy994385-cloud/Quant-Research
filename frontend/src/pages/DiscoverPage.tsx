@@ -400,13 +400,13 @@ export default function DiscoverPage() {
                 <td>
                   <Tag text={row.kind} tone={row.kind === "Observation" ? "blue" : "slate"} />
                 </td>
-                <td>{row.origin ?? "\u2014"}</td>
-                <td>
-                  {row.qualifier
-                    ? row.kind === "Observation"
-                      ? <span className="feed-type">{row.qualifier}</span>
-                      : verificationTag(row.qualifier)
-                    : "\u2014"}
+                <td className="feed-meta-cell">
+                  <small>{row.kind === "Observation" ? "Reliability" : "Source"}</small>
+                  <span>{row.origin ?? "\u2014"}</span>
+                </td>
+                <td className="feed-meta-cell">
+                  <small>{row.kind === "Observation" ? "Basis" : "Verification"}</small>
+                  <span>{row.qualifier ? row.kind === "Observation" ? row.qualifier : verificationTag(row.qualifier) : "\u2014"}</span>
                 </td>
               </tr>
             ))}
@@ -416,7 +416,7 @@ export default function DiscoverPage() {
     )
   }
 
-  const STREAM_HEADERS = ["Date", "Company", "Event / observation", "Kind", "Source · reliability", "Verification · basis"]
+  const STREAM_HEADERS = ["Event date", "Company", "Event / observation", "Kind", "Provenance", "Validation context"]
 
   /* ── Render ─────────────────────────────────────────────────── */
 
