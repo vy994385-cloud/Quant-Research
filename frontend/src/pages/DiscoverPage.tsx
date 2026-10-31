@@ -1,3 +1,4 @@
+import "./DiscoverLanding.css"
 /**
  * RESEARCH HOME — the daily entry point of the evidence-first research terminal.
  *
@@ -18,7 +19,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { Link } from "react-router-dom"
-import { Activity, BarChart3, FileSearch, Filter, GitCompareArrows, Lightbulb, Search, XCircle } from "lucide-react"
+import { Activity, ArrowRight, BarChart3, FileSearch, Filter, GitCompareArrows, Lightbulb, Search, ShieldCheck, Sparkles, XCircle } from "lucide-react"
 import {
   fetchCompanyNews,
   fetchCorporateActions,
@@ -425,22 +426,20 @@ export default function DiscoverPage() {
   }, [items])
 
   return (
-    <div className="page-discover">
+    <div className="page-discover discover-landing">
       {/* 1. Research Home hero — global search */}
       <section className="discover-hero" aria-label="Search the research universe">
-        <p className="page-kicker">Research home</p>
-        <h1>What&apos;s new in the research universe?</h1>
+        <p className="page-kicker"><Sparkles size={14} aria-hidden /> A clearer way to research</p>
+        <h1>Research with clarity. <span>Discover with confidence.</span></h1>
         <p className="page-subtitle">
-          The most recent recorded activity across the tracked universe — developments,
-          disclosures, corporate actions and derived observations. Recency only;
-          nothing here is ranked or scored.
+          Explore companies, follow meaningful developments, compare financials and trace every insight back to its evidence. Your research, all in one thoughtful workspace.
         </p>
         <div className="discover-hero-search">
           <Search size={18} aria-hidden />
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search companies, symbols, sectors — TCS, Infosys, Pharma…"
+            placeholder="Search a company, symbol or sector…"
             aria-label="Search companies, symbols, or sectors"
           />
           {query && (
@@ -474,6 +473,14 @@ export default function DiscoverPage() {
           </div>
         )}
       </section>
+
+      <div className="landing-quicklinks" aria-label="Explore research tools">
+        <Link to="/companies" className="landing-quicklink"><span className="landing-icon peach"><BarChart3 size={20} /></span><strong>Explore companies</strong><small>Profiles, financials and evidence</small><ArrowRight size={17} aria-hidden /></Link>
+        <Link to="/screener" className="landing-quicklink"><span className="landing-icon lavender"><Filter size={20} /></span><strong>Screen the universe</strong><small>Filter by the facts that matter</small><ArrowRight size={17} aria-hidden /></Link>
+        <Link to="/compare" className="landing-quicklink"><span className="landing-icon mint"><GitCompareArrows size={20} /></span><strong>Compare side by side</strong><small>See differences with context</small><ArrowRight size={17} aria-hidden /></Link>
+        <Link to="/evidence" className="landing-quicklink"><span className="landing-icon butter"><ShieldCheck size={20} /></span><strong>Follow the evidence</strong><small>Sources, dates and provenance</small><ArrowRight size={17} aria-hidden /></Link>
+      </div>
+      <div className="landing-section-intro"><div><span className="landing-eyebrow">YOUR RESEARCH DESK</span><h2>Fresh from your universe</h2><p>Recorded developments and research activity, with source context—not popularity rankings.</p></div><Link to="/discover/search">Open global search <ArrowRight size={15} aria-hidden /></Link></div>
 
       {discoveryLoading && (
         <div className="loading-state" role="status">
