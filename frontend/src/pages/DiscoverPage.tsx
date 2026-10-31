@@ -101,6 +101,7 @@ export default function DiscoverPage() {
   >([])
   const [gaps, setGaps] = useState<ResearchGap[]>([])
   const [feedsLoading, setFeedsLoading] = useState(true)
+  const [researchCutoff, setResearchCutoff] = useState<string | null>(null)
 
   const tracked = useMemo(() => items.filter((item) => item.research_available), [items])
 
@@ -120,6 +121,9 @@ export default function DiscoverPage() {
           Promise.allSettled(symbols.map((symbol) => fetchResearchGaps(symbol))),
         ])
       if (cancelled) return
+
+      const firstResearch = researches.find((result) => result.status === "fulfilled")
+      setResearchCutoff(firstResearch?.status === "fulfilled" ? firstResearch.value.company.as_of : null)
 
       /* Pool every recorded item into ONE activity stream. The same event can
        * surface through several feeds; a fingerprint keeps it once. Per-kind /
@@ -515,6 +519,12 @@ export default function DiscoverPage() {
       {!discoveryLoading && !discoveryError && (
         <>
           {/* Universe summary strip */}
+          {researchCutoff && (
+            <div className="research-cutoff-note" role="note">
+              <strong>Recorded research replay</strong>
+              <span>Point-in-time cutoff: {formatIsoShort(researchCutoff)} · This is the research replay date, not a live market-data timestamp.</span>
+            </div>
+          )}
           <section className="home-summary" aria-label="Universe summary">
             <div className="summary-stat">
               <strong>{tracked.length}</strong>
