@@ -169,7 +169,7 @@ function GapIndicator({
     <div className={`mi-gap ${isUp ? "up" : "down"}`}>
       {isUp ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
       <span>
-        {formatLabel(gapType)} gap of {fmtPct(gapPct)}
+        {formatLabel(gapType ?? "")} gap of {fmtPct(gapPct)}
       </span>
     </div>
   )
@@ -230,7 +230,7 @@ function PriceChart({ history, loading, error }: {
       const window = allCloses.slice(endIndex + 1 - period, endIndex + 1)
       return window.length === period && window.every(Number.isFinite) ? window.reduce((sum, value) => sum + value, 0) / period : null
     })
-    const peak = closes.map((value, index) => Math.max(...closes.slice(0, index + 1)))
+    const peak = closes.map((_, index) => Math.max(...closes.slice(0, index + 1)))
     const drawdown = closes.map((value, index) => peak[index] > 0 ? ((value / peak[index]) - 1) * 100 : 0)
     const worstDrawdown = Math.min(...drawdown, -1)
     const drawdownPoints = drawdown.map((value, index) => `${x(index)},${18 + ((0 - value) / Math.abs(worstDrawdown)) * 48}`).join(" ")
