@@ -93,3 +93,17 @@ A second pass inspected the complete `src/api` directory listing, the production
 - Render backend CORS allowlist currently names `https://quant-research-frontend.onrender.com` and localhost origins. The blueprint itself warns that the actual Render static-site origin must be verified after deployment. The configured API hostname and CORS origin therefore require live deployment verification before calling production integration healthy.
 - No Vercel configuration file exists at the audited branch root. This audit cannot confirm any separately configured Vercel deployment from repository files alone.
 
+
+
+## Test audit: event and provider integration
+
+The repository does contain event-domain foundations and tests; the gap is integration, not total absence of event code.
+
+- `src/events/provider.py` defines a provider request/raw-event contract, and `src/events/normalizer.py` normalizes events with provenance and publication/availability ordering. Their tests cover symbol normalization, required source URLs, availability-after-publication, sorting and duplicate IDs.
+- `tests/test_event_analysis.py` tests classification, clustering, counts and empty-input behavior. Its empty-input test explicitly accepts zero events plus explanatory notes.
+- `tests/test_phase3_routers.py` tests the `/events` route but allows either HTTP 200 or HTTP 500. It checks response shape only; it does not assert that the route is connected to a provider or that an event can flow end-to-end from source to API.
+- The inspected `events_router.py` still constructs `events: list[CompanyEvent] = []` and does not call the event provider abstraction or normalizer.
+- The test tree contains no dedicated tests for the frontend's `/news` and `/corporate-actions` API contracts, and the backend route tree has no such routes.
+- `tests/test_phase5a_provider_fixes.py` uses mocked Yahoo payloads for analyst/ownership/financial provider parsing. These are useful parser contract tests, not evidence of production provider availability, data freshness, full coverage, or stable external API access.
+
+**Revised priority:** retain the existing event provider/normalizer/analysis layers. The first implementation should connect a real source adapter to the normalized event contract, then expose one coherent API contract for news + corporate actions + event analysis. Add deterministic integration tests with fixture payloads and explicit empty/unavailable/partial states. Avoid creating parallel duplicate event pipelines.
