@@ -136,6 +136,7 @@ export default function CompanyEventsPanel({
   const [actions, setActions] = useState<CorporateActionItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<ApiError | string | null>(null)
+  const [sourceStatus, setSourceStatus] = useState<{ news: string; actions: string }>({ news: "Loading", actions: "Loading" })
   const [bucket, setBucket] = useState<Bucket>("all")
   const [expanded, setExpanded] = useState<string | null>(null)
 
@@ -156,6 +157,14 @@ export default function CompanyEventsPanel({
             ? (actionResult.value.corporate_actions?.items ?? [])
             : [],
         )
+        setSourceStatus({
+          news: newsResult.status === "fulfilled"
+            ? (newsResult.value.news?.items?.length ? "Available" : "No records returned")
+            : "Unavailable — source request failed",
+          actions: actionResult.status === "fulfilled"
+            ? (actionResult.value.corporate_actions?.items?.length ? "Available" : "No records returned")
+            : "Unavailable — source request failed",
+        })
         if (
           newsResult.status === "rejected" &&
           actionResult.status === "rejected"
@@ -217,6 +226,14 @@ export default function CompanyEventsPanel({
           </span>
         </div>
       </div>
+
+      {!loading && (
+        <div className="panel-notes" role="status" aria-live="polite">
+          <p>News feed: {sourceStatus.news}</p>
+          <p>Corporate actions: {sourceStatus.actions}</p>
+          <p>Recorded research timeline: {timelineEntries.length ? `${timelineEntries.length} entries` : "No entries supplied"}</p>
+        </div>
+      )}
 
       <FilterChips
         ariaLabel="Filter events by category"
