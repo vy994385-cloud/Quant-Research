@@ -145,6 +145,7 @@ function isRatioMetric(obs: DeepMetricObservation): boolean {
     m.endsWith("_yield") ||
     m.includes("growth") ||
     m.includes("conversion") ||
+    m.includes("debt_to_revenue") ||
     m === "roe" ||
     m === "roce"
   )
