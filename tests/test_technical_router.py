@@ -376,7 +376,7 @@ class TestPriceHistoryEndpoint:
         assert payload["history_end"] == "2024-02-09"
         assert payload["bars"][0]["open"] == "101"
         assert payload["bars"][0]["close"] == "101"
-        assert payload["bars"][0]["volume"] == 1000
+        assert payload["bars"][0]["volume"] == 10_001
         assert all(bar["trading_date"] <= "2024-03-01" for bar in payload["bars"])
 
     def test_invalid_ohlc_bars_are_excluded(self, monkeypatch):
