@@ -350,3 +350,57 @@ class TestAdLineContract:
     def test_contract_accepts_fractional_decimal_strings_directly(self, value):
         contract = ContractTechnicalIndicatorSet(ad_line=value)
         assert contract.ad_line == value
+
+
+class TestPriceHistoryEndpoint:
+    def test_returns_point_in_time_ohlcv_bars(self, monkeypatch):
+        from fastapi.testclient import TestClient
+        from src.api import main
+
+        monkeypatch.setattr(
+            "src.data.providers.yahoo_provider.YahooFinanceMarketDataProvider",
+            lambda: _FixtureMarketProvider("HDFCBANK"),
+        )
+
+        response = TestClient(main.app).get(
+            "/api/v1/companies/HDFCBANK/price-history",
+            params={"as_of": "2024-03-01"},
+        )
+
+        assert response.status_code == 200, response.text
+        payload = response.json()
+        assert payload["symbol"] == "HDFCBANK"
+        assert payload["as_of"].startswith("2024-03-01")
+        assert payload["bars_returned"] == 40
+        assert payload["history_start"] == "2024-01-01"
+        assert payload["history_end"] == "2024-02-09"
+        assert payload["bars"][0]["open"] == "100"
+        assert payload["bars"][0]["close"] == "101"
+        assert payload["bars"][0]["volume"] == 1000
+        assert all(bar["trading_date"] <= "2024-03-01" for bar in payload["bars"])
+
+    def test_invalid_ohlc_bars_are_excluded(self, monkeypatch):
+        from fastapi.testclient import TestClient
+        from src.api import main
+
+        valid = _fractional_ad_bars("HDFCBANK")
+        invalid = valid[-1].model_copy(update={"high": Decimal("1")})
+
+        class Provider:
+            def get_daily_prices(self, symbol, start_date, end_date):
+                return [*valid[:-1], invalid]
+
+        monkeypatch.setattr(
+            "src.data.providers.yahoo_provider.YahooFinanceMarketDataProvider",
+            Provider,
+        )
+
+        response = TestClient(main.app).get(
+            "/api/v1/companies/HDFCBANK/price-history",
+            params={"as_of": "2024-03-01"},
+        )
+
+        assert response.status_code == 200, response.text
+        payload = response.json()
+        assert payload["bars_returned"] == 39
+        assert payload["history_end"] == "2024-02-08"
