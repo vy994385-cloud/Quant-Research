@@ -277,3 +277,39 @@ For each checkpoint:
 7. Pause for product feedback before the next major feature.
 
 **Definition of done:** not merely that a page renders, but that its data path, workflow, failure states, accessibility, source/freshness semantics, tests, and deployment behaviour are verified.
+
+
+## 11. Initial competitor audit — official feature pages checked 31 October 2026
+
+This is an initial feature-surface scan, not a full account-level teardown or a claim that every feature is available in every pricing tier. Confirm plan restrictions, data licensing, and India coverage before selecting integrations.
+
+| Product | Explicitly advertised capability patterns | What QRQuant should learn | QRQuant response |
+|---|---|---|---|
+| [Koyfin](https://www.koyfin.com/features/) | Equity screening, financial analysis, advanced graphing, custom dashboards, watchlists/views, alerts, reports, portfolios, analyst estimates; its help pages also describe news, transcripts, relative performance, and custom formulas | Researchers need reusable views and a connected workflow, not only company pages | Prioritise saved views/screens, consistent chart/table data, watchlist-scoped news, and custom research dashboards after persistence exists |
+| [Screener.in](https://www.screener.in/features/) | Long historical financials, detailed line-item schedules, segment results, Excel export, uploaded spreadsheet templates, watchlists, insider trades, credit ratings, announcements, peer comparison, custom columns/ratios, automatic screen alerts | Deep historical fundamentals and analyst-friendly exports are core workflows in India | Improve historical period alignment, segment coverage, formula definitions, ownership/credit-rating changes, and model-ready exports |
+| [Trendlyne](https://trendlyne.com/features/) | Broad parameter screeners, custom parameters, alerts, share/sector/index views, portfolio analysis, analyst research reports and revisions, mutual-fund and IPO tools | Users expect broad screenable fields, change monitoring, and coverage across Indian-market workflows | Expand the field catalogue only when sourced; build alerting and ratings history with source/date context; add asset classes through separate real data pipelines |
+| [TradingView](https://in.tradingview.com/features/) | Charting, fundamental statements/metrics, multi-timeframe screeners, sector heatmaps, seasonality, and configurable cloud alerts | Market context is visual and time-based; alerts should work across devices and watchlists | Build reliable charts/benchmark-relative context, heatmaps, and event overlays after data quality and timestamps are reliable |
+| [Bloomberg Terminal](https://professional.bloomberg.com/products/bloomberg-terminal/) | Multi-asset market coverage, data and analytics, news, research, charts, collaboration, portfolio analytics, and execution workflows | Professional users value breadth and continuity between data, research, and collaboration | Borrow the integrated workflow concept, not the expensive terminal's entire scope; keep QRQuant focused, explainable, and realistic about licensed data |
+
+### Competitive implications
+
+1. **Expected baseline:** historical fundamentals, segment data, custom screeners/columns, peer comparison, filings/news, shareholding changes, alerts, charts, watchlists, and reliable exports.
+2. **High-value QRQuant differentiation:** every material metric and event can be opened to its source and timestamp; research snapshots are point-in-time; comparisons disclose incomparable/missing data; market-move narratives separate facts from hypotheses.
+3. **Do not copy opaque scoring as a shortcut.** Some competitors promote proprietary scores and recommendations. QRQuant should keep user-selected filters and observed facts transparent.
+4. **Do not promise “everything” by adding tabs.** Data licensing, update cadence, official-source coverage, and historical availability are part of the feature—not implementation details to hide.
+5. **First product wedge:** an excellent India-equity research loop—company fundamentals + official filings/news + shareholding/corporate actions + peer comparison + screener + source-linked reports—before global multi-asset breadth.
+
+### Audit work still required
+
+The next audit pass should inspect all important workflows and pages, including logged-in experiences where accessible, then compare:
+- Coverage universe and history length
+- Metric definitions and period treatment
+- Filings/news source list and update latency
+- Ownership and credit-rating coverage
+- Analyst ratings/target-price revision history
+- Screener fields, custom columns, saved screens, and alert delivery
+- Charting, benchmark comparison, event overlays, and exports
+- API/data licensing, free-vs-paid restrictions, and realistic integration cost
+- Common user complaints and missing workflows
+
+Record each finding as **verified / advertised but not independently verified / unknown**, and convert it into a product decision with user value, data dependency, cost, and acceptance criteria.
