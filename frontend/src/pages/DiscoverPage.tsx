@@ -3,16 +3,12 @@ import "./DiscoverLanding.css"
  * RESEARCH HOME — the daily entry point of the evidence-first research terminal.
  *
  * Layout order:
- *   1. Research context — universe overview with freshness
- *   2. Global research search — one search across the tracked universe
- *   3. What changed — recent changes summary
- *   4. Research activity — everything recorded, recency-ordered
- *      Financial disclosures · Company developments · Technology · Corporate actions
- *   5. Coverage changes — gap status changes across the universe
- *   6. Recently researched — your latest company visits
- *   7. Themes & Industries — quick navigation to research domains
- *   8. Research gaps — what's missing across the universe
- *   9. Company index — the full tracked universe
+ *   1. Compact research header; global search lives in the app command bar
+ *   2. Recorded replay cutoff and universe context
+ *   3. What changed and one unified activity stream
+ *   4. Coverage summary; full register remains on Coverage & Gaps
+ *   5. Recently researched and available research tools
+ *   6. Collapsed company index
  *
  * Recency only — nothing here is ranked or scored.
  */
@@ -99,20 +95,13 @@ export default function DiscoverPage() {
     Array<{ key: string; symbol: string; group: string; text: string }>
   >([])
   const [gaps, setGaps] = useState<ResearchGap[]>([])
-  const [feedsLoading, setFeedsLoading] = useState(true)
+  const [feedsLoading, setFeedsLoading] = useState(false)
   const [researchCutoff, setResearchCutoff] = useState<string | null>(null)
 
   const tracked = useMemo(() => items.filter((item) => item.research_available), [items])
 
   useEffect(() => {
-    if (tracked.length === 0) {
-      setActivity([])
-      setTechActivity([])
-      setGaps([])
-      setResearchCutoff(null)
-      setFeedsLoading(false)
-      return undefined
-    }
+    if (tracked.length === 0) return undefined
     let cancelled = false
 
     async function run() {
