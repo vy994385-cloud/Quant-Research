@@ -7371,3 +7371,168 @@ tr.evidence-row { cursor: pointer; }
   font-weight: var(--weight-bold);
   color: var(--color-text);
 }
+
+
+/* ═══════════════════════════════════════════════════════════════════
+   QRQUANT SPATIAL SYSTEM — foundation layer
+   Route-aware colour, glass depth and scroll motion. Page components
+   keep their own layouts; these tokens unify the experience.
+   ═══════════════════════════════════════════════════════════════════ */
+.terminal-shell {
+  --page-hue: 166;
+  --page-accent: #73cdb8;
+  --page-accent-soft: rgba(115, 205, 184, .13);
+  --page-glow: rgba(37, 153, 133, .12);
+  --glass-bg: rgba(24, 31, 35, .68);
+  --glass-border: rgba(193, 218, 216, .12);
+  --glass-highlight: rgba(255, 255, 255, .055);
+  isolation: isolate;
+}
+.terminal-shell[data-page="markets"] {
+  --page-hue: 202; --page-accent: #7dbce9;
+  --page-accent-soft: rgba(92, 169, 224, .14);
+  --page-glow: rgba(45, 117, 190, .16);
+}
+.terminal-shell[data-page="discover"] {
+  --page-hue: 164; --page-accent: #85d6b2;
+  --page-accent-soft: rgba(103, 196, 153, .14);
+  --page-glow: rgba(36, 148, 112, .16);
+}
+.terminal-shell[data-page="company"] {
+  --page-hue: 252; --page-accent: #b4a3ef;
+  --page-accent-soft: rgba(157, 135, 224, .15);
+  --page-glow: rgba(107, 82, 184, .16);
+}
+.terminal-shell[data-page="track"] {
+  --page-hue: 145; --page-accent: #9bd49b;
+  --page-accent-soft: rgba(120, 193, 128, .14);
+  --page-glow: rgba(61, 143, 86, .15);
+}
+.terminal-shell[data-page="reports"] {
+  --page-hue: 28; --page-accent: #e3b58a;
+  --page-accent-soft: rgba(216, 157, 105, .14);
+  --page-glow: rgba(172, 106, 55, .15);
+}
+.terminal-shell[data-page="assets"] {
+  --page-hue: 42; --page-accent: #dfc17f;
+  --page-accent-soft: rgba(205, 170, 91, .14);
+  --page-glow: rgba(159, 123, 47, .14);
+}
+.terminal-shell[data-page="research"] {
+  --page-hue: 188; --page-accent: #80c8d0;
+  --page-accent-soft: rgba(95, 184, 197, .14);
+  --page-glow: rgba(45, 135, 151, .15);
+}
+.terminal-shell .side-nav {
+  background: linear-gradient(180deg, rgba(12, 17, 21, .97), rgba(10, 13, 17, .99));
+  border-right-color: rgba(181, 206, 211, .10);
+  box-shadow: 12px 0 42px rgba(0, 0, 0, .12);
+}
+.terminal-shell .brand-mark {
+  background: linear-gradient(145deg, color-mix(in srgb, var(--page-accent) 28%, #15242a), #102027);
+  color: var(--page-accent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--page-accent) 40%, transparent), 0 5px 20px var(--page-glow);
+}
+.terminal-shell .side-nav .nav-active,
+.terminal-shell .sidebar-footer .nav-active {
+  background: linear-gradient(90deg, var(--page-accent-soft), rgba(255,255,255,.018));
+}
+.terminal-shell .side-nav .nav-active::before,
+.terminal-shell .sidebar-footer .nav-active::before { background: var(--page-accent); }
+.terminal-shell .side-nav .nav-active svg,
+.terminal-shell .sidebar-footer .nav-active svg { color: var(--page-accent); }
+.terminal-shell .cmd-bar {
+  background: rgba(13, 17, 22, .76);
+  border-bottom-color: rgba(181, 206, 211, .10);
+  backdrop-filter: blur(22px) saturate(145%);
+  -webkit-backdrop-filter: blur(22px) saturate(145%);
+}
+.terminal-shell .command-search:focus-within {
+  border-color: color-mix(in srgb, var(--page-accent) 55%, transparent);
+  box-shadow: 0 0 0 3px var(--page-accent-soft), 0 8px 30px rgba(0,0,0,.12);
+}
+.terminal-shell .command-search button,
+.terminal-shell .refresh-button,
+.terminal-shell .btn-primary {
+  background: var(--page-accent);
+  color: #10201f;
+}
+.terminal-shell .command-search button:hover,
+.terminal-shell .refresh-button:hover,
+.terminal-shell .btn-primary:hover { filter: brightness(1.08); }
+.terminal-shell .research-workspace {
+  position: relative;
+  isolation: isolate;
+  padding-top: clamp(22px, 3vw, 38px);
+}
+.terminal-shell .research-workspace::before {
+  content: "";
+  position: fixed;
+  z-index: -1;
+  pointer-events: none;
+  inset: 58px 0 0 var(--sidebar-width);
+  background:
+    radial-gradient(ellipse at 78% 0%, var(--page-glow), transparent 44%),
+    radial-gradient(ellipse at 8% 48%, color-mix(in srgb, var(--page-glow) 54%, transparent), transparent 42%);
+  opacity: .9;
+}
+/* Shared glass utility for structural surfaces; data tables remain crisp. */
+.glass-surface,
+.terminal-shell .company-header-block,
+.terminal-shell .workspace-tabs,
+.terminal-shell .scr-builder,
+.terminal-shell .capability-card,
+.terminal-shell .discover-section,
+.terminal-shell .home-summary {
+  background: linear-gradient(145deg, rgba(255,255,255,.055), rgba(255,255,255,.018)), var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 16px 44px rgba(0,0,0,.14), inset 0 1px 0 var(--glass-highlight);
+  backdrop-filter: blur(18px) saturate(125%);
+  -webkit-backdrop-filter: blur(18px) saturate(125%);
+}
+.terminal-shell .page-kicker,
+.terminal-shell .panel-kicker { color: var(--page-accent); }
+.terminal-shell a:not(.nav-item):focus-visible,
+.terminal-shell button:focus-visible,
+.terminal-shell input:focus-visible,
+.terminal-shell select:focus-visible { outline-color: var(--page-accent); }
+/* Scroll reveal is progressive enhancement: content remains visible when
+   view timelines are unsupported, and reduced-motion users get no movement. */
+@supports (animation-timeline: view()) {
+  .terminal-shell .research-workspace .page-hero,
+  .terminal-shell .research-workspace .discover-hero,
+  .terminal-shell .research-workspace .landing-quicklink,
+  .terminal-shell .research-workspace .discover-section,
+  .terminal-shell .research-workspace .scr-builder,
+  .terminal-shell .research-workspace .scr-results,
+  .terminal-shell .research-workspace .company-header-block,
+  .terminal-shell .research-workspace .workspace-tabs,
+  .terminal-shell .research-workspace .capability-card {
+    animation: spatial-reveal linear both;
+    animation-timeline: view();
+    animation-range: entry 0% entry 28%;
+  }
+}
+@keyframes spatial-reveal {
+  from { opacity: .42; transform: translateY(22px) scale(.985); filter: blur(3px); }
+  to { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+}
+@media (max-width: 900px) {
+  .terminal-shell .research-workspace { padding: 20px 18px 48px; }
+  .terminal-shell .research-workspace::before { inset-left: 0; }
+}
+@media (max-width: 560px) {
+  .terminal-shell .research-workspace { padding: 16px 12px 36px; }
+  .terminal-shell .cmd-bar { padding-inline: 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .terminal-shell .research-workspace .page-hero,
+  .terminal-shell .research-workspace .discover-hero,
+  .terminal-shell .research-workspace .landing-quicklink,
+  .terminal-shell .research-workspace .discover-section,
+  .terminal-shell .research-workspace .scr-builder,
+  .terminal-shell .research-workspace .scr-results,
+  .terminal-shell .research-workspace .company-header-block,
+  .terminal-shell .research-workspace .workspace-tabs,
+  .terminal-shell .research-workspace .capability-card { animation: none !important; }
+}
