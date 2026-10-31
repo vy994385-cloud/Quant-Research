@@ -104,6 +104,8 @@ const MARGIN_METRICS = ["operating_margin", "net_margin", "gross_margin", "ebitd
 const CASH_FLOW_METRICS = ["cash_from_operations", "operating_cash_flow", "CFO", "free_cash_flow", "FCF"]
 const CAPEX_METRICS = ["capital_expenditure", "capex", "capital_expenditures"]
 const BALANCE_CASH = ["cash_and_equivalents", "cash", "total_cash"]
+const BALANCE_ASSETS = ["total_assets", "current_assets", "non_current_assets", "fixed_assets"]
+const BALANCE_LIABILITIES = ["total_liabilities", "current_liabilities", "non_current_liabilities", "working_capital"]
 const BALANCE_DEBT = ["total_debt", "long_term_debt", "short_term_debt"]
 const BALANCE_EQUITY = ["total_equity", "shareholders_equity", "stockholders_equity"]
 const BALANCE_RECEIVABLES = ["accounts_receivable", "trade_receivables", "receivables"]
@@ -117,6 +119,8 @@ const CURRENCY_METRICS = [
   ...CASH_FLOW_METRICS,
   ...CAPEX_METRICS,
   ...BALANCE_CASH,
+  ...BALANCE_ASSETS,
+  ...BALANCE_LIABILITIES,
   ...BALANCE_DEBT,
   ...BALANCE_EQUITY,
   ...BALANCE_RECEIVABLES,
@@ -131,10 +135,19 @@ const CURRENCY_METRICS = [
  */
 function isRatioMetric(obs: DeepMetricObservation): boolean {
   const m = obs.metric.toLowerCase()
-  if (m.includes("margin") || m.endsWith("_ratio") || m.includes("return_on") || m.endsWith("_yield")) {
-    return true
-  }
-  return !matchMetric(obs, CURRENCY_METRICS)
+  // Only known ratio/percentage semantics are rendered as percentages.
+  // Treating every unrecognised metric as a ratio caused absolute values such
+  // as total_assets to be multiplied by 100 and displayed as enormous percent.
+  return (
+    m.includes("margin") ||
+    m.endsWith("_ratio") ||
+    m.includes("return_on") ||
+    m.endsWith("_yield") ||
+    m.includes("growth") ||
+    m.includes("conversion") ||
+    m === "roe" ||
+    m === "roce"
+  )
 }
 
 /**
@@ -142,7 +155,7 @@ function isRatioMetric(obs: DeepMetricObservation): boolean {
  * as percentages, statement figures follow the crore convention, and any
  * other metric keeps grouped digits — raw floats never leak into the UI.
  */
-function fmtObsValue(obs: DeepMetricObservation, value: string | null): string {
+export function fmtObsValue(obs: DeepMetricObservation, value: string | null): string {
   if (value === null) return "\u2014"
   if (isRatioMetric(obs)) return fmtRatio(value)
   if (matchMetric(obs, CURRENCY_METRICS)) return fmtValue(value)
