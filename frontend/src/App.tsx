@@ -117,6 +117,7 @@ export function AppRoutes() {
         <Route path="/asset-classes/:classId" element={<Page><AssetClassesPage /></Page>} />
 
         {/* ── Legacy redirects (backward compat) ───────────────── */}
+        <Route path="/markets" element={<Navigate to="/market-intelligence" replace />} />
         <Route path="/timeline" element={<Navigate to="/events" replace />} />
         <Route path="/profile" element={<Navigate to="/my-research" replace />} />
         <Route path="/research-home" element={<Navigate to="/discover" replace />} />
