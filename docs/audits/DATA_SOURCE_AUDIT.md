@@ -70,3 +70,26 @@ The highest-risk gaps are:
 3. Map each Company workspace tab to the API endpoints actually called by its child components.
 4. Inspect tests for provider failures, empty responses, historical/as-of behavior and data freshness.
 5. Only then implement the first narrow P0 fix with regression tests. Do not remove legacy endpoints or alter the recorded research contract before checking all consumers.
+
+
+## Follow-up verification: frontend/backend event contract (confirmed)
+
+A second pass inspected the complete `src/api` directory listing, the production FastAPI registration file, the frontend API client and the Events component.
+
+- The backend directory contains no `news_router.py` or `corporate_actions_router.py`.
+- `src/api/main.py` registers research, fundamentals, technical, business, events, ownership, attribution, timeline, validation, analyst, ownership summary, F6/F7/F8, capability and change routers. It does not register news or corporate-actions routers.
+- The frontend client nevertheless requests:
+  - `GET /api/v1/companies/{symbol}/news`
+  - `GET /api/v1/companies/{symbol}/corporate-actions`
+- `CompanyEventsPanel` invokes both requests with `Promise.allSettled`. If both fail, it shows an error. If only one fails, it silently continues with the other pool and does not expose the failed pool's status. If both succeed with empty arrays, the UI says no events are recorded.
+- The panel receives timeline entries from the core company research payload, but the API calls for news and corporate actions are not backed by any registered route in this branch.
+
+**Revised assessment:** this is a confirmed P0 frontend/backend contract mismatch. It is more urgent than merely improving provider freshness. Before implementing providers, either implement the missing endpoint contracts with honest explicit `NOT_INTEGRATED`/unavailable status, or change the UI to avoid calling nonexistent routes and clearly show which pools are not integrated. Do not silently return empty lists, because that would misrepresent missing infrastructure as an absence of events.
+
+## Deployment configuration verification
+
+- `render.yaml` deploys `uvicorn src.api.main:app`, so the route registration above is the configured Render entrypoint.
+- Render builds the frontend with Vite and sets `VITE_API_URL=https://quant-research-api-50u0.onrender.com`; `frontend/.env.production` repeats that URL.
+- Render backend CORS allowlist currently names `https://quant-research-frontend.onrender.com` and localhost origins. The blueprint itself warns that the actual Render static-site origin must be verified after deployment. The configured API hostname and CORS origin therefore require live deployment verification before calling production integration healthy.
+- No Vercel configuration file exists at the audited branch root. This audit cannot confirm any separately configured Vercel deployment from repository files alone.
+
