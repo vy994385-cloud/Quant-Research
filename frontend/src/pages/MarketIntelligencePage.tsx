@@ -397,7 +397,7 @@ export default function MarketIntelligencePage() {
                   <div className="mi-header-row">
                     <span><strong>{tech?.symbol}</strong></span>
                     <span>Trading date: {formatIso(tech?.trading_date ?? "")}</span>
-                    <span>As-of: {formatIso(tech?.as_of ?? "")}</span>
+                    <span>Analysis cutoff: {formatIso(tech?.as_of ?? "")}</span>
                     {tech && <span>{tech.bars_used} bars analyzed</span>}
                   </div>
                 </div>
@@ -623,6 +623,18 @@ export default function MarketIntelligencePage() {
                         <span className="mono">{tech.missing_indicators.join(", ")}</span>
                       </div>
                     )}
+                    <div className="mi-dq-row">
+                      <span>Market data provider</span>
+                      <span className="mono">Yahoo Finance provider</span>
+                    </div>
+                    <div className="mi-dq-row">
+                      <span>Provider retrieval timestamp</span>
+                      <span className="mono">Not exposed by this endpoint</span>
+                    </div>
+                    <div className="mi-dq-row">
+                      <span>Analysis cutoff</span>
+                      <span className="mono">{tech?.as_of ? formatIso(tech.as_of) : "Unavailable"}</span>
+                    </div>
                     <div className="mi-dq-row">
                       <span>History scope</span>
                       <span className="mono">Up to 800 calendar days requested · {tech?.bars_used ?? 0} returned bars used</span>
