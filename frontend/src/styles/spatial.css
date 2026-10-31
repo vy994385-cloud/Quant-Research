@@ -596,3 +596,25 @@
   .page-market-intelligence .mi-default-next-step { align-items:flex-start; flex-direction:column; }
   .page-market-intelligence .mi-header-row { align-items:flex-start; flex-direction:column; }
 }
+
+
+.page-market-intelligence .mi-available-modules {
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  grid-column:1 / -1;
+}
+.page-market-intelligence .mi-available-modules span {
+  padding:5px 8px;
+  border:1px solid #dfe8df;
+  border-radius:6px;
+  background:#f7faf6;
+  color:#3f5b47;
+  font-size:10px;
+  font-weight:600;
+}
+.page-market-intelligence .mi-default-next-step {
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+}
+.page-market-intelligence .mi-default-next-step .mi-available-modules { grid-column:1 / -1; }
