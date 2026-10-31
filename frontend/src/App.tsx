@@ -20,6 +20,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom"
 import { DiscoveryProvider } from "./DiscoveryContext"
 import Layout from "./Layout"
 import "./App.css"
+import "./styles/spatial.css"
 
 /* ── DISCOVER ─────────────────────────────────────────────────── */
 const DiscoverPage = lazy(() => import("./pages/DiscoverPage"))
