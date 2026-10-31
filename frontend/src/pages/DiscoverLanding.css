@@ -278,3 +278,15 @@
 }
 .discover-landing .research-cutoff-note strong { color:#65552f; font-size:10px; }
 .discover-landing .research-cutoff-note span { color:#595548; }
+
+
+.discover-landing .discover-hero-hint {
+  margin:12px 0 0;
+  color:#536158;
+  font-size:11px;
+}
+.discover-landing .discover-hero-hint a {
+  color:#315f40;
+  font-weight:750;
+  text-decoration:none;
+}
