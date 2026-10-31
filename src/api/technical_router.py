@@ -276,7 +276,7 @@ def create_technical_router() -> APIRouter:
         start_date = end_date - timedelta(days=800)
         provider = YahooFinanceMarketDataProvider()
         bars = provider.get_daily_prices(symbol, start_date, end_date)
-        pit_bars = [bar for bar in bars if bar.trading_date <= end_date]
+        pit_bars = [bar for bar in bars if bar.trading_date <= end_date and bar.is_valid_ohlc]
 
         return {
             "symbol": symbol.upper(),
