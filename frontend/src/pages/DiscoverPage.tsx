@@ -283,6 +283,10 @@ export default function DiscoverPage() {
     )
   }, [items, q])
 
+  // Use the actual tracked universe for quick starts; never imply these are
+  // ranked or recommended companies.
+  const suggestedCompanies = useMemo(() => tracked.slice(0, 4), [tracked])
+
   const sectorActivity = useMemo(() => {
     const counts = new Map<string, number>()
     for (const item of items) counts.set(item.sector, (counts.get(item.sector) ?? 0) + 1)
@@ -454,9 +458,9 @@ export default function DiscoverPage() {
           )}
         </div>
         {q && (
-          <div className="discover-hero-results">
+          <div className="discover-hero-results" role="region" aria-label="Company search results" aria-live="polite">
             {matchedCompanies.length === 0 ? (
-              <EmptyCopy text="No tracked companies match this search." />
+              <EmptyCopy text="No tracked companies match this search. Try a ticker, company name, or sector." />
             ) : (
               <ul className="discover-hero-hits">
                 {matchedCompanies.slice(0, 8).map((item: DiscoveryItem) => (
@@ -470,6 +474,17 @@ export default function DiscoverPage() {
                 ))}
               </ul>
             )}
+          </div>
+        )}
+        {!q && suggestedCompanies.length > 0 && (
+          <div className="discover-search-suggestions" role="group" aria-label="Start with a tracked company">
+            <span>Start with a company</span>
+            {suggestedCompanies.map((item) => (
+              <Link key={item.symbol} to={`/companies/${encodeURIComponent(item.symbol)}`}>
+                <span className="mono">{item.symbol}</span>
+                <small>{item.company_name ?? item.symbol}</small>
+              </Link>
+            ))}
           </div>
         )}
       </section>

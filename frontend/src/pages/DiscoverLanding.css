@@ -35,3 +35,27 @@
 @media(max-width:1200px){.discover-landing .landing-quicklinks{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:650px){.discover-landing{padding:14px;margin:-12px;border-radius:14px}.discover-landing .discover-hero{padding:24px 20px;border-radius:20px}.discover-landing .landing-quicklinks{grid-template-columns:1fr;gap:10px}.discover-landing .landing-quicklink{min-height:85px}.discover-landing .landing-section-intro{align-items:start;flex-direction:column}.discover-landing .discover-hero:after{width:220px;height:220px;right:-110px;top:-100px}}
 @media(prefers-reduced-motion:reduce){.discover-landing .landing-quicklink{transition:none}.discover-landing .landing-quicklink:hover{transform:none}}
+
+
+/* Search affordances and accessible interaction states. */
+.discover-landing .discover-search-suggestions{display:flex;align-items:center;flex-wrap:wrap;gap:8px;max-width:760px;margin:14px 0 0;color:#5e6a70;font-size:12px}
+.discover-landing .discover-search-suggestions>span{font-weight:700;margin-right:3px}
+.discover-landing .discover-search-suggestions>a{display:inline-flex;align-items:center;gap:8px;max-width:100%;padding:8px 11px;border:1px solid #e7e0d7;border-radius:12px;background:rgba(255,255,255,.8);color:#293941;text-decoration:none;transition:background-color .16s ease,border-color .16s ease}
+.discover-landing .discover-search-suggestions>a:hover{background:#fff;border-color:#c9b7a8}
+.discover-landing .discover-search-suggestions .mono{font-weight:800;color:#9a6248}
+.discover-landing .discover-search-suggestions small{color:#65717a;font-size:11px}
+.discover-landing a:focus-visible,.discover-landing button:focus-visible,.discover-landing input:focus-visible{outline:3px solid #2f7f86;outline-offset:3px}
+.discover-landing .landing-quicklink:focus-visible{transform:translateY(-2px);box-shadow:0 0 0 3px rgba(47,127,134,.22)}
+.discover-landing .discover-hero-search:focus-within{border-color:#6aa6a5;box-shadow:0 0 0 3px rgba(47,127,134,.14),0 9px 24px rgba(75,69,62,.08)}
+@media(max-width:650px){
+  .discover-landing .discover-search-suggestions{align-items:stretch}
+  .discover-landing .discover-search-suggestions>span{width:100%;margin-bottom:2px}
+  .discover-landing .discover-search-suggestions>a{flex:1 1 calc(50% - 8px);min-width:0;flex-direction:column;align-items:flex-start;gap:2px}
+}
+@media(prefers-reduced-motion:reduce){
+  .discover-landing .discover-search-suggestions>a{transition:none}
+}
+@media(forced-colors:active){
+  .discover-landing .landing-quicklink,.discover-landing .discover-search-suggestions>a{border:1px solid CanvasText}
+  .discover-landing a:focus-visible,.discover-landing button:focus-visible,.discover-landing input:focus-visible{outline:2px solid Highlight}
+}

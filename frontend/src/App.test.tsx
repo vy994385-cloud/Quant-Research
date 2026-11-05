@@ -37,7 +37,7 @@ describe("App", () => {
     const { container } = renderAtRoute("/")
     expect(screen.getByText("Quant Research")).toBeInTheDocument()
     // The lazy-loaded page resolves async, so await the page heading first.
-    await screen.findByRole("heading", { name: /What.*new in the research universe/ })
+    await screen.findByRole("heading", { name: /Research with clarity/ })
     // Nav links are scoped to the side navigation: once page data resolves,
     // the page body legitimately contains the same words.
     const sideNav = container.querySelector<HTMLElement>(".side-nav")!
@@ -57,9 +57,15 @@ describe("App", () => {
     renderAtRoute("/discover")
 
     expect(
-      await screen.findByText("Tata Consultancy Services"),
+      await screen.findByRole("heading", { name: /Research with clarity/ }),
     ).toBeInTheDocument()
-    expect(screen.getByText("Infosys")).toBeInTheDocument()
+    expect(screen.getAllByText("Tata Consultancy Services").length).toBeGreaterThan(0)
+    expect(screen.getAllByText("Infosys").length).toBeGreaterThan(0)
+    expect(screen.getByRole("link", { name: /Explore companies/ })).toHaveAttribute("href", "/companies")
+    expect(screen.getByRole("link", { name: /Screen the universe/ })).toHaveAttribute("href", "/screener")
+    expect(screen.getByRole("link", { name: /Compare side by side/ })).toHaveAttribute("href", "/compare")
+    expect(screen.getByRole("link", { name: /Follow the evidence/ })).toHaveAttribute("href", "/evidence")
+    expect(screen.getByRole("group", { name: "Start with a tracked company" })).toBeInTheDocument()
   })
 
   it("renders the company workspace with tabbed sections", async () => {
