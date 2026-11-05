@@ -33,8 +33,8 @@ describe("App", () => {
   it("renders the primary side navigation", async () => {
     mockedFetchDiscovery.mockResolvedValue(DISCOVERY)
     mockedFetchResearch.mockResolvedValue(RESEARCH)
-    // "/" redirects into the Discover page.
-    const { container } = renderAtRoute("/")
+    // The public landing page owns "/", so this shell test starts at Discover.
+    const { container } = renderAtRoute("/discover")
     expect(screen.getByText("Quant Research")).toBeInTheDocument()
     // The lazy-loaded page resolves async, so await the page heading first.
     await screen.findByRole("heading", { name: /What.*new in the research universe/ })
