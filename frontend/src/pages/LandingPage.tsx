@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import {
   ArrowDown,
   ArrowRight,
@@ -143,19 +143,12 @@ function ProductPreview() {
 export default function LandingPage() {
   useScrollReveal()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const mobileMenuToggleRef = useRef<HTMLButtonElement | null>(null)
 
   function closeMobileMenu() {
     setMobileMenuOpen(false)
+    mobileMenuToggleRef.current?.focus()
   }
-
-  useEffect(() => {
-    if (!mobileMenuOpen) return
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") closeMobileMenu()
-    }
-    window.addEventListener("keydown", handleKeyDown)
-    return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [mobileMenuOpen])
 
   return (
     <main className="landing-page" id="top">
@@ -169,12 +162,12 @@ export default function LandingPage() {
           </nav>
           <div className="landing-header-actions">
             <Link className="landing-header-cta" to="/market-intelligence">Explore markets <ArrowRight size={15} /></Link>
-            <button className="landing-menu-toggle" type="button" aria-label={mobileMenuOpen ? "Close navigation menu" : "Open navigation menu"} aria-expanded={mobileMenuOpen} aria-controls="landing-mobile-navigation" onClick={() => setMobileMenuOpen((open) => !open)}>
+            <button className="landing-menu-toggle" type="button" aria-label={mobileMenuOpen ? "Close navigation menu" : "Open navigation menu"} aria-expanded={mobileMenuOpen} aria-controls="landing-mobile-navigation" ref={mobileMenuToggleRef} onClick={() => setMobileMenuOpen((open) => !open)}>
               {mobileMenuOpen ? <X size={19} /> : <Menu size={19} />}
             </button>
           </div>
         </div>
-        <nav id="landing-mobile-navigation" className={`landing-mobile-nav${mobileMenuOpen ? " is-open" : ""}`} aria-label="Mobile navigation" aria-hidden={!mobileMenuOpen} hidden={!mobileMenuOpen}>
+        <nav id="landing-mobile-navigation" className={`landing-mobile-nav${mobileMenuOpen ? " is-open" : ""}`} aria-label="Mobile navigation" aria-hidden={!mobileMenuOpen} hidden={!mobileMenuOpen} onKeyDown={(event) => { if (event.key === "Escape") closeMobileMenu() }}>
           <a href="#platform" onClick={closeMobileMenu}>Platform <ArrowRight size={14} /></a>
           <a href="#workflow" onClick={closeMobileMenu}>How it works <ArrowRight size={14} /></a>
           <a href="#methodology" onClick={closeMobileMenu}>Methodology <ArrowRight size={14} /></a>
