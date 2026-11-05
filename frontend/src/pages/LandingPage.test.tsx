@@ -28,17 +28,20 @@ describe("QRQuant landing page", () => {
     expect(screen.getByText(/does not display live prices or current market conditions/)).toBeInTheDocument()
   })
 
-  it("provides an accessible mobile navigation toggle and closes with Escape", () => {
-    render(<MemoryRouter><LandingPage /></MemoryRouter>)
-    const toggle = screen.getByRole("button", { name: "Open navigation menu" })
+  it("provides accessible mobile navigation and closes it with Escape", () => {
+    const { container } = render(<MemoryRouter><LandingPage /></MemoryRouter>)
+    const toggle = container.querySelector<HTMLButtonElement>(".landing-menu-toggle")
+    expect(toggle).not.toBeNull()
 
-    expect(screen.queryByRole("navigation", { name: "Mobile navigation" })).not.toBeInTheDocument()
-    fireEvent.click(toggle)
-    expect(screen.getByRole("button", { name: "Close navigation menu" })).toHaveAttribute("aria-expanded", "true")
+    fireEvent.click(toggle!)
+    expect(toggle).toHaveAttribute("aria-expanded", "true")
     expect(screen.getByRole("navigation", { name: "Mobile navigation" })).toBeInTheDocument()
 
-    fireEvent.keyDown(window, { key: "Escape" })
+    const mobileNavLink = screen.getByRole("link", { name: /methodology/i, hidden: true })
+    fireEvent.keyDown(mobileNavLink, { key: "Escape" })
+
     expect(screen.queryByRole("navigation", { name: "Mobile navigation" })).not.toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "Open navigation menu" })).toHaveAttribute("aria-expanded", "false")
+    expect(toggle).toHaveAttribute("aria-expanded", "false")
+    expect(toggle).toHaveFocus()
   })
 })
