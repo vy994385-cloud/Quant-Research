@@ -366,6 +366,8 @@
 [data-reveal-delay="70"] { --reveal-delay: 70ms; }
 [data-reveal-delay="100"] { --reveal-delay: 100ms; }
 [data-reveal-delay="120"] { --reveal-delay: 120ms; }
+[data-reveal-delay="140"] { --reveal-delay: 140ms; }
+[data-reveal-delay="210"] { --reveal-delay: 210ms; }
 @media (prefers-reduced-motion: reduce) {
   .landing-page *, .landing-page *::before, .landing-page *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
   [data-reveal] { opacity: 1; transform: none; }
