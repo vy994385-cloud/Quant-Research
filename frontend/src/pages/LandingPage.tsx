@@ -174,7 +174,7 @@ export default function LandingPage() {
             </button>
           </div>
         </div>
-        <nav id="landing-mobile-navigation" className={`landing-mobile-nav${mobileMenuOpen ? " is-open" : ""}`} aria-label="Mobile navigation" aria-hidden={!mobileMenuOpen}>
+        <nav id="landing-mobile-navigation" className={`landing-mobile-nav${mobileMenuOpen ? " is-open" : ""}`} aria-label="Mobile navigation" aria-hidden={!mobileMenuOpen} hidden={!mobileMenuOpen}>
           <a href="#platform" onClick={closeMobileMenu}>Platform <ArrowRight size={14} /></a>
           <a href="#workflow" onClick={closeMobileMenu}>How it works <ArrowRight size={14} /></a>
           <a href="#methodology" onClick={closeMobileMenu}>Methodology <ArrowRight size={14} /></a>
