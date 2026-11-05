@@ -37,8 +37,9 @@ describe("QRQuant landing page", () => {
     expect(toggle).toHaveAttribute("aria-expanded", "true")
     expect(screen.getByRole("navigation", { name: "Mobile navigation" })).toBeInTheDocument()
 
-    const mobileNavLink = screen.getByRole("link", { name: /methodology/i, hidden: true })
-    fireEvent.keyDown(mobileNavLink, { key: "Escape" })
+    const mobileNavLink = container.querySelector<HTMLAnchorElement>("#landing-mobile-navigation a[href=\"#methodology\"]")
+    expect(mobileNavLink).not.toBeNull()
+    fireEvent.keyDown(mobileNavLink!, { key: "Escape" })
 
     expect(screen.queryByRole("navigation", { name: "Mobile navigation" })).not.toBeInTheDocument()
     expect(toggle).toHaveAttribute("aria-expanded", "false")
