@@ -1,5 +1,3 @@
-@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap");
-
 .landing-page {
   --lp-ink: #173b57;
   --lp-blue: #3978a8;
@@ -10,14 +8,14 @@
   --lp-mint: #eaf4f1;
   color: #1c2935;
   background: var(--lp-paper);
-  font-family: "DM Sans", Inter, ui-sans-serif, system-ui, sans-serif;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
   overflow: clip;
 }
 .landing-page * { box-sizing: border-box; }
 .landing-page a { color: inherit; }
 .landing-header { position: absolute; inset: 0 0 auto; z-index: 10; color: #fff; }
 .landing-header-inner { width: min(1240px, calc(100% - 64px)); height: 82px; margin: auto; display: flex; align-items: center; justify-content: space-between; gap: 28px; border-bottom: 1px solid rgba(255,255,255,.15); }
-.landing-brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; font: 800 19px Manrope, sans-serif; letter-spacing: -.04em; }
+.landing-brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; font: 800 19px Inter, ui-sans-serif; letter-spacing: -.04em; }
 .landing-brand-mark { width: 30px; height: 30px; display: grid; place-items: center; border: 1px solid rgba(255,255,255,.5); border-radius: 9px; background: rgba(255,255,255,.1); font-size: 15px; }
 .landing-nav { display: flex; align-items: center; gap: 34px; margin-left: auto; margin-right: 18px; }
 .landing-nav a, .landing-header-cta { text-decoration: none; font-size: 13px; color: rgba(255,255,255,.78); transition: color .2s ease; }
