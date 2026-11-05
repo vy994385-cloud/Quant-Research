@@ -348,11 +348,11 @@ export function formatPeriodDelta(
 
   const absolute = curr - prev
   // Fraction of the previous value; formatDeltaPct scales by 100.
-  const ratio = prev !== 0 ? absolute / Math.abs(prev) : 0
+  const ratio = prev !== 0 ? absolute / Math.abs(prev) : null
 
   return {
     absolute: formatDelta(absolute),
-    percentage: formatDeltaPct(ratio),
+    percentage: ratio === null ? "\u2014" : formatDeltaPct(ratio),
   }
 }
 

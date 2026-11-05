@@ -21,8 +21,13 @@ import type {
 } from "./types"
 import type { ApiErrorBody } from "./types"
 
-export const API_URL =
-  import.meta.env.VITE_API_URL || "http://127.0.0.1:8000"
+const configuredApiUrl = import.meta.env.VITE_API_URL?.trim()
+
+if (import.meta.env.PROD && !configuredApiUrl) {
+  throw new Error("Missing VITE_API_URL: production API endpoint must be configured.")
+}
+
+export const API_URL = (configuredApiUrl || "http://127.0.0.1:8000").replace(/\/$/, "")
 
 export const HORIZONS = [
   "INTRADAY",
