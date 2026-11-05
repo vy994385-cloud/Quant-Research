@@ -22,6 +22,7 @@ import Layout from "./Layout"
 import "./App.css"
 
 /* ── DISCOVER ─────────────────────────────────────────────────── */
+const LandingPage = lazy(() => import("./pages/LandingPage"))
 const DiscoverPage = lazy(() => import("./pages/DiscoverPage"))
 const GlobalSearchPage = lazy(() => import("./pages/GlobalSearchPage"))
 const CompaniesPage = lazy(() => import("./pages/CompaniesPage"))
@@ -75,8 +76,8 @@ function Page({ children }: { children: React.ReactNode }) {
 export function AppRoutes() {
   return (
     <Routes>
+      <Route path="/" element={<Page><LandingPage /></Page>} />
       <Route element={<Layout />}>
-        <Route path="/" element={<Navigate to="/discover" replace />} />
 
         {/* ── DISCOVER ─────────────────────────────────────────── */}
         <Route path="/discover" element={<Page><DiscoverPage /></Page>} />
