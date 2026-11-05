@@ -46,7 +46,7 @@ function Brand() {
 
 function ProductPreview() {
   return (
-    <div className="landing-preview" aria-label="Illustrative QRQuant research interface">
+    <div className="landing-preview" role="img" aria-label="Illustrative QRQuant research interface">
       <div className="preview-topbar">
         <span className="preview-window-dots" aria-hidden><i /><i /><i /></span>
         <span>QRQUANT / RESEARCH</span>
@@ -98,7 +98,7 @@ export default function LandingPage() {
   useScrollReveal()
 
   return (
-    <main className="landing-page">
+    <main className="landing-page" id="top">
       <header className="landing-header">
         <div className="landing-header-inner">
           <Brand />
