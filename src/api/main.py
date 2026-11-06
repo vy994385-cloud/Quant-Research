@@ -55,6 +55,7 @@ from src.api.f7_router import create_f7_router
 from src.api.f8_router import create_f8_router
 from src.api.capability_router import create_capability_router
 from src.api.change_router import create_change_router
+from src.api.v2.market_router import create_v2_market_router
 
 import os
 
@@ -104,6 +105,7 @@ app.include_router(create_f7_router())
 app.include_router(create_f8_router())
 app.include_router(create_capability_router())
 app.include_router(create_change_router())
+app.include_router(create_v2_market_router())
 
 
 # ---------------------------------------------------------------------
