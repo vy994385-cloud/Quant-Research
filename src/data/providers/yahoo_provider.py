@@ -9,9 +9,29 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import quote
 from urllib.request import Request, urlopen
 
+from pydantic import BaseModel, ConfigDict
+
 from src.data.models import PriceBar
 
 from .base import MarketDataProvider
+
+
+class SecurityMetadata(BaseModel):
+    """
+    Normalized security identity returned by the Yahoo Chart endpoint.
+
+    This is deliberately separate from PriceBar so historical market
+    observations remain a stable provider-independent contract.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    symbol: str
+    company_name: str | None = None
+    exchange: str | None = None
+    currency: str | None = None
+    instrument_type: str | None = None
+    metadata_source: str = "yahoo_chart"
 
 
 class YahooFinanceMarketDataProvider(MarketDataProvider):
@@ -46,11 +66,9 @@ class YahooFinanceMarketDataProvider(MarketDataProvider):
         if normalized in {"NIFTY", "NIFTY50", "NIFTY_50"}:
             return "^NSEI"
 
-        # Preserve explicit Yahoo symbols and indices.
         if normalized.startswith("^") or "." in normalized:
             return normalized
 
-        # Default project universe is Indian NSE equities.
         return f"{normalized}.NS"
 
     @staticmethod
@@ -65,28 +83,17 @@ class YahooFinanceMarketDataProvider(MarketDataProvider):
 
     @staticmethod
     def _ssl_context() -> ssl.SSLContext:
-        """
-        Build an explicit certificate context.
-
-        Python installations on macOS can occasionally fail to
-        locate the system CA bundle correctly. certifi provides
-        a maintained CA bundle for HTTPS verification.
-        """
         return ssl.create_default_context(
             cafile=certifi.where()
         )
 
-    def get_daily_prices(
+    def _request_chart(
         self,
         symbol: str,
         start_date: date,
         end_date: date,
-    ) -> list[PriceBar]:
-
-        self._validate_date_range(
-            start_date,
-            end_date,
-        )
+    ) -> dict:
+        self._validate_date_range(start_date, end_date)
 
         requested_symbol = symbol.strip().upper()
 
@@ -97,8 +104,6 @@ class YahooFinanceMarketDataProvider(MarketDataProvider):
             requested_symbol
         )
 
-        # Yahoo's period2 is exclusive, so request one day after
-        # the requested end date.
         period1 = int(
             datetime(
                 start_date.year,
@@ -136,13 +141,11 @@ class YahooFinanceMarketDataProvider(MarketDataProvider):
             },
         )
 
-        ssl_context = self._ssl_context()
-
         try:
             with urlopen(
                 request,
                 timeout=self.timeout,
-                context=ssl_context,
+                context=self._ssl_context(),
             ) as response:
                 payload = json.loads(
                     response.read().decode("utf-8")
@@ -178,9 +181,100 @@ class YahooFinanceMarketDataProvider(MarketDataProvider):
         results = chart.get("result") or []
 
         if not results:
-            return []
+            return {}
 
-        result = results[0]
+        return results[0]
+
+    @staticmethod
+    def _metadata_from_chart(
+        requested_symbol: str,
+        result: dict,
+    ) -> SecurityMetadata:
+        meta = result.get("meta") or {}
+
+        company_name = (
+            meta.get("longName")
+            or meta.get("shortName")
+        )
+
+        exchange = (
+            meta.get("fullExchangeName")
+            or meta.get("exchangeName")
+        )
+
+        currency = meta.get("currency")
+        instrument_type = meta.get("instrumentType")
+
+        return SecurityMetadata(
+            symbol=requested_symbol,
+            company_name=company_name,
+            exchange=exchange,
+            currency=currency,
+            instrument_type=instrument_type,
+        )
+
+    def get_metadata(
+        self,
+        symbol: str,
+    ) -> SecurityMetadata:
+        """
+        Fetch normalized identity metadata from Yahoo Chart.
+
+        A minimal recent window is used because Yahoo exposes the
+        identity metadata in the same Chart response as the prices.
+        """
+
+        today = date.today()
+
+        result = self._request_chart(
+            symbol=symbol,
+            start_date=today,
+            end_date=today,
+        )
+
+        if not result:
+            raise RuntimeError(
+                f"Yahoo Finance returned no metadata for {symbol}."
+            )
+
+        requested_symbol = symbol.strip().upper()
+
+        return self._metadata_from_chart(
+            requested_symbol=requested_symbol,
+            result=result,
+        )
+
+    def get_daily_prices_with_metadata(
+        self,
+        symbol: str,
+        start_date: date,
+        end_date: date,
+    ) -> tuple[list[PriceBar], SecurityMetadata]:
+        """
+        Fetch normalized daily prices and identity metadata from one
+        Yahoo Chart response.
+
+        This is the preferred V2 path because Yahoo exposes both
+        observations and identity metadata in the same response.
+        """
+
+        result = self._request_chart(
+            symbol=symbol,
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+        requested_symbol = symbol.strip().upper()
+
+        if not result:
+            return [], SecurityMetadata(
+                symbol=requested_symbol,
+            )
+
+        metadata = self._metadata_from_chart(
+            requested_symbol=requested_symbol,
+            result=result,
+        )
 
         timestamps = result.get("timestamp") or []
 
@@ -207,16 +301,12 @@ class YahooFinanceMarketDataProvider(MarketDataProvider):
 
             if index >= len(opens):
                 continue
-
             if index >= len(highs):
                 continue
-
             if index >= len(lows):
                 continue
-
             if index >= len(closes):
                 continue
-
             if index >= len(volumes):
                 continue
 
@@ -228,7 +318,6 @@ class YahooFinanceMarketDataProvider(MarketDataProvider):
                 volumes[index],
             )
 
-            # Never invent incomplete observations.
             if any(value is None for value in values):
                 continue
 
@@ -244,8 +333,14 @@ class YahooFinanceMarketDataProvider(MarketDataProvider):
                 continue
 
             adj_close_value = None
-            if index < len(adjcloses) and adjcloses[index] is not None:
-                adj_close_value = Decimal(str(adjcloses[index]))
+
+            if (
+                index < len(adjcloses)
+                and adjcloses[index] is not None
+            ):
+                adj_close_value = Decimal(
+                    str(adjcloses[index])
+                )
 
             bars.append(
                 PriceBar(
@@ -260,7 +355,31 @@ class YahooFinanceMarketDataProvider(MarketDataProvider):
                 )
             )
 
-        return sorted(
-            bars,
-            key=lambda bar: bar.trading_date,
+        return (
+            sorted(
+                bars,
+                key=lambda bar: bar.trading_date,
+            ),
+            metadata,
         )
+
+    def get_daily_prices(
+        self,
+        symbol: str,
+        start_date: date,
+        end_date: date,
+    ) -> list[PriceBar]:
+        """
+        Preserve the existing MarketDataProvider contract.
+
+        V2 callers that also need identity metadata should use
+        get_daily_prices_with_metadata().
+        """
+
+        bars, _metadata = self.get_daily_prices_with_metadata(
+            symbol=symbol,
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+        return bars
